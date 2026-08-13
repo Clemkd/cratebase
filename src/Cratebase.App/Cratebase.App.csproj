@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>Cratebase.App</RootNamespace>
+    <UserSecretsId>cratebase-app</UserSecretsId>
+    <!-- La SPA compilée est copiée ici par le Dockerfile ; absente en développement. -->
+    <SpaRoot>wwwroot</SpaRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cratebase.Server\Cratebase.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+</Project>

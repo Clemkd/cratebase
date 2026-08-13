@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Stockage d'objets de Cratebase : abstraction, implémentation sur disque local, vignettes.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cratebase.Core\Cratebase.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
+    <!-- Les binaires natifs Linux : sans eux, la génération de vignettes compile mais lève au
+         premier appel dans le conteneur, et seulement là. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+  </ItemGroup>
+
+</Project>

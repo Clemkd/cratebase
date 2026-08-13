@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cratebase.App/Cratebase.App.csproj" />
+    <Project Path="src/Cratebase.Auth/Cratebase.Auth.csproj" />
+    <Project Path="src/Cratebase.Core/Cratebase.Core.csproj" />
+    <Project Path="src/Cratebase.Data.Postgres/Cratebase.Data.Postgres.csproj" />
+    <Project Path="src/Cratebase.Data.Sqlite/Cratebase.Data.Sqlite.csproj" />
+    <Project Path="src/Cratebase.Data/Cratebase.Data.csproj" />
+    <Project Path="src/Cratebase.Expressions/Cratebase.Expressions.csproj" />
+    <Project Path="src/Cratebase.Records/Cratebase.Records.csproj" />
+    <Project Path="src/Cratebase.Schema/Cratebase.Schema.csproj" />
+    <Project Path="src/Cratebase.Server/Cratebase.Server.csproj" />
+    <Project Path="src/Cratebase.Storage.S3/Cratebase.Storage.S3.csproj" />
+    <Project Path="src/Cratebase.Storage/Cratebase.Storage.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Cratebase.UnitTests/Cratebase.UnitTests.csproj" />
+  </Folder>
+</Solution>

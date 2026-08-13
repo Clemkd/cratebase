@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CA1707;CA2007</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Cratebase.Core\Cratebase.Core.csproj" />
+    <ProjectReference Include="..\..\src\Cratebase.Expressions\Cratebase.Expressions.csproj" />
+    <ProjectReference Include="..\..\src\Cratebase.Data\Cratebase.Data.csproj" />
+    <ProjectReference Include="..\..\src\Cratebase.Data.Sqlite\Cratebase.Data.Sqlite.csproj" />
+    <ProjectReference Include="..\..\src\Cratebase.Data.Postgres\Cratebase.Data.Postgres.csproj" />
+    <ProjectReference Include="..\..\src\Cratebase.Auth\Cratebase.Auth.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+</Project>

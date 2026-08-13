@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Langage de filtre de Cratebase : analyse lexicale, syntaxique et sémantique. Produit un arbre de prédicats, jamais du SQL.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cratebase.Core\Cratebase.Core.csproj" />
+  </ItemGroup>
+
+</Project>

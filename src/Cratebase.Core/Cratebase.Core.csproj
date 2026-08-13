@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Abstractions de Cratebase : système de types logiques, identifiants, contexte d'appel. Aucune dépendance externe.</Description>
+  </PropertyGroup>
+
+</Project>

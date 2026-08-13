@@ -1,0 +1,156 @@
+@import 'tailwindcss';
+
+/*
+ * Thème sombre piloté par une classe sur <html>, jamais par la seule media query.
+ *
+ * La préférence système est lue en JavaScript (matchMedia) et résolue en une classe : c'est le seul
+ * moyen d'avoir une bascule explicite qui prime sur le système, dans les deux sens, sans dupliquer
+ * chaque couleur dans une media query et dans un sélecteur d'attribut.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+   Jetons de design. Tailwind v4 : les variables déclarées dans @theme deviennent
+   des utilitaires (bg-surface, text-ink-muted, rounded-card, …).
+
+   Les teintes reprennent celles du projet de référence. Seules les luminosités qui
+   ne tenaient pas le contraste AA (4,5:1) ont été abaissées — `ink-faint`, `brand`,
+   `success`, `warning`, `danger` en thème clair —, parce qu'une console affiche ces
+   couleurs en corps de texte (état d'un compte, avertissement de schéma), et pas
+   seulement en décor.
+
+   Même raison pour `danger-ink`, qui n'existe pas dans la référence : un aplat rouge
+   sombre en thème clair et un aplat rouge clair en thème sombre ne peuvent pas porter
+   la même encre.
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-canvas: oklch(98.5% 0.002 250);
+  --color-surface: oklch(100% 0 0);
+  /* Surfaces posées au-dessus de la page : modales, infobulles, notifications. En thème clair
+     elles se confondent avec `surface` ; en sombre, c'est ce demi-ton qui les en détache. */
+  --color-surface-raised: oklch(100% 0 0);
+  --color-surface-sunken: oklch(96.8% 0.003 250);
+  /* Survol d'une ligne de tableau : distinct du fond creusé, qui sert déjà d'en-tête. */
+  --color-surface-hover: oklch(95.4% 0.004 250);
+
+  --color-border-subtle: oklch(92% 0.004 250);
+  --color-border-strong: oklch(85% 0.006 250);
+
+  --color-ink: oklch(21% 0.015 265);
+  --color-ink-muted: oklch(50% 0.012 265);
+  --color-ink-faint: oklch(53% 0.012 265);
+
+  --color-brand: oklch(54% 0.19 292);
+  --color-brand-hover: oklch(48% 0.2 292);
+  --color-brand-subtle: oklch(96% 0.025 292);
+  --color-brand-ink: oklch(100% 0 0);
+
+  --color-success: oklch(48% 0.14 150);
+  --color-warning: oklch(49% 0.12 70);
+  --color-danger: oklch(53% 0.2 25);
+  --color-danger-subtle: oklch(95% 0.03 25);
+  /* Texte posé sur un aplat `danger`. Il ne peut pas être blanc dans les deux thèmes : le rouge
+     sombre du thème clair et le rouge clair du thème sombre demandent des encres opposées. */
+  --color-danger-ink: oklch(100% 0 0);
+
+  --radius-card: 0.875rem;
+  --radius-control: 0.625rem;
+
+  --shadow-card: 0 1px 2px 0 oklch(21% 0.015 265 / 0.05), 0 1px 3px 0 oklch(21% 0.015 265 / 0.06);
+  --shadow-popover: 0 10px 30px -12px oklch(21% 0.015 265 / 0.25);
+
+  --font-sans: 'Inter var', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* La console affiche des identifiants, des expressions de filtre et des noms de colonnes :
+     une chasse fixe y est une information, pas un effet de style. */
+  --font-mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', 'Menlo', monospace;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    --color-canvas: oklch(17% 0.012 265);
+    --color-surface: oklch(21% 0.014 265);
+    --color-surface-raised: oklch(25% 0.015 265);
+    --color-surface-sunken: oklch(14% 0.01 265);
+    --color-surface-hover: oklch(26% 0.015 265);
+
+    --color-border-subtle: oklch(28% 0.014 265);
+    --color-border-strong: oklch(36% 0.016 265);
+
+    --color-ink: oklch(96% 0.004 265);
+    --color-ink-muted: oklch(72% 0.012 265);
+    --color-ink-faint: oklch(64% 0.013 265);
+
+    --color-brand: oklch(68% 0.17 292);
+    --color-brand-hover: oklch(74% 0.16 292);
+    --color-brand-subtle: oklch(28% 0.06 292);
+    --color-brand-ink: oklch(15% 0.01 292);
+
+    --color-success: oklch(74% 0.14 150);
+    --color-warning: oklch(80% 0.13 80);
+    --color-danger: oklch(70% 0.17 25);
+    --color-danger-subtle: oklch(27% 0.06 25);
+    --color-danger-ink: oklch(16% 0.02 25);
+
+    --shadow-card: 0 1px 2px 0 oklch(0% 0 0 / 0.3), 0 1px 3px 0 oklch(0% 0 0 / 0.25);
+    --shadow-popover: 0 10px 30px -12px oklch(0% 0 0 / 0.6);
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+    text-rendering: optimizeLegibility;
+
+    /* Rien ne fait défiler la page latéralement : ce sont les tableaux qui défilent, dans leur
+       propre conteneur. `clip` et non `hidden` — ce dernier ferait du corps un conteneur de
+       défilement, ce qui casserait les barres d'action collantes qu'il contient. */
+    overflow-x: clip;
+  }
+
+  /* Anneau de focus homogène et visible dans les deux thèmes. */
+  :focus-visible {
+    @apply outline-brand outline-2 outline-offset-2;
+  }
+
+  ::selection {
+    @apply bg-brand-subtle text-ink;
+  }
+
+  /* La console affiche beaucoup de listes : une barre de défilement discrète évite qu'elles
+     dominent visuellement le contenu qu'elles bordent. */
+  * {
+    scrollbar-color: var(--color-border-strong) transparent;
+    scrollbar-width: thin;
+  }
+
+  dialog {
+    @apply text-ink bg-transparent p-0;
+    max-width: none;
+    max-height: none;
+  }
+
+  dialog::backdrop {
+    background-color: oklch(15% 0.01 265 / 0.55);
+  }
+
+  /* Les champs natifs n'héritent pas de la police du document sur toutes les plateformes. */
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

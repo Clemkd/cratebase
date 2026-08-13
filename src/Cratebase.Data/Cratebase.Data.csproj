@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Couche d'accès aux données de Cratebase : abstraction de dialecte SQL, compilation de l'arbre de prédicats, transactions et reprise.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cratebase.Core\Cratebase.Core.csproj" />
+    <ProjectReference Include="..\Cratebase.Expressions\Cratebase.Expressions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" />
+  </ItemGroup>
+
+</Project>

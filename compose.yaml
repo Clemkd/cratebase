@@ -1,0 +1,45 @@
+# Déploiement de départ : un seul conteneur, un seul volume.
+#
+# Passer à l'échelle ne remplace rien — on décommente le service PostgreSQL et on pose la chaîne
+# de connexion. L'image reste la même, le code aussi, les collections aussi.
+
+services:
+  cratebase:
+    build: .
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Cratebase__DataDirectory: /data
+      # Décommenter pour basculer sur PostgreSQL. C'est le seul changement nécessaire.
+      # ConnectionStrings__Postgres: "Host=postgres;Database=cratebase;Username=cratebase;Password=${POSTGRES_PASSWORD:?}"
+    volumes:
+      - cratebase-data:/data
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8090/api/health | grep -q '\"status\":\"ok\"'"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+  # postgres:
+  #   image: postgres:18-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: cratebase
+  #     POSTGRES_USER: cratebase
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+  #   volumes:
+  #     # ⚠️ PostgreSQL 18 : monter à la racine du répertoire de données, et non sur /data —
+  #     # un montage au mauvais endroit est ignoré et le conteneur refuse de démarrer.
+  #     - cratebase-postgres:/var/lib/postgresql
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U cratebase -d cratebase"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  cratebase-data:
+  # cratebase-postgres:

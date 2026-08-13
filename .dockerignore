@@ -1,0 +1,22 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.vs/
+**/.idea/
+**/TestResults/
+
+# Données d'exécution locales : ne jamais entrer dans une image.
+data/
+**/data/
+*.db
+*.db-shm
+*.db-wal
+
+# La console est recompilée dans l'image ; ne pas y injecter un wwwroot local périmé.
+src/Cratebase.App/wwwroot/
+
+.git/
+.gitignore
+*.md
+tests/

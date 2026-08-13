@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Hôte de Cratebase : câblage d'injection de dépendances, endpoints HTTP, traduction des erreurs. S'ajoute à une application ASP.NET Core existante par AddCratebase() et MapCratebase().</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cratebase.Records\Cratebase.Records.csproj" />
+    <ProjectReference Include="..\Cratebase.Auth\Cratebase.Auth.csproj" />
+    <ProjectReference Include="..\Cratebase.Storage\Cratebase.Storage.csproj" />
+    <ProjectReference Include="..\Cratebase.Storage.S3\Cratebase.Storage.S3.csproj" />
+    <ProjectReference Include="..\Cratebase.Data.Sqlite\Cratebase.Data.Sqlite.csproj" />
+    <ProjectReference Include="..\Cratebase.Data.Postgres\Cratebase.Data.Postgres.csproj" />
+  </ItemGroup>
+
+</Project>

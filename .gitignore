@@ -1,0 +1,19 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+
+node_modules/
+dist/
+.vite/
+
+# Données d'exécution : base SQLite, fichiers stockés, sauvegardes.
+data/
+*.db
+*.db-shm
+*.db-wal
+
+TestResults/
+coverage/
+*.received.*
