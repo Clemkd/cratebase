@@ -101,31 +101,50 @@ public sealed class SchemaStore(IDbConnectionFactory connections)
 
         try
         {
-            var sql = $"""
-                       INSERT INTO {dialect.QuoteIdentifier(CollectionsTable)}
-                         ({dialect.QuoteIdentifier("id")}, {dialect.QuoteIdentifier("name")},
-                          {dialect.QuoteIdentifier("definition")}, {dialect.QuoteIdentifier("created")},
-                          {dialect.QuoteIdentifier("updated")})
-                       VALUES (@id, @name, @definition, @created, @updated)
-                       ON CONFLICT ({dialect.QuoteIdentifier("id")}) DO UPDATE SET
-                         {dialect.QuoteIdentifier("name")} = @name,
+            var id = collection.Id.ToString();
+            var definition = Serialize(collection);
+            var updatedAt = Timestamp.Normalize(collection.Updated);
+
+            // Mise à jour puis insertion si rien n'a bougé, plutôt qu'un « INSERT … ON CONFLICT » :
+            // la clause d'upsert relève du dialecte, et la règle R1 lui interdit d'apparaître ici.
+            // Les appels qui portent une transaction — c'est le cas de CollectionRegistry — rendent
+            // la séquence atomique ; les autres écrivent une définition à la fois, sur action
+            // d'administration.
+            var updated = await connection.ExecuteAsync(new CommandDefinition(
+                    $"""
+                     UPDATE {dialect.QuoteIdentifier(CollectionsTable)}
+                     SET {dialect.QuoteIdentifier("name")} = @name,
                          {dialect.QuoteIdentifier("definition")} = @definition,
                          {dialect.QuoteIdentifier("updated")} = @updated
-                       """;
-
-            await connection.ExecuteAsync(new CommandDefinition(
-                    sql,
-                    new
-                    {
-                        id = collection.Id.ToString(),
-                        name = collection.Name,
-                        definition = Serialize(collection),
-                        created = Timestamp.Normalize(collection.Created),
-                        updated = Timestamp.Normalize(collection.Updated),
-                    },
+                     WHERE {dialect.QuoteIdentifier("id")} = @id
+                     """,
+                    new { id, name = collection.Name, definition, updated = updatedAt },
                     transaction,
                     cancellationToken: cancellationToken))
                 .ConfigureAwait(false);
+
+            if (updated == 0)
+            {
+                await connection.ExecuteAsync(new CommandDefinition(
+                        $"""
+                         INSERT INTO {dialect.QuoteIdentifier(CollectionsTable)}
+                           ({dialect.QuoteIdentifier("id")}, {dialect.QuoteIdentifier("name")},
+                            {dialect.QuoteIdentifier("definition")}, {dialect.QuoteIdentifier("created")},
+                            {dialect.QuoteIdentifier("updated")})
+                         VALUES (@id, @name, @definition, @created, @updated)
+                         """,
+                        new
+                        {
+                            id,
+                            name = collection.Name,
+                            definition,
+                            created = Timestamp.Normalize(collection.Created),
+                            updated = updatedAt,
+                        },
+                        transaction,
+                        cancellationToken: cancellationToken))
+                    .ConfigureAwait(false);
+            }
         }
         finally
         {
