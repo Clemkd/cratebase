@@ -1,11 +1,23 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { LogOut, Menu, Monitor, Moon, Sun, X } from 'lucide-react'
+import {
+  LogOut,
+  Menu,
+  Monitor,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sun,
+  X,
+} from 'lucide-react'
 import { api, type Collection, type Identity } from '../api'
 import { useTheme, type ThemePreference } from '../hooks/useTheme'
 import type { Route } from '../hooks/useRoute'
-import { Button, SegmentedControl, Tooltip } from '../ui'
+import { readFlag, writeFlag } from '../lib/preferences'
+import { Button, SegmentedControl, Tooltip, cn } from '../ui'
 import { Breadcrumbs } from './Breadcrumbs'
 import { Sidebar } from './Sidebar'
+
+const COLLAPSED_KEY = 'cratebase.sidebar.collapsed'
 
 /**
  * Coquille applicative : colonne de navigation, barre supérieure, zone de contenu.
@@ -19,6 +31,7 @@ export function AppShell({
   collections,
   loading,
   engine,
+  appName,
   route,
   activeCollection,
   onSelectCollection,
@@ -30,6 +43,8 @@ export function AppShell({
   collections: Collection[]
   loading: boolean
   engine: string
+  /** Nom de l'instance, tel qu'il est réglé dans l'administration. */
+  appName: string
   route: Route
   activeCollection: Collection | null
   onSelectCollection: (name: string) => void
@@ -37,6 +52,12 @@ export function AppShell({
   children: ReactNode
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => readFlag(COLLAPSED_KEY, false))
+
+  const collapse = (next: boolean) => {
+    setCollapsed(next)
+    writeFlag(COLLAPSED_KEY, next)
+  }
 
   // Le tiroir se referme à chaque navigation, sinon il masquerait l'écran atteint.
   useEffect(() => {
@@ -56,21 +77,36 @@ export function AppShell({
     return () => globalThis.removeEventListener('keydown', onKeyDown)
   }, [drawerOpen])
 
-  const sidebar = (
+  const sidebar = (reduced: boolean) => (
     <Sidebar
       collections={collections}
       loading={loading}
       engine={engine}
+      appName={appName}
+      route={route}
+      collapsed={reduced}
       activeName={activeCollection?.name ?? null}
       onSelect={onSelectCollection}
       onCreate={onCreateCollection}
+      onExpand={() => collapse(false)}
     />
   )
 
   return (
     <div className="flex h-dvh overflow-hidden bg-canvas">
-      <div className="hidden w-64 shrink-0 lg:block">{sidebar}</div>
+      {/* La largeur est portée ici et non dans la colonne : c'est elle qui décale le contenu, et
+          l'animer d'un seul endroit évite que le décalage et le repli se désynchronisent. */}
+      <div
+        className={cn(
+          'hidden shrink-0 transition-[width] duration-200 lg:block',
+          collapsed ? 'w-16' : 'w-64',
+        )}
+      >
+        {sidebar(collapsed)}
+      </div>
 
+      {/* Le tiroir mobile ignore le mode réduit : il s'ouvre par-dessus le contenu, donc la largeur
+          qu'il occupe n'enlève rien à personne. */}
       {drawerOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
@@ -79,7 +115,7 @@ export function AppShell({
             className="absolute inset-0 bg-black/50"
             onClick={() => setDrawerOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-64">{sidebar}</div>
+          <div className="absolute inset-y-0 left-0 w-64">{sidebar(false)}</div>
         </div>
       )}
 
@@ -94,6 +130,25 @@ export function AppShell({
           >
             {drawerOpen ? <X size={16} aria-hidden="true" /> : <Menu size={16} aria-hidden="true" />}
           </button>
+
+          {/* La commande de repli est ici plutôt que dans la colonne : réduite à un rail, celle-ci
+              n'a plus la largeur d'un bouton étiqueté, et un bouton qui change de place selon
+              l'état est un bouton qu'on cherche. */}
+          <Tooltip content={collapsed ? 'Déployer le menu' : 'Réduire le menu'}>
+            <button
+              type="button"
+              onClick={() => collapse(!collapsed)}
+              className="hidden size-9 shrink-0 place-items-center rounded-[var(--radius-control)] text-ink-muted hover:bg-surface-sunken hover:text-ink lg:grid"
+              aria-label={collapsed ? 'Déployer le menu' : 'Réduire le menu'}
+              aria-expanded={!collapsed}
+            >
+              {collapsed ? (
+                <PanelLeftOpen size={16} aria-hidden="true" />
+              ) : (
+                <PanelLeftClose size={16} aria-hidden="true" />
+              )}
+            </button>
+          </Tooltip>
 
           <Breadcrumbs route={route} collection={activeCollection} />
 
@@ -163,14 +218,27 @@ function ThemeToggle() {
       label="Thème de la console"
       value={preference}
       onChange={setPreference}
+      // Segments sans texte : leur nom accessible est donné explicitement, sans quoi ils
+      // s'annonceraient « bouton » et rien d'autre.
       options={[
-        { value: 'light', label: <Sun size={13} aria-hidden="true" />, title: 'Thème clair' },
+        {
+          value: 'light',
+          label: <Sun size={13} aria-hidden="true" />,
+          title: 'Thème clair',
+          srLabel: 'Thème clair',
+        },
         {
           value: 'system',
           label: <Monitor size={13} aria-hidden="true" />,
           title: 'Thème du système',
+          srLabel: 'Thème du système',
         },
-        { value: 'dark', label: <Moon size={13} aria-hidden="true" />, title: 'Thème sombre' },
+        {
+          value: 'dark',
+          label: <Moon size={13} aria-hidden="true" />,
+          title: 'Thème sombre',
+          srLabel: 'Thème sombre',
+        },
       ]}
     />
   )

@@ -9,6 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Cratebase.Admin\Cratebase.Admin.csproj" />
     <ProjectReference Include="..\Cratebase.Records\Cratebase.Records.csproj" />
     <ProjectReference Include="..\Cratebase.Auth\Cratebase.Auth.csproj" />
     <ProjectReference Include="..\Cratebase.Storage\Cratebase.Storage.csproj" />

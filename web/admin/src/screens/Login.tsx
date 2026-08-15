@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Moon, Sun } from 'lucide-react'
+import { LogIn, Moon, Sun } from 'lucide-react'
 import { api, describeFailure } from '../api'
 import { useTheme } from '../hooks/useTheme'
 import { AuthLayout } from '../layout/AuthLayout'
@@ -86,6 +86,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
           type="submit"
           variant="primary"
           className="w-full"
+          icon={<LogIn size={16} aria-hidden="true" />}
           loading={busy}
           disabled={identity === '' || password === ''}
         >

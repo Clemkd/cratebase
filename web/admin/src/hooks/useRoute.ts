@@ -8,10 +8,29 @@ export type SchemaTab = Extract<CollectionTab, 'general' | 'fields' | 'indexes' 
 
 export const SCHEMA_TABS: SchemaTab[] = ['general', 'fields', 'indexes', 'rules']
 
+/** Sections de l'espace d'administration. */
+export type AdminSection = 'overview' | 'settings' | 'superusers' | 'providers'
+
+export const ADMIN_SECTIONS: AdminSection[] = ['overview', 'settings', 'superusers', 'providers']
+
 export type Route =
   | { kind: 'home' }
   | { kind: 'new'; section: SchemaTab }
-  | { kind: 'collection'; name: string; tab: CollectionTab }
+  | {
+      kind: 'collection'
+      name: string
+      tab: CollectionTab
+      /**
+       * Enregistrement à mettre en avant à l'arrivée, désigné par son identifiant.
+       *
+       * Porté par l'adresse et non par un état d'application : c'est ce qui permet à un lien —
+       * l'auteur d'une entrée de journal, par exemple — de désigner un enregistrement précis, et à
+       * la flèche « retour » de défaire ce cadrage.
+       */
+      focus?: string
+    }
+  | { kind: 'logs' }
+  | { kind: 'admin'; section: AdminSection }
 
 /**
  * Fragment d'URL de chaque vue.
@@ -27,6 +46,14 @@ const SEGMENTS: Record<CollectionTab, string> = {
   fields: 'champs',
   indexes: 'index',
   rules: 'regles',
+}
+
+/** Fragment d'URL de chaque section d'administration. L'aperçu est la vue d'arrivée. */
+const ADMIN_SEGMENTS: Record<AdminSection, string> = {
+  overview: '',
+  settings: 'parametres',
+  superusers: 'superadmins',
+  providers: 'fournisseurs',
 }
 
 /** Anciennes adresses, encore présentes dans des favoris. `schema` ouvrait le schéma entier. */
@@ -53,8 +80,26 @@ function sectionFrom(segment: string | undefined): SchemaTab | null {
   return tab && (SCHEMA_TABS as CollectionTab[]).includes(tab) ? (tab as SchemaTab) : null
 }
 
+function adminSectionFrom(segment: string | undefined): AdminSection | null {
+  if (!segment) return null
+
+  return ADMIN_SECTIONS.find((section) => ADMIN_SEGMENTS[section] === segment) ?? null
+}
+
 function parse(hash: string): Route {
-  const segments = hash.replace(/^#\/?/, '').split('/').filter(Boolean)
+  // La partie interrogative est détachée avant le découpage : sans cela `comptes?r=…` serait pris
+  // pour un nom de vue, et aucune vue ne s'appelle ainsi.
+  const [path = '', query] = hash.replace(/^#\/?/, '').split('?')
+  const segments = path.split('/').filter(Boolean)
+  const focus = new URLSearchParams(query ?? '').get('r') ?? undefined
+
+  if (segments[0] === 'journaux') {
+    return { kind: 'logs' }
+  }
+
+  if (segments[0] === 'administration') {
+    return { kind: 'admin', section: adminSectionFrom(segments[1]) ?? 'overview' }
+  }
 
   if (segments[0] === 'nouvelle') {
     return { kind: 'new', section: sectionFrom(segments[1]) ?? 'general' }
@@ -65,6 +110,7 @@ function parse(hash: string): Route {
       kind: 'collection',
       name: decodeURIComponent(segments[1]),
       tab: tabFrom(segments[2]) ?? 'records',
+      focus,
     }
   }
 
@@ -74,13 +120,22 @@ function parse(hash: string): Route {
 export function routeHref(route: Route): string {
   if (route.kind === 'home') return '#/'
 
+  if (route.kind === 'logs') return '#/journaux'
+
+  if (route.kind === 'admin') {
+    return route.section === 'overview'
+      ? '#/administration'
+      : `#/administration/${ADMIN_SEGMENTS[route.section]}`
+  }
+
   if (route.kind === 'new') {
     return route.section === 'general' ? '#/nouvelle' : `#/nouvelle/${SEGMENTS[route.section]}`
   }
 
   const base = `#/c/${encodeURIComponent(route.name)}`
+  const path = route.tab === 'records' ? base : `${base}/${SEGMENTS[route.tab]}`
 
-  return route.tab === 'records' ? base : `${base}/${SEGMENTS[route.tab]}`
+  return route.focus ? `${path}?r=${encodeURIComponent(route.focus)}` : path
 }
 
 /**

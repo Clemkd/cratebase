@@ -7,6 +7,8 @@ export { Dialog, ConfirmDialog, type DialogSide } from './Dialog'
 export { Disclosure } from './Disclosure'
 export { Checkbox, Field, Input, SegmentedControl, Select, Textarea } from './Form'
 export {
+  MultiSelectMenu,
+  type MultiSelectMenuProps,
   SelectMenu,
   type SelectMenuProps,
   type SelectMenuSize,

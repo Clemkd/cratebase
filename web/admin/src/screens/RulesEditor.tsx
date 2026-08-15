@@ -68,6 +68,9 @@ const STATES: Record<
   },
 }
 
+/** Ordre des segments : du plus fermé au plus ouvert, puis le cas nuancé. */
+const STATE_ORDER: RuleState[] = ['locked', 'public', 'conditional']
+
 function stateOf(value: string | null, editing: boolean): RuleState {
   if (value === null || value === undefined) return 'locked'
   if (value !== '') return 'conditional'
@@ -173,19 +176,27 @@ export function RulesEditor({
               </div>
 
               {readOnly ? null : (
-                <SegmentedControl
+                <SegmentedControl<RuleState>
                   label={`État de la règle « ${action.label} »`}
                   value={state}
                   onChange={(next) => setState(action.key, next)}
-                  options={[
-                    { value: 'locked', label: 'Verrouillée', title: STATES.locked.summary },
-                    { value: 'public', label: 'Ouverte à tous', title: STATES.public.summary },
-                    {
-                      value: 'conditional',
-                      label: 'Conditionnelle',
-                      title: STATES.conditional.summary,
-                    },
-                  ]}
+                  // Chaque état porte son icône : le cadenas, le globe et les curseurs disent
+                  // l'ouverture avant que le mot ne soit lu, et ce sont les mêmes glyphes que la
+                  // ligne d'en-tête juste au-dessus — un seul code à apprendre pour l'écran entier.
+                  options={STATE_ORDER.map((value) => {
+                    const meta = STATES[value]
+
+                    return {
+                      value,
+                      title: meta.summary,
+                      label: (
+                        <>
+                          <meta.icon size={13} aria-hidden="true" className="shrink-0" />
+                          {meta.label}
+                        </>
+                      ),
+                    }
+                  })}
                 />
               )}
             </div>

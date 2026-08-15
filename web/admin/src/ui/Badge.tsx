@@ -39,7 +39,13 @@ export function Badge({
       )}
     >
       {dot && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />}
-      <span className="truncate">{children}</span>
+      {/* Les icônes de lucide sont des <svg>, que le préambule de Tailwind passe en
+          `display: block` : posées devant un texte, elles le renvoient à la ligne et le badge
+          occupe deux lignes. Elles sont remises en ligne ici, une fois — le corriger à l'appel
+          laisserait le prochain badge muni d'une icône reproduire le défaut. */}
+      <span className="truncate [&>svg]:me-1 [&>svg]:inline [&>svg]:align-[-0.115em]">
+        {children}
+      </span>
     </span>
   )
 }

@@ -113,12 +113,17 @@ export function Stat({
         {icon && <span className={STAT_TONES[tone]}>{icon}</span>}
       </div>
       <p className={cn('mt-1.5 text-2xl font-semibold tabular-nums', STAT_TONES[tone])}>{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>}
+      {/* `break-all` et non `break-words` : les repères posés ici sont souvent des chemins ou des
+          URL, qui ne comportent aucune espace où couper. Sans lui, un répertoire de données déborde
+          de la carte au lieu de passer à la ligne. */}
+      {hint && <p className="mt-0.5 text-xs break-all text-ink-muted">{hint}</p>}
     </>
   )
 
   const shell = cn(
-    'rounded-[var(--radius-card)] border bg-surface px-4 py-3.5 text-left shadow-card',
+    // `min-w-0` : sans lui une tuile de grille refuse de rétrécir sous la largeur de son contenu,
+    // et c'est la grille entière qui déborde plutôt que le texte qui se replie.
+    'min-w-0 rounded-[var(--radius-card)] border bg-surface px-4 py-3.5 text-left shadow-card',
     tone === 'danger' ? 'border-danger/40' : 'border-border-subtle',
   )
 

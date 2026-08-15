@@ -7,7 +7,15 @@
     <NoWarn>$(NoWarn);CA1707;CA2007</NoWarn>
   </PropertyGroup>
 
+  <!-- Les endpoints d'administration vivent dans Cratebase.Server, qui référence le cadre ASP.NET
+       Core : la fusion partielle des réglages y est décidée, et c'est elle qu'on veut prouver. -->
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Cratebase.Admin\Cratebase.Admin.csproj" />
+    <ProjectReference Include="..\..\src\Cratebase.Server\Cratebase.Server.csproj" />
     <ProjectReference Include="..\..\src\Cratebase.Core\Cratebase.Core.csproj" />
     <ProjectReference Include="..\..\src\Cratebase.Expressions\Cratebase.Expressions.csproj" />
     <ProjectReference Include="..\..\src\Cratebase.Data\Cratebase.Data.csproj" />

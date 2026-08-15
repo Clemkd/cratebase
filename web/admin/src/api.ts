@@ -249,6 +249,114 @@ export interface Health {
   collections: number
 }
 
+export type LogLevel = 'Debug' | 'Info' | 'Warning' | 'Error'
+
+/** Niveaux du plus bas au plus grave. L'ordre sert au filtre « au moins ce niveau ». */
+export const LOG_LEVELS: LogLevel[] = ['Debug', 'Info', 'Warning', 'Error']
+
+export interface LogEntry {
+  id: string
+  created: string
+  level: LogLevel
+  message: string
+  method: string
+  url: string
+  /** Zéro pour une entrée d'application, qui ne répond à aucune requête. */
+  status: number
+  /** Durée de traitement, en millisecondes. */
+  duration: number
+  authCollection: string
+  authId: string
+  ip: string
+  userAgent: string
+  referer: string
+  data: Record<string, unknown>
+}
+
+export interface LogListParams {
+  page?: number
+  perPage?: number
+  /**
+   * Niveaux retenus. Vide ou absent : tous.
+   *
+   * Un ensemble et non une borne basse : « les avertissements sans les erreurs » est une question
+   * d'exploitation courante, qu'une gravité minimale ne sait pas poser.
+   */
+  levels?: LogLevel[]
+  /** Fragment cherché dans le message ou l'URL. */
+  q?: string
+  method?: string
+  status?: number
+  from?: string
+  to?: string
+  sort?: 'created' | '-created'
+}
+
+export type LogGranularity = 'Minute' | 'Hour' | 'Day'
+
+export interface LogBucket {
+  bucket: string
+  level: LogLevel
+  count: number
+}
+
+export interface LogStats {
+  granularity: LogGranularity
+  from: string | null
+  to: string | null
+  items: LogBucket[]
+}
+
+export interface LogSettings {
+  enabled: boolean
+  retentionDays: number
+  minLevel: LogLevel
+  logIp: boolean
+}
+
+export interface AppSettings {
+  appName: string
+  appUrl: string
+  logs: LogSettings
+}
+
+/**
+ * Réglages soumis.
+ *
+ * Partiel de bout en bout : le serveur laisse en place ce que la charge ne mentionne pas. Envoyer
+ * l'objet complet remettrait à leur valeur par défaut les réglages qu'un écran ne connaît pas.
+ */
+export interface SettingsPayload {
+  appName?: string
+  appUrl?: string
+  logs?: Partial<LogSettings>
+}
+
+export interface OAuthProvider {
+  name: string
+  displayName: string
+  enabled: boolean
+  authorizationUrl: string
+  scopes: string[]
+  usePkce: boolean
+}
+
+export interface Instance {
+  appName: string
+  appUrl: string
+  version: string
+  runtime: string
+  startedAt: string
+  uptimeSeconds: number
+  engine: string
+  storage: string
+  dataDirectory: string
+  apiPrefix: string
+  collections: { total: number; data: number; auth: number; view: number; system: number }
+  logs: { total: number; dropped: number; enabled: boolean; retentionDays: number }
+  providers: OAuthProvider[]
+}
+
 export interface RecordListParams {
   page?: number
   perPage?: number
@@ -273,8 +381,70 @@ function toQuery(params: RecordListParams): string {
   return query ? `?${query}` : ''
 }
 
+/** Assemble une chaîne de requête en ignorant ce qui est vide. */
+function toSearch(params: Record<string, string | number | undefined>): string {
+  const entries = Object.entries(params)
+    .filter((entry): entry is [string, string | number] => entry[1] !== undefined && entry[1] !== '')
+    .map(([key, value]): [string, string] => [key, String(value)])
+
+  const query = new URLSearchParams(entries).toString()
+
+  return query ? `?${query}` : ''
+}
+
+/**
+ * Chaîne de requête du journal.
+ *
+ * Les niveaux voyagent séparés par des virgules sous un seul `level` : `URLSearchParams` sait
+ * répéter une clé, mais une adresse à quatre `level=` est illisible dans une barre de navigation —
+ * or c'est là qu'on la relit quand on partage un lien de journal.
+ */
+function logSearch(
+  params: LogListParams & { granularity?: LogGranularity; stats?: number },
+): string {
+  const { levels, ...rest } = params
+
+  return toSearch({
+    ...rest,
+    level: levels !== undefined && levels.length > 0 ? levels.join(',') : undefined,
+  })
+}
+
 export const api = {
   health: () => request<Health>('/health'),
+
+  /** État de l'instance : moteur, stockage, version, volumétrie. Réservé au superadministrateur. */
+  instance: () => request<Instance>('/instance'),
+
+  settings: {
+    get: () => request<AppSettings>('/settings'),
+
+    update: (payload: SettingsPayload) =>
+      request<AppSettings>('/settings', { method: 'PATCH', body: JSON.stringify(payload) }),
+  },
+
+  logs: {
+    list: (params: LogListParams = {}) => request<Page<LogEntry>>(`/logs${logSearch(params)}`),
+
+    /**
+     * Page et histogramme en un seul appel.
+     *
+     * ⚠️ Indissociables volontairement : deux appels distincts vident chacun le tampon d'écriture
+     * du serveur, donc le second voit des entrées que le premier n'avait pas — et le graphique
+     * annonce un total que le tableau sous lui ne montre pas.
+     */
+    listWithStats: (params: LogListParams & { granularity?: LogGranularity } = {}) =>
+      request<Page<LogEntry> & { stats: LogStats }>(
+        `/logs${logSearch({ ...params, stats: 1 })}`,
+      ),
+
+    get: (id: string) => request<LogEntry>(`/logs/${id}`),
+
+    stats: (params: LogListParams & { granularity?: LogGranularity } = {}) =>
+      request<LogStats>(`/logs/stats${logSearch(params)}`),
+
+    clear: () => request<{ deleted: number }>('/logs', { method: 'DELETE' }),
+  },
 
   auth: {
     /** Collection portant les superadministrateurs. */

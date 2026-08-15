@@ -320,6 +320,39 @@ public sealed class AuthService(
         return count > 0;
     }
 
+    /// <summary>
+    /// Identifiant de l'unique superadministrateur, ou <see langword="null"/> s'il y en a zéro ou
+    /// plusieurs.
+    /// </summary>
+    /// <remarks>
+    /// Rend l'identifiant plutôt qu'un simple décompte : la garde doit refuser la suppression du
+    /// <b>dernier</b> compte, pas de n'importe lequel tant qu'il n'en reste qu'un. Sans cette
+    /// précision, supprimer un identifiant inexistant rendrait un conflit là où un 404 est dû.
+    /// </remarks>
+    public async Task<string?> OnlySuperuserIdAsync(CancellationToken cancellationToken = default)
+    {
+        if (_registry.Find(SuperusersCollection) is not { } collection)
+        {
+            return null;
+        }
+
+        await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        var dialect = _connections.Dialect;
+
+        // Deux lignes suffisent à trancher : au-delà, le décompte exact n'apporte rien.
+        var identifiers = await connection.QueryAsync<string>(new CommandDefinition(
+                $"SELECT {dialect.QuoteIdentifier(SystemFields.Id)} " +
+                $"FROM {dialect.QuoteIdentifier(collection.TableName)} " +
+                dialect.LimitOffset(2, 0),
+                cancellationToken: cancellationToken))
+            .ConfigureAwait(false);
+
+        var found = identifiers.ToList();
+
+        return found.Count == 1 ? found[0] : null;
+    }
+
     private async Task<IReadOnlyDictionary<string, object?>?> FindByEmailAsync(
         CollectionDefinition collection,
         string email,

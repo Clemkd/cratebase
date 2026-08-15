@@ -49,4 +49,27 @@ public interface IRecordMutationHook
         IReadOnlyDictionary<string, object?> submitted,
         IReadOnlyDictionary<string, object?> original,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Intervient avant une suppression. Lever ici annule la suppression.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// L'enregistrement n'est <b>pas</b> chargé pour l'occasion : la suppression tient en une seule
+    /// instruction, règle d'accès comprise, et lire la ligne d'abord ajouterait un aller-retour à
+    /// toutes les suppressions pour le seul bénéfice des crochets qui en veulent le contenu. Un
+    /// crochet qui a besoin des valeurs les lit lui-même.
+    /// </para>
+    /// <para>
+    /// Implémentation par défaut vide : un crochet écrit pour les seules créations n'a rien à
+    /// ajouter pour continuer à compiler.
+    /// </para>
+    /// </remarks>
+    /// <param name="collection">Collection cible.</param>
+    /// <param name="recordId">Identifiant visé, tel que soumis.</param>
+    /// <param name="cancellationToken">Jeton d'annulation.</param>
+    ValueTask BeforeDeleteAsync(
+        CollectionDefinition collection,
+        string recordId,
+        CancellationToken cancellationToken) => ValueTask.CompletedTask;
 }

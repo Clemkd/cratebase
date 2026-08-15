@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { KeyRound } from 'lucide-react'
+import { KeyRound, Plus, Save, X } from 'lucide-react'
 import {
   api,
   describeFailure,
@@ -134,10 +134,26 @@ export function RecordEditor({
       }
       footer={
         <>
-          <Button variant="outline" onClick={onClose} disabled={saving}>
+          <Button
+            variant="outline"
+            icon={<X size={15} aria-hidden="true" />}
+            onClick={onClose}
+            disabled={saving}
+          >
             Annuler
           </Button>
-          <Button variant="primary" onClick={() => void save()} loading={saving}>
+          <Button
+            variant="primary"
+            icon={
+              isCreation ? (
+                <Plus size={15} aria-hidden="true" />
+              ) : (
+                <Save size={15} aria-hidden="true" />
+              )
+            }
+            onClick={() => void save()}
+            loading={saving}
+          >
             {isCreation ? 'Créer' : 'Enregistrer'}
           </Button>
         </>

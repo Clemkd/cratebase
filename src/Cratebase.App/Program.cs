@@ -67,6 +67,9 @@ app.UseExceptionHandler();
 // Avant tout endpoint : sans elle, chaque requête est anonyme.
 app.UseCratebaseAuthentication();
 
+// Après elle : le journal nomme l'auteur de chaque requête.
+app.UseCratebaseRequestLog();
+
 app.MapCratebase();
 
 if (app.Environment.IsDevelopment())

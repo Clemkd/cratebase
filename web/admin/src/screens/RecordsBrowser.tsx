@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { CircleHelp, Database, Plus, RotateCw, Search, Trash2, X } from 'lucide-react'
+import { CircleHelp, Database, Filter, Plus, RotateCw, Search, Trash2, X } from 'lucide-react'
 import { api, describeFailure, type Collection, type RecordValue } from '../api'
 import { useRecords } from '../hooks/useRecords'
 import { visibleFields } from '../lib/fields'
@@ -56,14 +56,28 @@ function nextSort(sort: string, name: string): string {
 export function RecordsBrowser({
   collection,
   collections,
+  focus,
 }: {
   collection: Collection
   collections: Collection[]
+  /**
+   * Enregistrement désigné par l'adresse. Il devient un filtre ordinaire, visible dans la barre et
+   * effaçable comme un autre — plutôt qu'une sélection cachée qui laisserait croire que la
+   * collection ne contient qu'une ligne.
+   */
+  focus?: string
 }) {
   const toast = useToast()
 
-  const [draftFilter, setDraftFilter] = useState('')
-  const [filter, setFilter] = useState('')
+  // La valeur vient de l'adresse, donc de l'extérieur : elle est échappée avant d'entrer dans une
+  // chaîne du langage de filtre. Un identifiant réel n'a ni apostrophe ni contre-oblique, mais
+  // c'est précisément l'hypothèse qu'un lien forgé cherche à démentir.
+  const focusFilter = focus
+    ? `id = '${focus.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`
+    : ''
+
+  const [draftFilter, setDraftFilter] = useState(focusFilter)
+  const [filter, setFilter] = useState(focusFilter)
   const [sort, setSort] = useState('')
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(25)
@@ -78,14 +92,15 @@ export function RecordsBrowser({
   const { result, loading, error, reload } = useRecords(collection.name, query)
 
   // Changer de collection remet la barre d'outils à zéro : un filtre écrit pour une autre table
-  // désigne des champs qui n'existent pas ici, donc produirait une erreur 400 déroutante.
+  // désigne des champs qui n'existent pas ici, donc produirait une erreur 400 déroutante. Un
+  // enregistrement désigné par l'adresse prend la place de ce filtre vide.
   useEffect(() => {
-    setDraftFilter('')
-    setFilter('')
+    setDraftFilter(focusFilter)
+    setFilter(focusFilter)
     setSort('')
     setPage(1)
     setSelection([])
-  }, [collection.name])
+  }, [collection.name, focusFilter])
 
   const items = result?.items ?? []
   const ids = items.map((item) => String(item.id ?? ''))
@@ -159,7 +174,13 @@ export function RecordsBrowser({
             )}
           </div>
 
-          <Button type="submit" size="sm" variant="outline" disabled={draftFilter === filter}>
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            icon={<Filter size={14} aria-hidden="true" />}
+            disabled={draftFilter === filter}
+          >
             Appliquer
           </Button>
 
@@ -421,6 +442,7 @@ export function RecordsBrowser({
         title={`Supprimer ${selection.length} ${plural(selection.length, 'enregistrement', 'enregistrements')} ?`}
         message="La suppression est définitive. Les relations en cascade emporteront les lignes qui dépendent de celles-ci."
         confirmLabel="Supprimer définitivement"
+        confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         onConfirm={() => void removeSelected()}
         onClose={() => setConfirming(false)}
       />

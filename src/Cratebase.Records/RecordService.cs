@@ -352,6 +352,14 @@ public sealed class RecordService(
         var compiler = CompilerFor(collection, request);
         var rule = RuleGuard.Compile(collection, CollectionAction.Delete, compiler, request.Auth, RulePrefix);
 
+        // Les crochets passent avant la règle d'accès, comme à la création : ils protègent une
+        // invariante du moteur — le dernier superadministrateur — que nulle règle ne saurait
+        // exprimer, puisque c'est précisément le compte qui a le droit de tout faire.
+        foreach (var hook in _hooks)
+        {
+            await hook.BeforeDeleteAsync(collection, recordId, cancellationToken).ConfigureAwait(false);
+        }
+
         var parameters = ToParameters(rule.Parameters);
         parameters.Add("cb_id", recordId);
 

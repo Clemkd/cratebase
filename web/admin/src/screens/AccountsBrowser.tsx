@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { KeyRound, Plus, RotateCw, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react'
+import { KeyRound, Plus, RotateCw, ShieldCheck, Trash2, UserPlus, Users, X } from 'lucide-react'
 import { api, describeFailure, type Collection, type RecordValue } from '../api'
 import { useRecords } from '../hooks/useRecords'
 import { asStringList } from '../lib/fields'
@@ -325,6 +325,7 @@ export function AccountsBrowser({
           </>
         }
         confirmLabel="Supprimer le compte"
+        confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         onConfirm={() => void remove()}
         onClose={() => setRemoving(null)}
       />
@@ -379,10 +380,20 @@ function GrantsDialog({
       description={String(account.email ?? account.id)}
       footer={
         <>
-          <Button variant="outline" onClick={onClose} disabled={saving}>
+          <Button
+            variant="outline"
+            icon={<X size={15} aria-hidden="true" />}
+            onClick={onClose}
+            disabled={saving}
+          >
             Annuler
           </Button>
-          <Button variant="primary" onClick={() => void save()} loading={saving}>
+          <Button
+            variant="primary"
+            icon={<ShieldCheck size={15} aria-hidden="true" />}
+            onClick={() => void save()}
+            loading={saving}
+          >
             Enregistrer les droits
           </Button>
         </>

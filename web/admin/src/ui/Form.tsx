@@ -177,7 +177,20 @@ export function SegmentedControl<T extends string>({
   className,
 }: {
   value: T
-  options: { value: T; label: ReactNode; title?: string }[]
+  options: {
+    value: T
+    label: ReactNode
+    /** Infobulle native. N'est plus le nom accessible : voir `srLabel`. */
+    title?: string
+    /**
+     * Nom accessible du segment.
+     *
+     * À ne renseigner que pour un segment sans texte visible. En présence d'un libellé lisible,
+     * un `aria-label` le remplacerait pour un lecteur d'écran : la commande vocale « clique sur
+     * Verrouillée » cesserait alors de trouver le bouton qui porte pourtant ce mot.
+     */
+    srLabel?: string
+  }[]
   onChange: (value: T) => void
   label: string
   className?: string
@@ -197,8 +210,8 @@ export function SegmentedControl<T extends string>({
           type="button"
           role="radio"
           aria-checked={option.value === value}
-          // Les segments peuvent n'être qu'une icône : le titre sert alors de nom accessible.
-          aria-label={option.title}
+          // Les segments peuvent n'être qu'une icône : l'appelant fournit alors leur nom accessible.
+          aria-label={option.srLabel}
           title={option.title}
           onClick={() => onChange(option.value)}
           className={cn(

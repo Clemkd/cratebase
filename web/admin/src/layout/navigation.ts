@@ -1,7 +1,17 @@
-import { Database, Eye, Settings2, Users } from 'lucide-react'
+import {
+  Database,
+  Eye,
+  Gauge,
+  KeyRound,
+  ScrollText,
+  Settings2,
+  ShieldCheck,
+  SlidersHorizontal,
+  Users,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { CollectionGroup } from '../hooks/useCollections'
-import type { CollectionTab } from '../hooks/useRoute'
+import type { AdminSection, CollectionTab } from '../hooks/useRoute'
 
 export const TAB_LABELS: Record<CollectionTab, string> = {
   records: 'Enregistrements',
@@ -29,3 +39,23 @@ export const GROUPS: { id: CollectionGroup; label: string; icon: LucideIcon }[] 
 export function groupLabel(group: CollectionGroup): string {
   return GROUPS.find((entry) => entry.id === group)?.label ?? ''
 }
+
+/**
+ * Sections de l'espace d'administration, dans l'ordre d'affichage.
+ *
+ * L'aperçu ouvre la liste parce qu'il ne modifie rien : on y entre pour savoir où on est avant de
+ * toucher à quoi que ce soit.
+ */
+export const ADMIN_ITEMS: { id: AdminSection; label: string; icon: LucideIcon }[] = [
+  { id: 'overview', label: 'Aperçu', icon: Gauge },
+  { id: 'settings', label: 'Paramètres', icon: SlidersHorizontal },
+  { id: 'superusers', label: 'Superadministrateurs', icon: ShieldCheck },
+  { id: 'providers', label: "Fournisseurs d'identité", icon: KeyRound },
+]
+
+export function adminLabel(section: AdminSection): string {
+  return ADMIN_ITEMS.find((entry) => entry.id === section)?.label ?? ''
+}
+
+/** Icône de l'écran des journaux, partagée par la colonne et le fil d'Ariane. */
+export const LOGS_ICON: LucideIcon = ScrollText

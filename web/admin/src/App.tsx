@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Plus } from 'lucide-react'
 import { api, session, type Collection, type Identity } from './api'
 import { useCollections } from './hooks/useCollections'
-import { SCHEMA_TABS, useRoute, type CollectionTab } from './hooks/useRoute'
+import { SCHEMA_TABS, useRoute, type AdminSection, type CollectionTab } from './hooks/useRoute'
 import { AppShell } from './layout/AppShell'
 import { Page } from './layout/Page'
-import { TAB_LABELS } from './layout/navigation'
+import { TAB_LABELS, adminLabel } from './layout/navigation'
 import { AccountsBrowser } from './screens/AccountsBrowser'
+import { AdminOverview } from './screens/AdminOverview'
+import { AdminProviders } from './screens/AdminProviders'
+import { AdminSettings } from './screens/AdminSettings'
 import { CollectionEditor } from './screens/CollectionEditor'
 import { analyseIndexes, analyseRules } from './screens/CollectionHealth'
 import { Login } from './screens/Login'
+import { LogsBrowser } from './screens/LogsBrowser'
 import { RecordsBrowser } from './screens/RecordsBrowser'
+import { Superusers } from './screens/Superusers'
 import {
   Badge,
   Button,
@@ -21,6 +27,15 @@ import {
   ToastProvider,
   useToast,
 } from './ui'
+
+/** Ce que chaque section d'administration promet, en une phrase. */
+const ADMIN_DESCRIPTIONS: Record<AdminSection, string> = {
+  overview: "Ce que sert ce processus : moteur, stockage, version et volumétrie.",
+  settings: "Réglages honorés par le moteur. Le reste appartient à la configuration de l'hôte.",
+  superusers:
+    "Comptes qui administrent l'instance. Ils passent outre toutes les règles d'accès des collections.",
+  providers: "Fournisseurs OAuth2 chargés au démarrage depuis la configuration de l'hôte.",
+}
 
 export function App() {
   return (
@@ -118,6 +133,25 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
   const { collections, engine, loading, error, reload } = useCollections()
   const { route, navigate } = useRoute()
 
+  // Le nom de l'instance est réglable : il nomme la colonne de navigation et l'onglet du
+  // navigateur, ce qui est la seule façon de distinguer deux consoles ouvertes côte à côte.
+  const [appName, setAppName] = useState('Cratebase')
+
+  useEffect(() => {
+    api.settings
+      .get()
+      .then((settings) => setAppName(settings.appName))
+      .catch(() => {
+        // Réglages illisibles : la console reste utilisable sous son nom par défaut.
+      })
+  }, [])
+
+  useEffect(() => {
+    globalThis.document.title = `${appName} — administration`
+  }, [appName])
+
+  const superusers = collections.find((item) => item.name === api.auth.superusers) ?? null
+
   const selected =
     route.kind === 'collection'
       ? (collections.find((item) => item.name === route.name) ?? null)
@@ -173,6 +207,7 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
       collections={collections}
       loading={loading}
       engine={engine}
+      appName={appName}
       route={route}
       activeCollection={selected}
       onSelectCollection={(name) => navigate({ kind: 'collection', name, tab: 'records' })}
@@ -223,19 +258,63 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
         </Page>
       )}
 
-      {route.kind !== 'new' && !loading && collections.length === 0 && !error && (
-        <Page title="Console" description="Aucune collection n'existe encore dans cette base.">
-          <EmptyState
-            title="Aucune collection"
-            description="Créez-en une : le moteur crée la table et expose son API CRUD immédiatement."
-            action={
-              <Button variant="primary" onClick={() => navigate({ kind: 'new', section: 'general' })}>
-                Nouvelle collection
-              </Button>
-            }
-          />
+      {route.kind === 'logs' && (
+        <Page
+          wide
+          title="Journaux"
+          description="Requêtes servies par l'API, refus d'accès et évènements d'administration."
+        >
+          <LogsBrowser collections={collections} />
         </Page>
       )}
+
+      {route.kind === 'admin' && (
+        <Page
+          wide={route.section !== 'settings'}
+          title={adminLabel(route.section)}
+          description={ADMIN_DESCRIPTIONS[route.section]}
+        >
+          {route.section === 'overview' && (
+            <AdminOverview onOpenLogs={() => navigate({ kind: 'logs' })} />
+          )}
+
+          {route.section === 'settings' && <AdminSettings onSaved={(next) => setAppName(next.appName)} />}
+
+          {route.section === 'superusers' &&
+            (superusers ? (
+              <Superusers
+                collection={superusers}
+                identity={identity}
+                onSignedOut={onSignedOut}
+              />
+            ) : (
+              <LoadingBlock label="Chargement des superadministrateurs…" />
+            ))}
+
+          {route.section === 'providers' && <AdminProviders />}
+        </Page>
+      )}
+
+      {(route.kind === 'home' || route.kind === 'collection') &&
+        !loading &&
+        collections.length === 0 &&
+        !error && (
+          <Page title="Console" description="Aucune collection n'existe encore dans cette base.">
+            <EmptyState
+              title="Aucune collection"
+              description="Créez-en une : le moteur crée la table et expose son API CRUD immédiatement."
+              action={
+                <Button
+                  variant="primary"
+                  icon={<Plus size={15} aria-hidden="true" />}
+                  onClick={() => navigate({ kind: 'new', section: 'general' })}
+                >
+                  Nouvelle collection
+                </Button>
+              }
+            />
+          </Page>
+        )}
 
       {route.kind === 'collection' && selected && (
         <Page
@@ -268,6 +347,7 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
                 key={selected.name}
                 collection={selected}
                 collections={collections}
+                focus={route.kind === 'collection' ? route.focus : undefined}
               />
             </TabPanel>
 

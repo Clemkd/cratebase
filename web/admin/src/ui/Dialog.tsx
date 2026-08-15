@@ -111,6 +111,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = 'Confirmer',
+  confirmIcon,
   busy = false,
   onConfirm,
   onClose,
@@ -119,6 +120,14 @@ export function ConfirmDialog({
   title: string
   message: ReactNode
   confirmLabel?: string
+  /**
+   * Icône du bouton de confirmation.
+   *
+   * Fournie par l'appelant plutôt que fixée ici : ces dialogues confirment aussi bien une
+   * suppression qu'un abandon de saisie, et une corbeille posée sur les deux finirait par ne plus
+   * signifier « destruction ».
+   */
+  confirmIcon?: ReactNode
   busy?: boolean
   onConfirm: () => void
   onClose: () => void
@@ -131,10 +140,16 @@ export function ConfirmDialog({
       width="sm"
       footer={
         <>
-          <Button variant="outline" onClick={onClose} disabled={busy} autoFocus>
+          <Button
+            variant="outline"
+            icon={<X size={15} aria-hidden="true" />}
+            onClick={onClose}
+            disabled={busy}
+            autoFocus
+          >
             Annuler
           </Button>
-          <Button variant="danger" onClick={onConfirm} loading={busy}>
+          <Button variant="danger" icon={confirmIcon} onClick={onConfirm} loading={busy}>
             {confirmLabel}
           </Button>
         </>

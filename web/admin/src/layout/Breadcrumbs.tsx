@@ -3,7 +3,7 @@ import type { Collection } from '../api'
 import { groupOf } from '../hooks/useCollections'
 import { routeHref, type Route } from '../hooks/useRoute'
 import { cn } from '../ui'
-import { TAB_LABELS, groupLabel } from './navigation'
+import { TAB_LABELS, adminLabel, groupLabel } from './navigation'
 
 /** Une étape du fil d'Ariane. Sans `href`, elle situe la page sans y mener. */
 interface Crumb {
@@ -21,9 +21,19 @@ interface Crumb {
  */
 function trail(route: Route, collection: Collection | null): Crumb[] {
   if (route.kind === 'new') return [{ label: 'Nouvelle collection' }]
+  if (route.kind === 'logs') return [{ label: 'Journaux' }]
+
+  if (route.kind === 'admin') {
+    return [
+      { label: 'Administration', href: routeHref({ kind: 'admin', section: 'overview' }) },
+      { label: adminLabel(route.section) },
+    ]
+  }
+
   if (route.kind !== 'collection' || !collection) return []
 
   return [
+    { label: 'Collections' },
     { label: groupLabel(groupOf(collection)) },
     {
       label: collection.name,

@@ -11,6 +11,7 @@ import {
   Lock,
   Pencil,
   Plus,
+  Save,
   ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
@@ -323,10 +324,19 @@ export function CollectionEditor({
         // « Enregistrer » écrit le nom, le type, les champs, les index et les règles d'un coup,
         // quel que soit l'onglet ouvert au moment du clic.
         <PageActions>
-          <Button onClick={onCancel} disabled={saving}>
+          <Button icon={<X size={15} aria-hidden="true" />} onClick={onCancel} disabled={saving}>
             Annuler
           </Button>
-          <Button variant="primary" onClick={() => void save()} loading={saving}>
+          <Button
+            variant="primary"
+            // Deux gestes différents, deux glyphes différents : créer une collection ajoute une
+            // table, enregistrer le schéma modifie celle qui existe.
+            icon={
+              isNew ? <Plus size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />
+            }
+            onClick={() => void save()}
+            loading={saving}
+          >
             {isNew ? 'Créer la collection' : 'Enregistrer le schéma'}
           </Button>
         </PageActions>
@@ -450,6 +460,7 @@ export function CollectionEditor({
         open={removing !== null}
         title={`Supprimer le champ « ${removing?.name ?? ''} » ?`}
         confirmLabel="Supprimer le champ"
+        confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         message={
           <span className="flex items-start gap-2.5">
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-danger" aria-hidden="true" />
@@ -482,6 +493,7 @@ export function CollectionEditor({
         title={`Supprimer la collection « ${collection?.name ?? ''} » ?`}
         message="La table et toutes ses données seront détruites. L'opération est définitive et ne peut pas être annulée."
         confirmLabel="Supprimer la collection"
+        confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         onConfirm={() => void drop()}
         onClose={() => setConfirmingDrop(false)}
       />

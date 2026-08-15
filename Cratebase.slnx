@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Cratebase.Admin/Cratebase.Admin.csproj" />
     <Project Path="src/Cratebase.App/Cratebase.App.csproj" />
     <Project Path="src/Cratebase.Auth/Cratebase.Auth.csproj" />
     <Project Path="src/Cratebase.Core/Cratebase.Core.csproj" />

@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import type { Collection } from '../api'
 import { Button, Dialog } from '../ui'
 
@@ -92,7 +93,7 @@ export function FilterHelp({
       title="Syntaxe des filtres"
       description="Le même langage sert au paramètre ?filter= et aux règles d'accès."
       footer={
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" icon={<X size={15} aria-hidden="true" />} onClick={onClose}>
           Fermer
         </Button>
       }

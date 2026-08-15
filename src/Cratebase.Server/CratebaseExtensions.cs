@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Cratebase.Admin;
 using Cratebase.Auth;
 using Cratebase.Core;
 using Cratebase.Data;
@@ -65,6 +66,15 @@ public static class CratebaseExtensions
 
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
 
+        services.AddSingleton<LogStore>();
+        services.AddSingleton<SettingsStore>();
+        services.AddSingleton<InstanceDescriptor>();
+
+        if (options.EnableRequestLog)
+        {
+            services.AddHostedService<LogMaintenanceService>();
+        }
+
         // Les énumérations circulent en chaînes, jamais en entiers : un numéro d'énumération se
         // décale dès qu'on insère une valeur au milieu, et le contrat d'API bascule alors en
         // silence. Même politique que pour les instantanés de schéma (SchemaJson).
@@ -115,6 +125,17 @@ public static class CratebaseExtensions
         var store = services.GetRequiredService<SchemaStore>();
         await store.EnsureSystemTablesAsync(cancellationToken).ConfigureAwait(false);
 
+        // Résolu ici, et pas au premier appel de l'écran d'administration : la durée de
+        // fonctionnement affichée doit se compter depuis le démarrage réel.
+        services.GetRequiredService<InstanceDescriptor>();
+
+        await services.GetRequiredService<LogStore>()
+            .EnsureTableAsync(cancellationToken).ConfigureAwait(false);
+
+        var settings = services.GetRequiredService<SettingsStore>();
+        await settings.EnsureTableAsync(cancellationToken).ConfigureAwait(false);
+        await settings.LoadAsync(cancellationToken).ConfigureAwait(false);
+
         var tokens = services.GetRequiredService<AuthTokenStore>();
         await tokens.EnsureTableAsync(cancellationToken).ConfigureAwait(false);
 
@@ -147,6 +168,24 @@ public static class CratebaseExtensions
         return app.UseMiddleware<CratebaseAuthMiddleware>();
     }
 
+    /// <summary>
+    /// Branche la journalisation des requêtes de l'API.
+    /// </summary>
+    /// <remarks>
+    /// À placer <b>après</b> <see cref="UseCratebaseAuthentication"/> : c'est elle qui dépose
+    /// l'appelant dans le contexte, et une entrée de journal sans auteur ne dit pas grand-chose.
+    /// Reste sans effet si <see cref="CratebaseOptions.EnableRequestLog"/> est fermé, pour qu'un
+    /// hôte qui journalise déjà par ses propres moyens n'ait rien à retirer de son pipeline.
+    /// </remarks>
+    public static IApplicationBuilder UseCratebaseRequestLog(this IApplicationBuilder app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        var options = app.ApplicationServices.GetRequiredService<CratebaseOptions>();
+
+        return options.EnableRequestLog ? app.UseMiddleware<CratebaseRequestLogMiddleware>() : app;
+    }
+
     /// <summary>Publie les endpoints de Cratebase.</summary>
     public static IEndpointRouteBuilder MapCratebase(this IEndpointRouteBuilder endpoints)
     {
@@ -160,6 +199,8 @@ public static class CratebaseExtensions
         api.MapCollectionEndpoints();
         api.MapRecordEndpoints();
         api.MapFileEndpoints();
+        api.MapLogEndpoints();
+        api.MapAdminEndpoints();
 
         return endpoints;
     }

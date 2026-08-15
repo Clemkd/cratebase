@@ -278,14 +278,57 @@ PocketBase — un hook peut court-circuiter, transformer, ou envelopper.
 
 | PocketBase | Cratebase |
 | --- | --- |
-| Sauvegardes ZIP de `pb_data`, locales ou S3 | ✅ mais **par moteur** : `VACUUM INTO` en SQLite, `pg_dump` délégué en PostgreSQL |
-| Journaux de requêtes en base, avec rétention | ✅ |
-| Réglages en base (JSON), chiffrement optionnel | ✅ + surcharge par variables d'environnement |
+| Sauvegardes ZIP de `pb_data`, locales ou S3 | ❌ **écarté** en sauvegarde physique — remplacé par un export logique, [`docs/SAUVEGARDE.md`](./docs/SAUVEGARDE.md) |
+| Journaux de requêtes en base, avec rétention | ✅ livré — table `_logs`, écriture tamponnée, purge horaire |
+| Réglages en base (JSON), chiffrement optionnel | ✅ livré — table `_settings`, une ligne JSON ; **aucun secret n'y entre** |
 | Tâches planifiées (cron) | ✅ `BackgroundService` + expressions cron |
 | SMTP / `sendmail` | ✅ `IEmailSender` (abstraction), impl. SMTP + impl. journal en dev |
 | Limitation de débit intégrée | ✅ repris de `Forge.Http` (partition `sub` → IP, 429 + `Retry-After`) |
 | Commandes CLI superadmin | ✅ `cratebase superuser create/update`, `migrate`, `migrate-provider` |
+| Gestion des superadministrateurs depuis la console | ✅ livré — création, changement de mot de passe, suppression **sauf du dernier compte** |
 | Répertoire `pb_data` | `./data` : `cratebase.db`, `storage/`, `backups/`, `migrations/` |
+
+**Pourquoi les sauvegardes sont écartées et non repoussées.** PocketBase sauvegarde en zippant
+`pb_data` : c'est possible parce qu'il n'existe qu'un moteur. Ici, la même fonction se scinderait en
+`VACUUM INTO` d'un côté et `pg_dump` de l'autre — donc un bouton de console qui marche en
+développement et échoue en production, exactement la dépendance au moteur que la règle R1 interdit.
+Un `pg_dump` suppose en outre un binaire externe dans l'image, et une politique de rétention hors du
+conteneur. La sauvegarde **physique** appartient à l'exploitant de la base, pas à la console : c'est
+une décision, pas un manque.
+
+Ce qui reste légitime, et qui est planifié dans [`docs/SAUVEGARDE.md`](./docs/SAUVEGARDE.md), c'est
+l'**export logique** : une archive qui passe par le modèle de collections — définitions, lignes,
+fichiers — et ne connaît aucun moteur. Elle ne remplace pas la sauvegarde de l'exploitant, dont elle
+n'a ni la finesse ni le coût ; elle répond à une autre question, celle de sortir ses données et de
+les remettre ailleurs. C'est d'ailleurs la seule forme d'archive qu'on puisse restaurer sur l'autre
+moteur. Le déplacement d'une instance déjà peuplée d'un moteur ou d'un stockage vers un autre fait
+l'objet d'un plan distinct, [`docs/MIGRATION.md`](./docs/MIGRATION.md).
+
+**Ce que le journal enregistre — et ce qu'il n'enregistre pas.**
+
+- **Écriture tamponnée**, jamais sur le chemin de la requête : un canal borné, vidé par lots toutes
+  les trois secondes. Sur SQLite, où les écritures sont sérialisées, journaliser en ligne ferait du
+  journal le goulot de l'API qu'il observe. Le canal **perd plutôt que d'attendre**, et les pertes
+  sont comptées puis affichées : un journal incomplet qui le dit reste exploitable.
+- **Seules les requêtes de l'API.** Les fichiers statiques de la console — une centaine par
+  chargement — ne disent rien du moteur.
+- **Jamais les `GET` du journal lui-même.** Sans cette exception, chaque rafraîchissement ajouterait
+  une ligne en tête de la page qu'on est en train de lire.
+- **Les paramètres sensibles sont masqués** : `token`, `password`, `secret`, `code`, `identity`. Le
+  jeton de fichier circule dans l'URL — sa durée de vie est de deux minutes, mais l'écrire en clair
+  dans une table conservée sept jours annulerait cette précaution.
+- **L'adresse d'origine est celle de la connexion**, jamais l'en-tête `X-Forwarded-For`, qui est
+  déclaratif donc falsifiable. Derrière un répartiteur, c'est à l'hôte d'installer
+  `UseForwardedHeaders`. Sa collecte est désactivable : une adresse IP est une donnée personnelle.
+- **Le découpage de l'histogramme n'utilise aucune fonction de date** : la forme canonique des
+  instants étant de longueur fixe, ses dix, treize ou seize premiers caractères désignent le jour,
+  l'heure ou la minute — à l'identique sur les deux moteurs, sans méthode de dialecte
+  supplémentaire à couvrir dans la suite de conformité.
+- **Le filtre de niveau retient un ensemble, pas une borne basse.** « Au moins avertissement » se
+  dit avec un ensemble ; l'inverse est faux — isoler les 4xx sans les vraies pannes est une demande
+  d'exploitation courante, qu'une gravité minimale ne sait pas exprimer. Les noms voyagent séparés
+  par des virgules dans un seul `level`, et un nom inconnu est ignoré plutôt que rejeté : une faute
+  de frappe dans une adresse recopiée ne doit pas ressembler à une panne.
 
 ### 2.10 Migrations de schéma
 
@@ -369,8 +412,11 @@ Cratebase.Realtime         IRealtimeTransport + InMemory + SSE
                            ← Records
    └─ .Postgres            transport LISTEN/NOTIFY   ← Npgsql
 
-Cratebase.Admin            API d'administration (collections, réglages, journaux, sauvegardes)
-                           ← tout
+Cratebase.Admin            exploitation : journal des requêtes (_logs) et réglages (_settings)
+                           ← Data ; dépendance : Dapper
+                           ⚠️ ne contient AUCUN endpoint : ce sont des magasins, appelés par
+                           Cratebase.Server. Un travailleur de fond doit pouvoir journaliser
+                           sans embarquer ASP.NET Core.
 
 Cratebase.Server           hôte : câblage DI, MapCratebase(), service de la SPA, CLI
                            ← tout
@@ -552,6 +598,13 @@ Chacune justifie du code et un test, pas une règle de documentation.
 | **Écriture contournant `ToStorage`** | rien sur SQLite | ⚠️ *rencontrée ×3* — date en texte dans un `timestamptz`, JSON en texte dans un `jsonb` : accepté par SQLite, refusé par PostgreSQL le jour de la bascule |
 | **Expansion automatique de `IN @liste` par l'ORM** | rien sur SQLite | ⚠️ *rencontrée* — non appliquée selon le pilote : le tableau part en paramètre unique et la requête est rejetée |
 | **Bulle fermée sur tout `scroll` capturé** | la liste se referme dès qu'on la fait défiler | ⚠️ *rencontrée* — l'écouteur ne distinguait pas le défilement de la bulle de celui de la page ; une liste plus haute que son cadre devenait impossible à parcourir, à la molette comme aux flèches, `scrollIntoView` déclenchant lui-même la fermeture |
+| **Histogramme et tableau comptés par deux appels** | un graphique qui annonce plus d'entrées que la table sous lui | ⚠️ *rencontrée* — chaque lecture du journal vide le tampon d'écriture, donc le second appel voit ce que le premier n'avait pas : 19 contre 17. Page et histogramme partent désormais du même appel |
+| **Suppression du dernier superadministrateur** | 204, tout va bien | l'instance devient inadministrable : les collections système sont verrouillées et l'amorçage ne recrée un compte que si la configuration en porte un. Aucune règle d'accès ne peut l'empêcher, puisque la garde porte sur le compte qui a le droit de tout faire — d'où un crochet de suppression |
+| **Changement de mot de passe qui ne révoque rien** | le mot de passe change, l'utilisateur se croit sauf | ⚠️ *rencontrée* — seule la clé de génération tournait, et rien ne la consulte à la résolution d'un jeton : la session volée restait ouverte, alors que changer son mot de passe est le premier réflexe après un vol |
+| **Champ vide envoyé pour un champ non modifié** | « l'adresse est obligatoire » sur un formulaire de mot de passe | ⚠️ *rencontrée* — un formulaire partagé envoyait toujours l'adresse, vide quand il ne la demandait pas ; le moteur comprend « efface l'adresse » et refuse un changement par ailleurs valide |
+| **PATCH de réglages désérialisé en objet complet** | l'écran affiche ce qu'on a envoyé | un client n'envoyant que le nom remettrait rétention et collecte d'adresse à leurs valeurs par défaut ; d'où une charge à propriétés facultatives, fusionnée sur l'existant |
+| **Rétention nulle traitée comme une coupure au présent** | journal vide après chaque passage du service d'entretien | zéro signifie « conserver sans limite », pas « tout supprimer » |
+| **Jeton de fichier écrit tel quel dans le journal** | rien | un jeton de deux minutes devient exploitable pendant toute la durée de rétention |
 | Reconstruction de table SQLite avec les clés étrangères actives | rien | ⚠️ le `DROP TABLE` déclenche les cascades : les tables référençantes sont vidées |
 | Identifiant de champ interpolé au lieu d'être résolu | rien | injection SQL par `?filter=` |
 | Règle composée en `OR` au lieu de `AND` | rien | toute la collection est lisible |

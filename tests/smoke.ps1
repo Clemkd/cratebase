@@ -425,6 +425,105 @@ Invoke-RestMethod "$api/collections/_superusers/auth-logout" -Method Post -Heade
 Assert 'la deconnexion revoque reellement le jeton' ((StatusOf { Invoke-RestMethod "$api/collections" -Headers $temporaryHeaders }) -eq 401)
 Assert "le jeton d'origine reste valide" ((StatusOf { Invoke-RestMethod "$api/me" -Headers $adminHeaders }) -eq 200)
 
+Write-Host "`n== Superadministrateurs ==" -ForegroundColor Cyan
+
+# Le compte d'amorcage est le seul superadministrateur : le supprimer rendrait l'instance
+# inadministrable, puisque toutes les collections systeme sont verrouillees et que l'amorcage ne
+# recree un compte que si la configuration en porte un.
+$self = Invoke-RestMethod "$api/me" -Headers $adminHeaders
+Assert 'le dernier superadministrateur ne peut pas etre supprime' ((StatusOf {
+            Invoke-RestMethod "$api/collections/_superusers/records/$($self.id)" -Method Delete -Headers $adminHeaders
+        }) -eq 409)
+Assert 'le compte est toujours la' ((StatusOf { Invoke-RestMethod "$api/me" -Headers $adminHeaders }) -eq 200)
+
+$secondEmail = "second-$([Guid]::NewGuid().ToString('N').Substring(0, 8))@cratebase.local"
+$second = Invoke-RestMethod "$api/collections/_superusers/records" -Method Post -Headers $adminHeaders `
+    -Body (@{ email = $secondEmail; password = 'motdepasse-initial'; passwordConfirm = 'motdepasse-initial' } | ConvertTo-Json)
+
+Assert 'un second superadministrateur se cree' ($null -ne $second.id)
+
+$secondSession = Invoke-RestMethod "$api/collections/_superusers/auth-with-password" -Method Post `
+    -Headers $anonHeaders -Body (@{ identity = $secondEmail; password = 'motdepasse-initial' } | ConvertTo-Json)
+$secondHeaders = @{ 'Authorization' = "Bearer $($secondSession.token)"; 'Content-Type' = 'application/json' }
+
+Assert 'le second compte administre' ((StatusOf { Invoke-RestMethod "$api/collections" -Headers $secondHeaders }) -eq 200)
+
+# Changer un mot de passe doit fermer les sessions ouvertes : sans cela, changer son mot de passe
+# apres un vol de session ne deconnecte pas le voleur, alors que c'est le premier reflexe de
+# l'utilisateur — et il croirait le probleme regle.
+Invoke-RestMethod "$api/collections/_superusers/records/$($second.id)" -Method Patch -Headers $adminHeaders `
+    -Body (@{ password = 'motdepasse-remplace'; passwordConfirm = 'motdepasse-remplace' } | ConvertTo-Json) | Out-Null
+
+Assert 'le changement de mot de passe revoque les sessions' ((StatusOf { Invoke-RestMethod "$api/me" -Headers $secondHeaders }) -eq 401)
+Assert "l'ancien mot de passe ne vaut plus rien" ((StatusOf {
+            Invoke-RestMethod "$api/collections/_superusers/auth-with-password" -Method Post `
+                -Headers $anonHeaders -Body (@{ identity = $secondEmail; password = 'motdepasse-initial' } | ConvertTo-Json)
+        }) -eq 400)
+Assert 'le nouveau mot de passe ouvre une session' ((StatusOf {
+            Invoke-RestMethod "$api/collections/_superusers/auth-with-password" -Method Post `
+                -Headers $anonHeaders -Body (@{ identity = $secondEmail; password = 'motdepasse-remplace' } | ConvertTo-Json)
+        }) -eq 200)
+
+# Tant qu'il en reste deux, la suppression est permise : la garde porte sur le dernier, pas sur
+# n'importe lequel.
+Assert 'un superadministrateur sur deux se supprime' ((StatusOf {
+            Invoke-RestMethod "$api/collections/_superusers/records/$($second.id)" -Method Delete -Headers $adminHeaders
+        }) -eq 200)
+
+Write-Host "`n== Journaux et reglages ==" -ForegroundColor Cyan
+
+Assert 'le journal est refuse a un anonyme' ((StatusOf { Invoke-RestMethod "$api/logs" -Headers $anonHeaders }) -eq 401)
+Assert "l'etat de l'instance est refuse a un anonyme" ((StatusOf { Invoke-RestMethod "$api/instance" -Headers $anonHeaders }) -eq 401)
+Assert 'les reglages sont refuses a un anonyme' ((StatusOf { Invoke-RestMethod "$api/settings" -Headers $anonHeaders }) -eq 401)
+
+$journal = Invoke-RestMethod "$api/logs?perPage=200&stats=1&granularity=Hour" -Headers $adminHeaders
+$histogramme = ($journal.stats.items | Measure-Object -Property count -Sum).Sum
+
+# Page et histogramme sortent du meme appel : deux appels videraient chacun le tampon d'ecriture,
+# et le graphique annoncerait un total que le tableau sous lui ne montre pas.
+Assert 'page et histogramme comptent pareil' ($journal.totalItems -eq $histogramme) "($($journal.totalItems) / $histogramme)"
+Assert 'la suite a bien ete journalisee' ($journal.totalItems -gt 0)
+
+$refus = Invoke-RestMethod "$api/logs?level=Warning&perPage=200" -Headers $adminHeaders
+Assert 'les refus sont journalises en avertissement' (($refus.items | Where-Object { $_.status -eq 401 }).Count -gt 0)
+
+# Le filtre de niveau retient un ensemble, pas une borne basse : demander les avertissements seuls
+# ne doit ramener aucune erreur, sans quoi isoler les 4xx des vraies pannes redevient impossible.
+Assert 'un niveau seul exclut les autres' (($refus.items | Where-Object { $_.level -ne 'Warning' }).Count -eq 0)
+$graves = Invoke-RestMethod "$api/logs?level=Warning,Error&perPage=200" -Headers $adminHeaders
+Assert 'plusieurs niveaux se cumulent' ($graves.totalItems -ge $refus.totalItems)
+Assert 'aucun niveau hors de l ensemble demande' (($graves.items | Where-Object { $_.level -notin @('Warning', 'Error') }).Count -eq 0)
+Assert 'aucune lecture du journal ne se journalise elle-meme' (($journal.items | Where-Object { $_.url -like '/api/logs*' }).Count -eq 0)
+
+# Le jeton de fichier circule dans l'URL : sa duree de vie est de deux minutes, mais l'ecrire en
+# clair dans une table conservee plusieurs jours annulerait la precaution.
+$secret = "jeton-a-ne-pas-journaliser-$([Guid]::NewGuid().ToString('N'))"
+StatusOf { Invoke-WebRequest "$api/files/documents/inexistant/absent.png?token=$secret" -UseBasicParsing } | Out-Null
+Start-Sleep -Milliseconds 200
+$fuite = Invoke-RestMethod "$api/logs?q=$(Encode $secret)" -Headers $adminHeaders
+Assert 'le jeton de fichier est masque dans le journal' ($fuite.totalItems -eq 0)
+$masque = Invoke-RestMethod "$api/logs?q=absent.png" -Headers $adminHeaders
+Assert "le reste de l'URL est conserve" (($masque.items | Where-Object { $_.url -like '*token=***' }).Count -gt 0)
+
+$reglages = Invoke-RestMethod "$api/settings" -Headers $adminHeaders
+Invoke-RestMethod "$api/settings" -Method Patch -Headers $adminHeaders `
+    -Body (@{ appName = 'Cratebase — recette' } | ConvertTo-Json) | Out-Null
+$apres = Invoke-RestMethod "$api/settings" -Headers $adminHeaders
+
+# Un PATCH partiel ne doit rien remettre par defaut : un ecran qui n'envoie que le nom
+# reinitialiserait sinon la retention et la collecte d'adresse, sans le moindre message.
+Assert 'le PATCH partiel ne reinitialise pas les voisins' (
+    $apres.appName -eq 'Cratebase — recette' -and
+    $apres.logs.retentionDays -eq $reglages.logs.retentionDays -and
+    $apres.logs.logIp -eq $reglages.logs.logIp)
+
+Assert 'une retention hors bornes est refusee' ((StatusOf {
+            Invoke-RestMethod "$api/settings" -Method Patch -Headers $adminHeaders -Body (@{ logs = @{ retentionDays = 900 } } | ConvertTo-Json)
+        }) -eq 400)
+
+Invoke-RestMethod "$api/settings" -Method Patch -Headers $adminHeaders `
+    -Body (@{ appName = $reglages.appName } | ConvertTo-Json) | Out-Null
+
 Write-Host "`n---------------------------------------------" -ForegroundColor Cyan
 Write-Host "  $script:passed reussis, $script:failed echoues" -ForegroundColor $(if ($script:failed -eq 0) { 'Green' } else { 'Red' })
 Write-Host "---------------------------------------------`n" -ForegroundColor Cyan

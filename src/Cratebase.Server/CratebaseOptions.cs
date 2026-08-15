@@ -42,6 +42,16 @@ public sealed class CratebaseOptions
     /// </remarks>
     public bool EnableBatch { get; set; }
 
+    /// <summary>
+    /// Les requêtes de l'API sont-elles journalisées ?
+    /// </summary>
+    /// <remarks>
+    /// Ouvert par défaut : un backend sans journal ne se diagnostique pas. Ce drapeau est un
+    /// interrupteur d'hôte — il retire le middleware et le service d'entretien du pipeline —, à ne
+    /// pas confondre avec le réglage <c>logs.enabled</c>, que la console modifie à chaud.
+    /// </remarks>
+    public bool EnableRequestLog { get; set; } = true;
+
     /// <summary>Utilise SQLite. Défaut.</summary>
     public CratebaseOptions UseSqlite(string connectionString)
     {
