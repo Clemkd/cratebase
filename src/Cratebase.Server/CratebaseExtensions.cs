@@ -201,6 +201,7 @@ public static class CratebaseExtensions
         api.MapFileEndpoints();
         api.MapLogEndpoints();
         api.MapAdminEndpoints();
+        api.MapStorageEndpoints();
 
         return endpoints;
     }

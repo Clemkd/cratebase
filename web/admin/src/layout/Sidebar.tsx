@@ -6,7 +6,7 @@ import { groupCollections } from '../hooks/useCollections'
 import { routeHref, type AdminSection, type Route } from '../hooks/useRoute'
 import { readFlag, writeFlag } from '../lib/preferences'
 import { Badge, Button, Skeleton, Tooltip, cn } from '../ui'
-import { ADMIN_ITEMS, GROUPS, LOGS_ICON } from './navigation'
+import { ADMIN_ITEMS, FILES_ICON, GROUPS, LOGS_ICON } from './navigation'
 
 const OPEN_KEYS = {
   collections: 'cratebase.sidebar.collections',
@@ -304,6 +304,14 @@ export function Sidebar({
             })
           )}
         </Menu>
+
+        <Entry
+          href={routeHref({ kind: 'files' })}
+          icon={FILES_ICON}
+          label="Fichiers"
+          active={route.kind === 'files'}
+          collapsed={collapsed}
+        />
 
         <Entry
           href={routeHref({ kind: 'logs' })}

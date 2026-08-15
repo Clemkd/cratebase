@@ -330,6 +330,29 @@ l'objet d'un plan distinct, [`docs/MIGRATION.md`](./docs/MIGRATION.md).
   par des virgules dans un seul `level`, et un nom inconnu est ignoré plutôt que rejeté : une faute
   de frappe dans une adresse recopiée ne doit pas ressembler à une panne.
 
+**Le magasin de fichiers, vu depuis la console.**
+
+- **L'inventaire replace les clés dans le modèle.** Le magasin ne connaît que
+  `{collection}/{enregistrement}/{fichier}` ; c'est l'écran qui rend à ces clés une collection, un
+  enregistrement et surtout une réponse à « quelqu'un s'en sert-il encore ». Ni un explorateur de
+  fichiers ni une console S3 ne savent répondre à cette dernière : il faut la base pour cela.
+- **Un fichier encore référencé ne se supprime pas depuis l'inventaire.** Le retirer laisserait
+  l'enregistrement pointer vers rien, et rien dans la base ne dirait qui l'a fait. Le retrait passe
+  par l'édition de l'enregistrement, qui met la référence à jour dans le même mouvement. Les
+  orphelins et les vignettes, eux, se suppriment : les premiers ne servent plus, les secondes se
+  régénèrent.
+- **La configuration du magasin se lit et s'éprouve, jamais ne s'écrit.** Le seau, le point de
+  terminaison et les identifiants viennent de l'hôte, comme le moteur de base. Écrire une clé
+  secrète en base la ferait entrer dans toutes les sauvegardes de cette base. La console montre donc
+  la configuration en vigueur — la clé d'accès réduite à ses quatre derniers caractères, la clé
+  secrète réduite à sa présence — et donne les variables exactes à poser.
+- **Le test de connexion écrit vraiment.** Un contrôle qui se contenterait de lister validerait un
+  seau sans droit d'écriture. Il écrit un objet témoin, le relit, le décrit, **suit son URL signée**
+  puis le supprime. Cette avant-dernière étape est la seule qui détecte un `PublicEndpoint` erroné,
+  lequel laisse l'API parfaitement saine et rend tous les liens invalides côté navigateur.
+- **L'extraction exclut les vignettes par défaut.** Elles se régénèrent à la demande : les archiver
+  revient à archiver un cache, et à doubler le poids de l'archive.
+
 ### 2.10 Migrations de schéma
 
 Le point que PocketBase traite bien et qu'il ne faut pas rater : **une collection créée dans la

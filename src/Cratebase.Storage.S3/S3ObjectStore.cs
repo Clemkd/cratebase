@@ -211,6 +211,46 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <c>ListObjectsV2</c> rend déjà la taille de chaque objet. L'implémentation par défaut
+    /// enchaînerait un <c>HEAD</c> par clé : sur un seau de dix mille fichiers, dix mille allers et
+    /// retours pour une information que la réponse portait.
+    /// </remarks>
+    public async IAsyncEnumerable<ObjectInfo> ListInfoAsync(
+        string prefix,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        string? continuation = null;
+
+        do
+        {
+            var response = await _internal.ListObjectsV2Async(
+                    new ListObjectsV2Request
+                    {
+                        BucketName = _bucket,
+                        Prefix = prefix,
+                        ContinuationToken = continuation,
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var entry in response.S3Objects ?? [])
+            {
+                // Le type n'est pas dans la réponse de listage : il est déduit de l'extension,
+                // comme à l'écriture. Un `HEAD` par objet pour le lire coûterait exactement ce que
+                // cette surcharge existe pour éviter.
+                yield return new ObjectInfo(
+                    entry.Key,
+                    entry.Size ?? 0,
+                    ObjectKey.ContentTypeOf(entry.Key));
+            }
+
+            continuation = response.IsTruncated == true ? response.NextContinuationToken : null;
+        }
+        while (continuation is not null);
+    }
+
+    /// <inheritdoc />
     public async Task<Uri?> PresignedGetAsync(
         string key,
         TimeSpan lifetime,

@@ -307,6 +307,64 @@ export interface LogStats {
   items: LogBucket[]
 }
 
+/** Un objet du magasin, replacé dans le modèle de collections. */
+export interface StoredObject {
+  key: string
+  collection: string
+  recordId: string
+  fileName: string
+  size: number
+  contentType: string
+  isThumb: boolean
+  /** Aucun enregistrement ne référence ce fichier. */
+  orphan: boolean
+}
+
+export interface StorageObjectsParams {
+  page?: number
+  perPage?: number
+  collection?: string
+  q?: string
+  /** `files`, `thumbs`, ou vide pour les deux. */
+  kind?: string
+  /** Ne montrer que les objets qu'aucun enregistrement ne référence. */
+  orphans?: boolean
+}
+
+/**
+ * Description du magasin de fichiers.
+ *
+ * Aucune clé secrète n'y figure : le magasin est décidé par la configuration de l'hôte, et la
+ * console le lit sans jamais pouvoir l'écrire. `accessKeyHint` ne porte que les quatre derniers
+ * caractères de la clé d'accès — assez pour reconnaître laquelle est en service.
+ */
+export interface Storage {
+  kind: 'local' | 's3'
+  name: string
+  directory: string
+  bucket: string
+  endpoint: string
+  publicEndpoint: string
+  region: string
+  forcePathStyle: boolean
+  accessKeyHint: string
+  hasSecretKey: boolean
+  presignedUrls: boolean
+  objects: { files: number; thumbs: number; fileBytes: number; thumbBytes: number }
+}
+
+export interface StorageProbeStep {
+  name: string
+  state: 'ok' | 'skipped' | 'failed'
+  detail: string
+  milliseconds: number
+}
+
+export interface StorageProbe {
+  ok: boolean
+  steps: StorageProbeStep[]
+}
+
 export interface LogSettings {
   enabled: boolean
   retentionDays: number
@@ -444,6 +502,63 @@ export const api = {
       request<LogStats>(`/logs/stats${logSearch(params)}`),
 
     clear: () => request<{ deleted: number }>('/logs', { method: 'DELETE' }),
+  },
+
+  files: {
+    /**
+     * Jeton de lecture de fichier, valable deux minutes.
+     *
+     * Une balise `<img>` et une navigation ne portent pas d'en-tête `Authorization` : c'est ce
+     * jeton, et lui seul, qui autorise l'aperçu d'un fichier protégé et le téléchargement d'une
+     * archive.
+     */
+    token: async () => (await request<{ token: string }>('/files/token', { method: 'POST' })).token,
+  },
+
+  storage: {
+    /** Magasin actif et volumétrie. */
+    get: () => request<Storage>('/storage'),
+
+    objects: (params: StorageObjectsParams = {}) =>
+      request<Page<StoredObject> & { orphans: number }>(
+        `/storage/objects${toSearch({
+          page: params.page,
+          perPage: params.perPage,
+          collection: params.collection,
+          q: params.q,
+          kind: params.kind,
+          orphans: params.orphans === true ? 1 : undefined,
+        })}`,
+      ),
+
+    remove: (keys: string[]) =>
+      request<{ deleted: number }>('/storage/objects', {
+        method: 'DELETE',
+        body: JSON.stringify({ keys }),
+      }),
+
+    /** Éprouve le magasin de bout en bout : écriture, relecture, URL signée, suppression. */
+    check: () => request<StorageProbe>('/storage/check', { method: 'POST' }),
+
+    /**
+     * Adresse de l'archive, munie d'un jeton de courte durée.
+     *
+     * Une URL confiée au navigateur, et non un appel `fetch` : lui seul sait écrire le flux sur le
+     * disque au fur et à mesure et reprendre un téléchargement interrompu. Le rapatrier en mémoire
+     * pour en faire un objet téléchargeable ferait tenir une archive entière dans l'onglet.
+     *
+     * D'où le jeton en paramètre : une navigation ne porte pas d'en-tête `Authorization`. C'est le
+     * même mécanisme que les fichiers protégés, avec la même durée de vie de deux minutes.
+     */
+    archive: async (options: { collection?: string; thumbs?: boolean } = {}) => {
+      const token = await api.files.token()
+
+      return `/api/storage/archive${toSearch({
+        collection: options.collection,
+        thumbs: options.thumbs === true ? 1 : undefined,
+        token,
+      })}`
+    },
   },
 
   auth: {

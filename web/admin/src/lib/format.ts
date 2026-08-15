@@ -51,3 +51,20 @@ export function formatCount(value: number): string {
 export function plural(count: number, singular: string, plural: string): string {
   return count > 1 ? plural : singular
 }
+
+const UNITS = ['o', 'ko', 'Mo', 'Go', 'To']
+
+/**
+ * Taille lisible, en unités décimales.
+ *
+ * Mille et non mille vingt-quatre : c'est ce qu'annoncent les systèmes de fichiers et les factures
+ * de stockage objet, donc c'est le chiffre que l'exploitant compare au sien.
+ */
+export function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0 o'
+
+  const exponent = Math.min(Math.floor(Math.log10(value) / 3), UNITS.length - 1)
+  const scaled = value / 1000 ** exponent
+
+  return `${scaled.toFixed(exponent === 0 || scaled >= 100 ? 0 : 1)} ${UNITS[exponent]}`
+}

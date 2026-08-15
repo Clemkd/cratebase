@@ -9,9 +9,15 @@ export type SchemaTab = Extract<CollectionTab, 'general' | 'fields' | 'indexes' 
 export const SCHEMA_TABS: SchemaTab[] = ['general', 'fields', 'indexes', 'rules']
 
 /** Sections de l'espace d'administration. */
-export type AdminSection = 'overview' | 'settings' | 'superusers' | 'providers'
+export type AdminSection = 'overview' | 'settings' | 'storage' | 'superusers' | 'providers'
 
-export const ADMIN_SECTIONS: AdminSection[] = ['overview', 'settings', 'superusers', 'providers']
+export const ADMIN_SECTIONS: AdminSection[] = [
+  'overview',
+  'settings',
+  'storage',
+  'superusers',
+  'providers',
+]
 
 export type Route =
   | { kind: 'home' }
@@ -30,6 +36,7 @@ export type Route =
       focus?: string
     }
   | { kind: 'logs' }
+  | { kind: 'files' }
   | { kind: 'admin'; section: AdminSection }
 
 /**
@@ -52,6 +59,7 @@ const SEGMENTS: Record<CollectionTab, string> = {
 const ADMIN_SEGMENTS: Record<AdminSection, string> = {
   overview: '',
   settings: 'parametres',
+  storage: 'stockage',
   superusers: 'superadmins',
   providers: 'fournisseurs',
 }
@@ -97,6 +105,10 @@ function parse(hash: string): Route {
     return { kind: 'logs' }
   }
 
+  if (segments[0] === 'fichiers') {
+    return { kind: 'files' }
+  }
+
   if (segments[0] === 'administration') {
     return { kind: 'admin', section: adminSectionFrom(segments[1]) ?? 'overview' }
   }
@@ -121,6 +133,8 @@ export function routeHref(route: Route): string {
   if (route.kind === 'home') return '#/'
 
   if (route.kind === 'logs') return '#/journaux'
+
+  if (route.kind === 'files') return '#/fichiers'
 
   if (route.kind === 'admin') {
     return route.section === 'overview'

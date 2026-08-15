@@ -105,12 +105,25 @@ public sealed class CratebaseOptions
         return this;
     }
 
+    /// <summary>
+    /// Ce que la console peut dire du magasin de fichiers, sans jamais pouvoir en dire trop.
+    /// </summary>
+    /// <remarks>
+    /// Un descriptif figé au démarrage, distinct de la fabrique : l'écran d'exploitation doit
+    /// pouvoir nommer le seau et son point de terminaison — c'est ce qu'on vérifie quand les
+    /// fichiers ne s'affichent plus — sans qu'aucun chemin ne mène à la clé secrète. Elle n'est donc
+    /// pas recopiée ici : seule sa <b>présence</b> l'est.
+    /// </remarks>
+    public StorageDescription StorageDescription { get; private set; } =
+        new() { Kind = "local", Directory = "./data/storage" };
+
     /// <summary>Stocke les fichiers sur le disque local. Défaut.</summary>
     public CratebaseOptions UseLocalFiles(string directory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
 
         ObjectStoreFactory = () => new LocalObjectStore(directory);
+        StorageDescription = new StorageDescription { Kind = "local", Directory = directory };
 
         return this;
     }
@@ -121,7 +134,62 @@ public sealed class CratebaseOptions
         ArgumentNullException.ThrowIfNull(storage);
 
         ObjectStoreFactory = () => new S3ObjectStore(storage);
+        StorageDescription = new StorageDescription
+        {
+            Kind = "s3",
+            Bucket = storage.Bucket,
+            Endpoint = storage.Endpoint,
+            PublicEndpoint = storage.PublicEndpoint ?? string.Empty,
+            Region = storage.Region,
+            ForcePathStyle = storage.ForcePathStyle,
+            AccessKeyHint = Hint(storage.AccessKey),
+            HasSecretKey = !string.IsNullOrWhiteSpace(storage.SecretKey),
+        };
 
         return this;
     }
+
+    /// <summary>
+    /// Réduit une clé d'accès à ses quatre derniers caractères.
+    /// </summary>
+    /// <remarks>
+    /// Assez pour reconnaître laquelle des trois clés d'un trousseau est en service, trop peu pour
+    /// s'en servir. Une clé d'accès n'est pas un secret, mais l'afficher entière la ferait entrer
+    /// dans les captures d'écran et dans le journal des requêtes.
+    /// </remarks>
+    private static string Hint(string? accessKey) =>
+        string.IsNullOrWhiteSpace(accessKey)
+            ? string.Empty
+            : accessKey.Length <= 4 ? new string('•', accessKey.Length) : $"••••{accessKey[^4..]}";
+}
+
+/// <summary>Description du magasin de fichiers, telle que la console la reçoit.</summary>
+public sealed record StorageDescription
+{
+    /// <summary><c>local</c> ou <c>s3</c>.</summary>
+    public required string Kind { get; init; }
+
+    /// <summary>Répertoire racine, pour le disque local.</summary>
+    public string Directory { get; init; } = string.Empty;
+
+    /// <summary>Nom du seau, pour S3.</summary>
+    public string Bucket { get; init; } = string.Empty;
+
+    /// <summary>Point de terminaison vu par l'API.</summary>
+    public string Endpoint { get; init; } = string.Empty;
+
+    /// <summary>Point de terminaison vu par le navigateur, s'il diffère.</summary>
+    public string PublicEndpoint { get; init; } = string.Empty;
+
+    /// <summary>Région déclarée.</summary>
+    public string Region { get; init; } = string.Empty;
+
+    /// <summary>Style de chemin plutôt que de sous-domaine.</summary>
+    public bool ForcePathStyle { get; init; }
+
+    /// <summary>Quatre derniers caractères de la clé d'accès.</summary>
+    public string AccessKeyHint { get; init; } = string.Empty;
+
+    /// <summary>La clé secrète est-elle renseignée ? Sa valeur ne sort jamais du processus.</summary>
+    public bool HasSecretKey { get; init; }
 }

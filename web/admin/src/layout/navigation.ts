@@ -1,7 +1,9 @@
 import {
   Database,
   Eye,
+  FolderOpen,
   Gauge,
+  HardDrive,
   KeyRound,
   ScrollText,
   Settings2,
@@ -49,6 +51,7 @@ export function groupLabel(group: CollectionGroup): string {
 export const ADMIN_ITEMS: { id: AdminSection; label: string; icon: LucideIcon }[] = [
   { id: 'overview', label: 'Aperçu', icon: Gauge },
   { id: 'settings', label: 'Paramètres', icon: SlidersHorizontal },
+  { id: 'storage', label: 'Stockage', icon: HardDrive },
   { id: 'superusers', label: 'Superadministrateurs', icon: ShieldCheck },
   { id: 'providers', label: "Fournisseurs d'identité", icon: KeyRound },
 ]
@@ -59,3 +62,6 @@ export function adminLabel(section: AdminSection): string {
 
 /** Icône de l'écran des journaux, partagée par la colonne et le fil d'Ariane. */
 export const LOGS_ICON: LucideIcon = ScrollText
+
+/** Icône de l'écran des fichiers. */
+export const FILES_ICON: LucideIcon = FolderOpen

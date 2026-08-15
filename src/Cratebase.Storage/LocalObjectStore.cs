@@ -114,7 +114,7 @@ public sealed class LocalObjectStore : IObjectStore
         string prefix,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var path = Resolve(prefix);
+        var path = ResolvePrefix(prefix);
 
         if (!Directory.Exists(path))
         {
@@ -133,6 +133,37 @@ public sealed class LocalObjectStore : IObjectStore
 
     /// <inheritdoc />
     /// <remarks>
+    /// Le système de fichiers rend la taille en même temps que le nom : la décrire depuis
+    /// l'énumération évite un <c>stat</c> par objet, et surtout la fenêtre pendant laquelle un
+    /// fichier listé aurait disparu avant d'être décrit.
+    /// </remarks>
+    public async IAsyncEnumerable<ObjectInfo> ListInfoAsync(
+        string prefix,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var path = ResolvePrefix(prefix);
+
+        if (!Directory.Exists(path))
+        {
+            yield break;
+        }
+
+        var directory = new DirectoryInfo(path);
+
+        foreach (var file in directory.EnumerateFiles("*", SearchOption.AllDirectories))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var key = Path.GetRelativePath(_root, file.FullName).Replace(Path.DirectorySeparatorChar, '/');
+
+            yield return new ObjectInfo(key, file.Length, ObjectKey.ContentTypeOf(file.Name));
+        }
+
+        await Task.CompletedTask.ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
     /// Le disque local n'a pas d'URL propre : c'est l'API qui sert l'octet, après avoir appliqué la
     /// règle de consultation. Rendre <see langword="null"/> ici n'est pas une lacune, c'est le
     /// contrat — et l'appelant doit gérer ce cas dès le départ, sinon la bascule vers S3
@@ -142,6 +173,17 @@ public sealed class LocalObjectStore : IObjectStore
         string key,
         TimeSpan lifetime,
         CancellationToken cancellationToken = default) => Task.FromResult<Uri?>(null);
+
+    /// <summary>
+    /// Résout un préfixe d'énumération, la chaîne vide désignant le magasin entier.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Resolve"/> refuse la clé vide, et il doit continuer de le faire : une écriture ou
+    /// une lecture sans clé est une erreur d'appel. Énumérer sans préfixe, en revanche, est la façon
+    /// normale de dresser un inventaire — ce sont deux contrats distincts, d'où deux résolutions.
+    /// </remarks>
+    private string ResolvePrefix(string prefix) =>
+        string.IsNullOrEmpty(prefix) ? _root : Resolve(prefix);
 
     private string Resolve(string key)
     {

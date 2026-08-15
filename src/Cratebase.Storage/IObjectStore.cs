@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Cratebase.Storage;
 
 /// <summary>Métadonnées d'un objet stocké.</summary>
@@ -50,8 +52,30 @@ public interface IObjectStore
     /// <summary>Supprime tous les objets sous un préfixe.</summary>
     Task DeletePrefixAsync(string prefix, CancellationToken cancellationToken = default);
 
-    /// <summary>Énumère les clés sous un préfixe.</summary>
+    /// <summary>Énumère les clés sous un préfixe. La chaîne vide désigne le magasin entier.</summary>
     IAsyncEnumerable<string> ListAsync(string prefix, CancellationToken cancellationToken = default);
+
+    /// <summary>Énumère les objets sous un préfixe, métadonnées comprises.</summary>
+    /// <remarks>
+    /// L'implémentation par défaut décrit chaque clé une par une : correcte partout, coûteuse sur
+    /// un stockage distant, où elle vaut une requête réseau par objet. Les magasins dont le listage
+    /// rend déjà la taille — c'est le cas de S3 comme du disque local — la remplacent, et un
+    /// inventaire de dix mille fichiers redevient un balayage au lieu de dix mille appels.
+    /// </remarks>
+    async IAsyncEnumerable<ObjectInfo> ListInfoAsync(
+        string prefix,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var key in ListAsync(prefix, cancellationToken).ConfigureAwait(false))
+        {
+            var info = await StatAsync(key, cancellationToken).ConfigureAwait(false);
+
+            if (info is not null)
+            {
+                yield return info;
+            }
+        }
+    }
 
     /// <summary>
     /// Produit une URL signée de lecture directe, quand le stockage en propose.

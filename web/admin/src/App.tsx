@@ -10,11 +10,13 @@ import { AccountsBrowser } from './screens/AccountsBrowser'
 import { AdminOverview } from './screens/AdminOverview'
 import { AdminProviders } from './screens/AdminProviders'
 import { AdminSettings } from './screens/AdminSettings'
+import { AdminStorage } from './screens/AdminStorage'
 import { CollectionEditor } from './screens/CollectionEditor'
 import { analyseIndexes, analyseRules } from './screens/CollectionHealth'
 import { Login } from './screens/Login'
 import { LogsBrowser } from './screens/LogsBrowser'
 import { RecordsBrowser } from './screens/RecordsBrowser'
+import { StorageBrowser } from './screens/StorageBrowser'
 import { Superusers } from './screens/Superusers'
 import {
   Badge,
@@ -32,6 +34,8 @@ import {
 const ADMIN_DESCRIPTIONS: Record<AdminSection, string> = {
   overview: "Ce que sert ce processus : moteur, stockage, version et volumétrie.",
   settings: "Réglages honorés par le moteur. Le reste appartient à la configuration de l'hôte.",
+  storage:
+    "Magasin des fichiers : configuration en vigueur, test de connexion, extraction. Lu, jamais écrit.",
   superusers:
     "Comptes qui administrent l'instance. Ils passent outre toutes les règles d'accès des collections.",
   providers: "Fournisseurs OAuth2 chargés au démarrage depuis la configuration de l'hôte.",
@@ -258,6 +262,16 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
         </Page>
       )}
 
+      {route.kind === 'files' && (
+        <Page
+          wide
+          title="Fichiers"
+          description="Inventaire du magasin : ce qui est stocké, qui le référence, et ce qui ne sert plus."
+        >
+          <StorageBrowser collections={collections} />
+        </Page>
+      )}
+
       {route.kind === 'logs' && (
         <Page
           wide
@@ -279,6 +293,8 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
           )}
 
           {route.section === 'settings' && <AdminSettings onSaved={(next) => setAppName(next.appName)} />}
+
+          {route.section === 'storage' && <AdminStorage />}
 
           {route.section === 'superusers' &&
             (superusers ? (

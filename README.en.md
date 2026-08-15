@@ -72,10 +72,17 @@ In development, `appsettings.Development.json` already sets one up (`admin@crate
 Three destinations in a sidebar that collapses to an icon rail:
 
 - **Collections** — records, accounts, schema and access rules for each collection.
+- **Files** — an inventory of the store: what is stored, which record references it, and what no
+  longer serves anything. Orphaned objects can be isolated and deleted; still-referenced files
+  cannot be deleted from there.
 - **Logs** — served requests, access denials and administration events. Filters sit under the header
   of the column they restrict; clicking a histogram bar opens that time slice and redraws it one
   step finer.
-- **Administration** — instance overview, settings, superusers, identity providers.
+- **Administration** — instance overview, settings, storage, superusers, identity providers.
+
+**Administration → Storage** shows the store's configuration and exercises it — write, read back,
+follow a real presigned URL, delete — but never writes it: anything carrying a secret stays in host
+configuration. The screen gives the exact variables to set and tells you whether they are right.
 
 Two guarantees enforced by the engine rather than the interface: **the last superuser cannot be
 deleted** — without them nobody can administer the instance any more — and **changing a password
@@ -145,13 +152,13 @@ setting `ConnectionStrings__Postgres` — the image does not change.
 dotnet test Cratebase.slnx
 ```
 
-186 unit tests: dialects, filter language, schema planner, logs, settings.
+191 unit tests: dialects, filter language, schema planner, logs, settings.
 
 ```bash
 pwsh tests/smoke.ps1
 ```
 
-110 assertions against a running instance. They cover the happy path **and** the hostile ones:
+124 assertions against a running instance. They cover the happy path **and** the hostile ones:
 injection, off-schema field, unauthorised sort, locked rule, privilege escalation at sign-up, replay
 of a two-factor challenge, directory traversal on files.
 

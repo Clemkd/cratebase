@@ -75,11 +75,18 @@ d'environnement.
 Trois destinations, dans une colonne repliable en rail d'icônes :
 
 - **Collections** — enregistrements, comptes, schéma et règles d'accès de chaque collection.
+- **Fichiers** — inventaire du magasin : ce qui est stocké, quel enregistrement le référence, et ce
+  qui ne sert plus. Les objets orphelins sont isolables et supprimables ; les fichiers encore
+  référencés ne le sont pas depuis là.
 - **Journaux** — requêtes servies, refus d'accès et évènements d'administration. Les filtres sont
   posés sous l'en-tête de la colonne qu'ils restreignent ; cliquer une barre de l'histogramme ouvre
   la tranche correspondante et la redécoupe d'un cran plus fin.
-- **Administration** — aperçu de l'instance, paramètres, superadministrateurs, fournisseurs
-  d'identité.
+- **Administration** — aperçu de l'instance, paramètres, stockage, superadministrateurs,
+  fournisseurs d'identité.
+
+**Administration → Stockage** montre la configuration du magasin et l'éprouve — écriture, relecture,
+URL signée réellement suivie, suppression — mais ne l'écrit pas : ce qui porte un secret reste en
+configuration d'hôte. L'écran donne les variables exactes à poser et dit si elles sont bonnes.
 
 Deux garanties tenues par le moteur et non par l'interface : **le dernier superadministrateur ne
 peut pas être supprimé** — sans lui l'instance n'est plus administrable par personne — et **changer
@@ -149,13 +156,13 @@ poser `ConnectionStrings__Postgres` — l'image ne change pas.
 dotnet test Cratebase.slnx
 ```
 
-186 tests unitaires : dialectes, langage de filtre, planificateur de schéma, journal, réglages.
+191 tests unitaires : dialectes, langage de filtre, planificateur de schéma, journal, réglages.
 
 ```bash
 pwsh tests/smoke.ps1
 ```
 
-110 assertions contre une instance en cours d'exécution. Elles couvrent le chemin nominal **et** les
+124 assertions contre une instance en cours d'exécution. Elles couvrent le chemin nominal **et** les
 chemins hostiles : injection, champ hors schéma, tri non autorisé, règle verrouillée, élévation de
 privilèges à l'inscription, rejeu d'un défi de double authentification, traversée de répertoire.
 

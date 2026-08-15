@@ -22,6 +22,7 @@ interface Crumb {
 function trail(route: Route, collection: Collection | null): Crumb[] {
   if (route.kind === 'new') return [{ label: 'Nouvelle collection' }]
   if (route.kind === 'logs') return [{ label: 'Journaux' }]
+  if (route.kind === 'files') return [{ label: 'Fichiers' }]
 
   if (route.kind === 'admin') {
     return [

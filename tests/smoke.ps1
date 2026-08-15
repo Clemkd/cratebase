@@ -524,6 +524,58 @@ Assert 'une retention hors bornes est refusee' ((StatusOf {
 Invoke-RestMethod "$api/settings" -Method Patch -Headers $adminHeaders `
     -Body (@{ appName = $reglages.appName } | ConvertTo-Json) | Out-Null
 
+Write-Host "`n== Stockage ==" -ForegroundColor Cyan
+
+$magasin = Invoke-RestMethod "$api/storage" -Headers $adminHeaders
+Assert 'le magasin se decrit' ($magasin.kind -in @('local', 's3'))
+
+# Aucun chemin ne doit ramener une cle secrete : la console peut lire la configuration, jamais la
+# valeur qui permettrait de s'en servir ailleurs.
+Assert 'aucune cle secrete ne sort du processus' (
+    -not ($magasin.PSObject.Properties.Name -contains 'secretKey') -and
+    -not ($magasin.PSObject.Properties.Name -contains 'accessKey'))
+
+$objets = Invoke-RestMethod "$api/storage/objects?perPage=200" -Headers $adminHeaders
+Assert 'l inventaire repond' ($objets.totalItems -ge 0)
+
+# Le fichier importe plus haut est encore reference par son enregistrement : il ne doit donc pas
+# etre compte comme orphelin, sinon la detection ne vaut rien.
+$vivant = $objets.items | Where-Object { $_.fileName -eq $document.image -and -not $_.isThumb }
+if ($vivant) {
+    Assert 'un fichier reference n est pas orphelin' (-not $vivant.orphan)
+
+    # Et il ne doit pas etre supprimable depuis l inventaire : l enlever laisserait
+    # l enregistrement pointer vers rien.
+    Assert 'un fichier reference ne se supprime pas d ici' ((StatusOf {
+                Invoke-RestMethod "$api/storage/objects" -Method Delete -Headers $adminHeaders `
+                    -Body (@{ keys = @($vivant.key) } | ConvertTo-Json)
+            }) -eq 409)
+}
+
+$vignettes = Invoke-RestMethod "$api/storage/objects?kind=thumbs&perPage=200" -Headers $adminHeaders
+Assert 'le filtre de nature ne ramene que des vignettes' (
+    ($vignettes.items | Where-Object { -not $_.isThumb }).Count -eq 0)
+
+$sonde = Invoke-RestMethod "$api/storage/check" -Method Post -Headers $adminHeaders
+Assert 'le magasin passe le test de bout en bout' ($sonde.ok)
+Assert 'le test ecrit, relit et supprime' (($sonde.steps | Where-Object { $_.state -eq 'ok' }).Count -ge 4)
+
+$archive = Join-Path ([IO.Path]::GetTempPath()) "cratebase-smoke-$([Guid]::NewGuid().ToString('N')).zip"
+$jeton = (Invoke-RestMethod "$api/files/token" -Method Post -Headers $adminHeaders).token
+Invoke-WebRequest "$api/storage/archive?token=$jeton" -OutFile $archive -UseBasicParsing | Out-Null
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [IO.Compression.ZipFile]::OpenRead($archive)
+$entrees = $zip.Entries.Count
+$vignettesArchivees = ($zip.Entries | Where-Object { $_.FullName -like '*/thumbs_*' }).Count
+$zip.Dispose()
+Remove-Item $archive -Force
+
+Assert 'l archive contient des fichiers' ($entrees -gt 0)
+# Les vignettes se regenerent : les archiver reviendrait a archiver un cache, et a en doubler le poids.
+Assert 'l archive exclut les vignettes' ($vignettesArchivees -eq 0)
+
+Assert 'l archive exige une identite' ((StatusOf { Invoke-WebRequest "$api/storage/archive" -UseBasicParsing }) -eq 401)
+
 Write-Host "`n---------------------------------------------" -ForegroundColor Cyan
 Write-Host "  $script:passed reussis, $script:failed echoues" -ForegroundColor $(if ($script:failed -eq 0) { 'Green' } else { 'Red' })
 Write-Host "---------------------------------------------`n" -ForegroundColor Cyan
