@@ -1,9 +1,8 @@
 import { ChevronRight, Home } from 'lucide-react'
 import type { Collection } from '../api'
-import { groupOf } from '../hooks/useCollections'
 import { routeHref, type Route } from '../hooks/useRoute'
 import { cn } from '../ui'
-import { TAB_LABELS, adminLabel, groupLabel } from './navigation'
+import { TAB_LABELS, adminLabel } from './navigation'
 
 /** Une étape du fil d'Ariane. Sans `href`, elle situe la page sans y mener. */
 interface Crumb {
@@ -13,11 +12,10 @@ interface Crumb {
 }
 
 /**
- * Chemin de la page courante, déduit du catalogue de collections.
+ * Chemin de la page courante.
  *
- * C'est la colonne de navigation qui sert de table des matières : le groupe affiché ici est celui
- * qui range la collection dans le menu, calculé par la même fonction. Une table de libellés
- * indexée sur l'URL produirait, au premier écart, un fil qui contredit le menu de gauche.
+ * Il suit la colonne de navigation étape pour étape. Une étape de plus — la nature de la
+ * collection, par exemple — ferait dire au fil ce que le menu de gauche ne dit pas.
  */
 function trail(route: Route, collection: Collection | null): Crumb[] {
   if (route.kind === 'new') return [{ label: 'Nouvelle collection' }]
@@ -35,7 +33,6 @@ function trail(route: Route, collection: Collection | null): Crumb[] {
 
   return [
     { label: 'Collections' },
-    { label: groupLabel(groupOf(collection)) },
     {
       label: collection.name,
       mono: true,

@@ -1,13 +1,13 @@
 import { useId, useMemo, useState, type ReactNode } from 'react'
-import { Boxes, ChevronRight, Plus, Wrench } from 'lucide-react'
+import { Boxes, ChevronRight, Plus, Search, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Collection } from '../api'
-import { groupCollections } from '../hooks/useCollections'
+import { sortCollections } from '../hooks/useCollections'
 import { routeHref, type AdminSection, type Route } from '../hooks/useRoute'
 import { readFlag, writeFlag } from '../lib/preferences'
 import { collectionAlert, type CollectionAlert } from '../screens/CollectionHealth'
-import { Badge, Button, Skeleton, Tooltip, cn } from '../ui'
-import { ADMIN_ITEMS, FILES_ICON, GROUPS, LOGS_ICON } from './navigation'
+import { Badge, Input, Skeleton, Tooltip, cn } from '../ui'
+import { ADMIN_ITEMS, FILES_ICON, LOGS_ICON } from './navigation'
 
 const OPEN_KEYS = {
   collections: 'cratebase.sidebar.collections',
@@ -15,6 +15,13 @@ const OPEN_KEYS = {
 } as const
 
 type MenuId = keyof typeof OPEN_KEYS
+
+/**
+ * Nombre de collections à partir duquel un champ de filtre apparaît.
+ *
+ * En deçà, la liste tient sous les yeux et le champ ne ferait que la raccourcir d'une ligne.
+ */
+const SEARCHABLE_FROM = 8
 
 /** Entrée de premier niveau qui mène directement à un écran. */
 function Entry({
@@ -134,6 +141,28 @@ function Menu({
 }
 
 /**
+ * Création d'une collection, posée comme une collection.
+ *
+ * Elle ferme la liste qu'elle alimente, au lieu d'un bouton isolé sous la colonne : c'est là qu'on
+ * regarde en constatant que la collection cherchée n'existe pas, et la forme d'une entrée de liste
+ * dit mieux que celle d'un bouton ce que l'action va produire.
+ */
+function CreateCollectionLink({ onCreate }: { onCreate: () => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onCreate}
+        className="flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-ink-muted transition-colors hover:bg-surface-sunken hover:text-brand"
+      >
+        <Plus size={13} aria-hidden="true" className="shrink-0" />
+        <span className="truncate text-xs">Nouvelle collection</span>
+      </button>
+    </li>
+  )
+}
+
+/**
  * Une collection dans le sous-menu.
  *
  * Le repère de criticité est posé au bout de la ligne, à une position constante d'une collection à
@@ -157,17 +186,17 @@ function CollectionLink({
         href={routeHref({ kind: 'collection', name: collection.name, tab: 'records' })}
         aria-current={active ? 'page' : undefined}
         onClick={() => onSelect(collection.name)}
+        title={collection.name}
         className={cn(
-          'flex items-center justify-between gap-2 rounded-[var(--radius-control)] px-2 py-1.5 transition-colors',
+          'flex items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 transition-colors',
           active
             ? 'bg-brand-subtle font-medium text-brand'
             : 'text-ink-muted hover:bg-surface-sunken hover:text-ink',
         )}
       >
-        <span className="truncate font-mono text-xs">{collection.name}</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-xs">{collection.name}</span>
 
         <span className="flex shrink-0 items-center gap-1">
-          {collection.kind === 'Auth' && <Badge tone="neutral">auth</Badge>}
           {alert && (
             <Badge tone={alert.tone} title={alert.reason}>
               {alert.count}
@@ -221,11 +250,19 @@ export function Sidebar({
   /** Déploie la colonne. Appelé quand un menu est cliqué en mode réduit. */
   onExpand: () => void
 }) {
-  const groups = groupCollections(collections)
+  const sorted = useMemo(() => sortCollections(collections), [collections])
 
   // Le diagnostic est recalculé quand le catalogue change, pas à chaque rendu : la colonne se
   // redessine à chaque navigation, et le balayage des index de quarante collections n'a aucune
   // raison d'être refait pour un changement de page.
+  const [filter, setFilter] = useState('')
+
+  const visible = useMemo(() => {
+    const needle = filter.trim().toLowerCase()
+
+    return sorted.filter((collection) => collection.name.toLowerCase().includes(needle))
+  }, [sorted, filter])
+
   const alerts = useMemo(() => {
     const found = new Map<string, CollectionAlert>()
 
@@ -311,34 +348,50 @@ export function Sidebar({
               ))}
             </div>
           ) : (
-            GROUPS.map((group) => {
-              const items = groups[group.id]
-
-              if (items.length === 0) return null
-
-              return (
-                <div key={group.id} className="mb-2 last:mb-0">
-                  <h2 className="mb-1 flex items-center gap-1.5 px-2 text-[11px] font-semibold tracking-wide text-ink-faint uppercase">
-                    <group.icon size={11} aria-hidden="true" />
-                    {group.label}
-                    <span className="ml-auto tabular-nums">{items.length}</span>
-                  </h2>
-
-                  <ul className="space-y-0.5">
-                    {items.map((collection) => (
-                      <CollectionLink
-                        key={collection.id}
-                        collection={collection}
-                        alert={alerts.get(collection.name) ?? null}
-                        active={collection.name === activeName}
-                        onSelect={onSelect}
-                      />
-                    ))}
-                  </ul>
+            <>
+              {/* Le champ n'apparaît qu'au-delà de ce qu'un œil embrasse d'un coup. En dessous, il
+                  coûterait une ligne pour filtrer une liste déjà entièrement visible. */}
+              {collections.length > SEARCHABLE_FROM && (
+                <div className="relative mb-1">
+                  <Search
+                    size={13}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-ink-faint"
+                  />
+                  <Input
+                    value={filter}
+                    spellCheck={false}
+                    aria-label="Filtrer les collections"
+                    placeholder="Filtrer"
+                    className="h-7 pl-7 font-mono text-xs"
+                    onChange={(event) => setFilter(event.target.value)}
+                  />
                 </div>
-              )
-            })
+              )}
+
+              <ul className="space-y-0.5">
+                {visible.map((collection) => (
+                  <CollectionLink
+                    key={collection.id}
+                    collection={collection}
+                    alert={alerts.get(collection.name) ?? null}
+                    active={collection.name === activeName}
+                    onSelect={onSelect}
+                  />
+                ))}
+              </ul>
+
+              {visible.length === 0 && (
+                <p className="px-2 py-1.5 text-xs text-ink-faint">Aucune collection de ce nom.</p>
+              )}
+            </>
           )}
+
+          {/* Hors de la liste : la création n'appartient à aucun groupe — c'est elle qui décidera
+              du sien. */}
+          <ul className={cn(collections.length > 0 && 'mt-1 border-t border-border-subtle pt-1')}>
+            <CreateCollectionLink onCreate={onCreate} />
+          </ul>
         </Menu>
 
         <Entry
@@ -389,21 +442,6 @@ export function Sidebar({
         </Menu>
       </nav>
 
-      {/* Le bouton de création reste posé sous la liste qu'il alimente, à une place fixe : le
-          chercher au bout d'un défilement en ferait une action qu'on croit absente. */}
-      <div className={cn('border-t border-border-subtle p-2', collapsed && 'flex justify-center')}>
-        {collapsed ? (
-          <Tooltip content="Nouvelle collection">
-            <Button size="icon" aria-label="Nouvelle collection" onClick={onCreate}>
-              <Plus size={16} aria-hidden="true" />
-            </Button>
-          </Tooltip>
-        ) : (
-          <Button className="w-full" icon={<Plus size={15} aria-hidden="true" />} onClick={onCreate}>
-            Nouvelle collection
-          </Button>
-        )}
-      </div>
     </div>
   )
 }

@@ -64,3 +64,22 @@ export function groupCollections(collections: Collection[]): Record<CollectionGr
     system: collections.filter((item) => groupOf(item) === 'system'),
   }
 }
+
+const RANK: Record<CollectionGroup, number> = { data: 0, auth: 1, view: 2, system: 3 }
+
+/**
+ * Ordre d'affichage de la colonne : une seule liste, du quotidien vers le moteur.
+ *
+ * L'appartenance décide du rang mais ne coupe plus la liste en sections titrées. Trois intertitres
+ * en capitales, chacun suivi d'un ou deux noms, produisaient plus de lignes de décor que de
+ * destinations — et une colonne de cinq collections tenait sur onze lignes. Le groupe reste lisible,
+ * porté par l'icône de chaque entrée ; l'ordre, lui, fait le reste du travail en poussant les
+ * collections système au bas de la liste, là où on ne les cherche pas.
+ */
+export function sortCollections(collections: Collection[]): Collection[] {
+  return [...collections].sort(
+    (left, right) =>
+      RANK[groupOf(left)] - RANK[groupOf(right)] ||
+      left.name.localeCompare(right.name, 'fr', { sensitivity: 'base' }),
+  )
+}
