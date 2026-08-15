@@ -64,7 +64,7 @@ public sealed record StoredObject
 /// l'<b>éprouver</b>, ce qui est ce dont on a besoin quand les fichiers cessent de s'afficher.
 /// </para>
 /// <para>
-/// Réservé au superadministrateur : l'inventaire nomme les fichiers de tous les enregistrements, y
+/// Réservé au super-admin : l'inventaire nomme les fichiers de tous les enregistrements, y
 /// compris ceux que les règles d'accès protégeraient un par un.
 /// </para>
 /// </remarks>
@@ -693,7 +693,7 @@ public static class StorageEndpoints
     /// </summary>
     /// <remarks>
     /// L'appelant lui-même, et non un principal interne fabriqué pour l'occasion : ces routes ont
-    /// déjà exigé le superadministrateur, qui contourne les règles d'accès. Un fichier ne doit pas
+    /// déjà exigé le super-admin, qui contourne les règles d'accès. Un fichier ne doit pas
     /// devenir orphelin parce qu'une règle de consultation masque son enregistrement — et une
     /// identité privilégiée créée ici serait un second chemin d'élévation à surveiller.
     /// </remarks>

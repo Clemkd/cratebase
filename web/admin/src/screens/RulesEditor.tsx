@@ -52,7 +52,7 @@ const STATES: Record<
     label: 'Verrouillée',
     icon: Lock,
     tone: 'neutral',
-    summary: 'Superadministrateur uniquement — 403 pour tout le reste.',
+    summary: 'Super-admin uniquement — 403 pour tout le reste.',
   },
   public: {
     label: 'Ouverte à tous',
@@ -85,7 +85,7 @@ function stateOf(value: string | null, editing: boolean): RuleState {
  * Éditeur des règles d'accès.
  *
  * L'écran doit rendre visible la distinction qui décide de tout : une règle **absente** verrouille
- * la collection au superadministrateur, une règle **vide** l'ouvre à tout le monde. Une simple zone
+ * la collection au super-admin, une règle **vide** l'ouvre à tout le monde. Une simple zone
  * de texte ne montre pas la différence — d'où trois états nommés et exclusifs plutôt qu'un champ
  * qu'on laisse vide.
  */

@@ -34,6 +34,14 @@ public sealed partial class PostgresDialect : ISqlDialect, ISchemaDdl
     public IReadOnlyList<string> ConnectionInitializationStatements { get; } = [];
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Taille de la base entière, index compris. Elle ne dit rien de l'espace disque restant :
+    /// PostgreSQL n'expose aucune capacité de volume de façon portable, et une instance gérée n'en
+    /// expose souvent aucune du tout. C'est à l'exploitant de déclarer la sienne.
+    /// </remarks>
+    public string DatabaseSizeQuery => "SELECT pg_database_size(current_database())";
+
+    /// <inheritdoc />
     public string QuoteIdentifier(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

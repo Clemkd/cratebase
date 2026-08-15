@@ -353,6 +353,25 @@ export interface Storage {
   objects: { files: number; thumbs: number; fileBytes: number; thumbBytes: number }
 }
 
+/**
+ * Occupation mesurée de l'instance.
+ *
+ * Une capacité à zéro signifie « inconnue » et non « nulle » : ni PostgreSQL ni S3 n'exposent de
+ * limite de façon portable, et l'écran doit alors montrer un volume sans jauge plutôt qu'une jauge
+ * inventée.
+ */
+export interface Usage {
+  host: { available: boolean; path: string; totalBytes: number; freeBytes: number }
+  database: { engine: string; bytes: number; capacityBytes: number; onHostDisk: boolean }
+  files: {
+    kind: 'local' | 's3'
+    bytes: number
+    objects: number
+    capacityBytes: number
+    onHostDisk: boolean
+  }
+}
+
 export interface StorageProbeStep {
   name: string
   state: 'ok' | 'skipped' | 'failed'
@@ -471,8 +490,16 @@ function logSearch(
 export const api = {
   health: () => request<Health>('/health'),
 
-  /** État de l'instance : moteur, stockage, version, volumétrie. Réservé au superadministrateur. */
+  /** État de l'instance : moteur, stockage, version, volumétrie. Réservé au super-admin. */
   instance: () => request<Instance>('/instance'),
+
+  /**
+   * Occupation du disque, de la base et des fichiers.
+   *
+   * Séparée de `/instance` parce qu'elle coûte réellement : elle interroge le moteur et parcourt le
+   * magasin. Un écran qui ne veut que le nom de l'instance n'a pas à payer ce prix.
+   */
+  usage: () => request<Usage>('/usage'),
 
   settings: {
     get: () => request<AppSettings>('/settings'),
@@ -562,7 +589,7 @@ export const api = {
   },
 
   auth: {
-    /** Collection portant les superadministrateurs. */
+    /** Collection portant les super-admins. */
     superusers: '_superusers',
 
     /** Collection portant les rôles et leurs permissions. */
@@ -590,7 +617,7 @@ export const api = {
       }
     },
 
-    /** Pose les rôles et permissions d'un compte. Réservé au superadministrateur. */
+    /** Pose les rôles et permissions d'un compte. Réservé au super-admin. */
     grant: (collection: string, id: string, roles: string[], permissions: string[]) =>
       request<void>(`/collections/${collection}/records/${id}/grants`, {
         method: 'POST',

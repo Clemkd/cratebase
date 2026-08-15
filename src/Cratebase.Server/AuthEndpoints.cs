@@ -239,7 +239,7 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
-        // Attribution des droits : réservée au superadministrateur, et hors de l'API des
+        // Attribution des droits : réservée au super-admin, et hors de l'API des
         // enregistrements. Passer par un PATCH ordinaire permettrait à un compte de s'accorder ses
         // propres permissions dès que la règle de modification est un peu large.
         group.MapPost("/records/{id}/grants", async (

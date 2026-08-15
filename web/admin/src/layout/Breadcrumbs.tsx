@@ -24,7 +24,7 @@ function trail(route: Route, collection: Collection | null): Crumb[] {
 
   if (route.kind === 'admin') {
     return [
-      { label: 'Administration', href: routeHref({ kind: 'admin', section: 'overview' }) },
+      { label: 'Administration', href: routeHref({ kind: 'admin', section: 'settings' }) },
       { label: adminLabel(route.section) },
     ]
   }
@@ -69,16 +69,16 @@ export function Breadcrumbs({
               className="grid size-7 place-items-center rounded-[var(--radius-control)] text-ink"
             >
               <Home size={15} aria-hidden="true" />
-              <span className="sr-only">Console</span>
+              <span className="sr-only">Tableau de bord</span>
             </span>
           ) : (
             <a
               href={routeHref({ kind: 'home' })}
-              title="Console"
+              title="Tableau de bord"
               className="grid size-7 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
             >
               <Home size={15} aria-hidden="true" />
-              <span className="sr-only">Console</span>
+              <span className="sr-only">Tableau de bord</span>
             </a>
           )}
         </li>

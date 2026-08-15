@@ -18,6 +18,11 @@ builder.AddCratebase(options =>
     if (!string.IsNullOrWhiteSpace(postgres))
     {
         options.UsePostgres(postgres);
+
+        // PostgreSQL ne rend pas l'espace restant de son volume, et une instance gérée n'en expose
+        // souvent aucun. La jauge du tableau de bord n'existe donc que si l'exploitant la déclare.
+        options.DatabaseCapacityBytes =
+            builder.Configuration.GetValue<long>("Cratebase:Postgres:CapacityBytes");
     }
     else
     {
@@ -41,6 +46,8 @@ builder.AddCratebase(options =>
             PublicEndpoint = s3["PublicEndpoint"],
             Region = s3["Region"] ?? "us-east-1",
             ForcePathStyle = s3.GetValue("ForcePathStyle", true),
+            // Aucune limite ne se lit sur un seau : celle-ci est déclarée, ou absente.
+            CapacityBytes = s3.GetValue<long>("CapacityBytes"),
         });
     }
     else

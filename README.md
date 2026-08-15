@@ -59,7 +59,7 @@ rechargement à chaud, dans un second terminal :
 cd web/admin && npm install && npm run dev
 ```
 
-Le premier superadministrateur est créé au démarrage **uniquement si la base n'en contient aucun**,
+Le premier super-admin est créé au démarrage **uniquement si la base n'en contient aucun**,
 depuis la configuration :
 
 ```bash
@@ -81,14 +81,14 @@ Trois destinations, dans une colonne repliable en rail d'icônes :
 - **Journaux** — requêtes servies, refus d'accès et évènements d'administration. Les filtres sont
   posés sous l'en-tête de la colonne qu'ils restreignent ; cliquer une barre de l'histogramme ouvre
   la tranche correspondante et la redécoupe d'un cran plus fin.
-- **Administration** — aperçu de l'instance, paramètres, stockage, superadministrateurs,
+- **Administration** — aperçu de l'instance, paramètres, stockage, super-admins,
   fournisseurs d'identité.
 
 **Administration → Stockage** montre la configuration du magasin et l'éprouve — écriture, relecture,
 URL signée réellement suivie, suppression — mais ne l'écrit pas : ce qui porte un secret reste en
 configuration d'hôte. L'écran donne les variables exactes à poser et dit si elles sont bonnes.
 
-Deux garanties tenues par le moteur et non par l'interface : **le dernier superadministrateur ne
+Deux garanties tenues par le moteur et non par l'interface : **le dernier super-admin ne
 peut pas être supprimé** — sans lui l'instance n'est plus administrable par personne — et **changer
 un mot de passe ferme les sessions ouvertes** de ce compte, y compris celles d'un voleur.
 
@@ -128,7 +128,7 @@ Tout passe par la configuration ASP.NET Core, donc par variables d'environnement
 | --- | --- |
 | `ConnectionStrings:Postgres` | Bascule sur PostgreSQL. Sans elle, SQLite. |
 | `Cratebase:DataDirectory` | Racine des données : base et fichiers. |
-| `Cratebase:Superuser:Email` / `Password` | Premier superadministrateur, si la base n'en a aucun. |
+| `Cratebase:Superuser:Email` / `Password` | Premier super-admin, si la base n'en a aucun. |
 | `Cratebase:S3:Bucket` / `AccessKey` / `SecretKey` / `Endpoint` | Bascule sur S3. Sans elles, disque local. |
 | `Cratebase:S3:PublicEndpoint` | Hôte vu par le **navigateur**, s'il diffère de celui vu par l'API. |
 | `Cratebase:OAuth2:{google\|facebook\|microsoft\|github}:ClientId` / `ClientSecret` | Active un fournisseur externe. |

@@ -1,7 +1,10 @@
+using System.Data.Common;
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Cratebase.Admin;
 using Cratebase.Core;
+using Cratebase.Data;
 using Cratebase.Schema;
 using Cratebase.Storage;
 using Microsoft.AspNetCore.Builder;
@@ -201,6 +204,124 @@ public static class AdminEndpoints
             });
         });
 
+        endpoints.MapGet("/usage", async (
+            CratebaseOptions options,
+            IDbConnectionFactory connections,
+            IObjectStore store,
+            ICurrentUser user,
+            CancellationToken cancellationToken) =>
+        {
+            CollectionEndpoints.RequireSuperuser(user);
+
+            var description = options.StorageDescription;
+            var onHostDisk = description.Kind == "local";
+
+            long bytes = 0, objects = 0;
+
+            await foreach (var info in store.ListInfoAsync(string.Empty, cancellationToken).ConfigureAwait(false))
+            {
+                if (info.Key.StartsWith(StorageEndpoints.DiagnosticsPrefix, StringComparison.Ordinal)) continue;
+
+                objects++;
+                bytes += info.Length;
+            }
+
+            var host = MeasureHost(onHostDisk ? description.Directory : options.DataDirectory);
+
+            return Results.Ok(new
+            {
+                host,
+                database = new
+                {
+                    engine = options.Dialect.Name,
+                    bytes = await MeasureDatabaseAsync(connections, cancellationToken).ConfigureAwait(false),
+                    capacityBytes = options.DatabaseCapacityBytes,
+
+                    // SQLite pose son fichier sur le disque de l'hôte : sa jauge est celle du
+                    // disque, et il n'en faut pas une seconde. Un serveur PostgreSQL, lui, vit
+                    // ailleurs — souvent sur une autre machine.
+                    onHostDisk = options.Dialect.Name == "sqlite",
+                },
+                files = new
+                {
+                    kind = description.Kind,
+                    bytes,
+                    objects,
+                    capacityBytes = description.CapacityBytes,
+                    onHostDisk,
+                },
+            });
+        });
+
         return endpoints;
+    }
+
+    /// <summary>
+    /// Capacité du volume qui porte un répertoire.
+    /// </summary>
+    /// <remarks>
+    /// Le volume est déduit du chemin plutôt que codé en dur : sur un conteneur, le répertoire de
+    /// données est presque toujours un montage distinct de la racine, et mesurer la racine
+    /// annoncerait l'espace d'un disque que les données n'occupent pas.
+    ///
+    /// L'échec est une réponse comme une autre — un chemin réseau, un système de fichiers exotique,
+    /// un droit manquant. Il est rendu tel quel, plutôt que déguisé en zéro : une jauge à zéro se
+    /// lit comme un disque plein.
+    /// </remarks>
+    private static object MeasureHost(string directory)
+    {
+        try
+        {
+            var full = Path.GetFullPath(directory);
+            var root = Path.GetPathRoot(full);
+
+            if (string.IsNullOrEmpty(root))
+            {
+                return new { available = false, path = full, totalBytes = 0L, freeBytes = 0L };
+            }
+
+            var drive = new DriveInfo(root);
+
+            return new
+            {
+                available = drive.IsReady,
+                path = drive.Name,
+                totalBytes = drive.IsReady ? drive.TotalSize : 0L,
+                freeBytes = drive.IsReady ? drive.AvailableFreeSpace : 0L,
+            };
+        }
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return new { available = false, path = directory, totalBytes = 0L, freeBytes = 0L };
+        }
+    }
+
+    /// <summary>
+    /// Taille de la base, mesurée par le moteur lui-même.
+    /// </summary>
+    /// <remarks>
+    /// La requête vient du dialecte : c'est la seule façon de rendre le même chiffre sur les deux
+    /// moteurs sans que ce fichier n'en nomme aucun. Un échec rend zéro plutôt que de faire tomber
+    /// l'écran entier — la volumétrie est un confort, pas une raison de perdre l'administration.
+    /// </remarks>
+    private static async Task<long> MeasureDatabaseAsync(
+        IDbConnectionFactory connections,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var connection = await connections.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = connection.CreateCommand();
+
+            command.CommandText = connections.Dialect.DatabaseSizeQuery;
+
+            var value = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+
+            return value is null or DBNull ? 0 : Convert.ToInt64(value, CultureInfo.InvariantCulture);
+        }
+        catch (DbException)
+        {
+            return 0;
+        }
     }
 }

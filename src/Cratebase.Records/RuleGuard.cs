@@ -51,7 +51,7 @@ public static class RuleGuard
         if (rule is null)
         {
             throw new CratebaseForbiddenException(
-                $"L'action « {action} » sur « {collection.Name} » est réservée aux superadministrateurs.");
+                $"L'action « {action} » sur « {collection.Name} » est réservée aux super-admins.");
         }
 
         if (rule.Length == 0)

@@ -136,7 +136,7 @@ public static class SystemFields
         // ordinaire. Les rendre modifiables par l'API des enregistrements permettrait à un compte
         // de s'accorder ses propres droits en POSTant « permissions: ['*'] » — dès lors que la
         // règle de création est ouverte, ce qui est le cas le plus courant sur une inscription.
-        // L'attribution passe donc par un endpoint réservé au superadministrateur.
+        // L'attribution passe donc par un endpoint réservé au super-admin.
         new FieldDefinition
         {
             Id = Deterministic(9),

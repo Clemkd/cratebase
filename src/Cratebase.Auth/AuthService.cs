@@ -32,7 +32,7 @@ public sealed class AuthService(
     MfaService mfa,
     IClock clock)
 {
-    /// <summary>Nom de la collection des superadministrateurs.</summary>
+    /// <summary>Nom de la collection des super-admins.</summary>
     public const string SuperusersCollection = "_superusers";
 
     /// <summary>Nom de la collection des rôles.</summary>
@@ -208,7 +208,7 @@ public sealed class AuthService(
     }
 
     /// <summary>
-    /// Crée ou met à jour un superadministrateur.
+    /// Crée ou met à jour un super-admin.
     /// </summary>
     /// <remarks>
     /// Sert au démarrage initial (variables d'environnement) et à la ligne de commande. Volontaire-
@@ -302,7 +302,7 @@ public sealed class AuthService(
             .ConfigureAwait(false);
     }
 
-    /// <summary>Y a-t-il au moins un superadministrateur ?</summary>
+    /// <summary>Y a-t-il au moins un super-admin ?</summary>
     public async Task<bool> HasSuperuserAsync(CancellationToken cancellationToken = default)
     {
         if (_registry.Find(SuperusersCollection) is not { } collection)
@@ -321,7 +321,7 @@ public sealed class AuthService(
     }
 
     /// <summary>
-    /// Identifiant de l'unique superadministrateur, ou <see langword="null"/> s'il y en a zéro ou
+    /// Identifiant de l'unique super-admin, ou <see langword="null"/> s'il y en a zéro ou
     /// plusieurs.
     /// </summary>
     /// <remarks>
@@ -430,7 +430,7 @@ public sealed class AuthService(
 /// <summary>Enregistrement d'auth résolu, avec ses droits effectifs.</summary>
 /// <param name="Collection">Collection d'auth.</param>
 /// <param name="Id">Identifiant.</param>
-/// <param name="IsSuperuser">Le compte appartient-il à la collection des superadministrateurs ?</param>
+/// <param name="IsSuperuser">Le compte appartient-il à la collection des super-admins ?</param>
 /// <param name="Permissions">Permissions effectives, rôles fusionnés.</param>
 /// <param name="Fields">Champs visibles, pour <c>@request.auth.*</c>.</param>
 public sealed record AuthenticatedRecord(

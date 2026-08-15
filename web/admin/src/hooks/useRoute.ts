@@ -9,17 +9,17 @@ export type SchemaTab = Extract<CollectionTab, 'general' | 'fields' | 'indexes' 
 export const SCHEMA_TABS: SchemaTab[] = ['general', 'fields', 'indexes', 'rules']
 
 /** Sections de l'espace d'administration. */
-export type AdminSection = 'overview' | 'settings' | 'storage' | 'superusers' | 'providers'
+export type AdminSection = 'settings' | 'storage' | 'superusers' | 'providers'
 
-export const ADMIN_SECTIONS: AdminSection[] = [
-  'overview',
-  'settings',
-  'storage',
-  'superusers',
-  'providers',
-]
+export const ADMIN_SECTIONS: AdminSection[] = ['settings', 'storage', 'superusers', 'providers']
 
 export type Route =
+  /**
+   * Tableau de bord, et racine de la console.
+   *
+   * Deux adresses pour un même écran seraient une de trop : l'icône maison, le logo et l'entrée de
+   * menu mènent tous ici, donc ici est la racine.
+   */
   | { kind: 'home' }
   | { kind: 'new'; section: SchemaTab }
   | {
@@ -55,12 +55,11 @@ const SEGMENTS: Record<CollectionTab, string> = {
   rules: 'regles',
 }
 
-/** Fragment d'URL de chaque section d'administration. L'aperçu est la vue d'arrivée. */
+/** Fragment d'URL de chaque section d'administration. Les paramètres sont la vue d'arrivée. */
 const ADMIN_SEGMENTS: Record<AdminSection, string> = {
-  overview: '',
-  settings: 'parametres',
+  settings: '',
   storage: 'stockage',
-  superusers: 'superadmins',
+  superusers: 'super-admins',
   providers: 'fournisseurs',
 }
 
@@ -110,7 +109,7 @@ function parse(hash: string): Route {
   }
 
   if (segments[0] === 'administration') {
-    return { kind: 'admin', section: adminSectionFrom(segments[1]) ?? 'overview' }
+    return { kind: 'admin', section: adminSectionFrom(segments[1]) ?? 'settings' }
   }
 
   if (segments[0] === 'nouvelle') {
@@ -137,7 +136,7 @@ export function routeHref(route: Route): string {
   if (route.kind === 'files') return '#/fichiers'
 
   if (route.kind === 'admin') {
-    return route.section === 'overview'
+    return route.section === 'settings'
       ? '#/administration'
       : `#/administration/${ADMIN_SEGMENTS[route.section]}`
   }

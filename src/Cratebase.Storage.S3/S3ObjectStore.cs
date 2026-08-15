@@ -41,6 +41,17 @@ public sealed class S3StorageOptions
     public string Region { get; init; } = "us-east-1";
 
     /// <summary>
+    /// Capacité déclarée du seau, en octets. Zéro : inconnue.
+    /// </summary>
+    /// <remarks>
+    /// Déclarée par l'exploitant, parce qu'elle ne se lit nulle part : S3 n'impose aucune limite
+    /// par seau, et les services qui en imposent une l'exposent chacun à leur façon. La renseigner
+    /// donne à l'écran d'exploitation un dénominateur ; l'omettre y laisse un volume sans jauge,
+    /// ce qui reste honnête — une jauge inventée ne le serait pas.
+    /// </remarks>
+    public long CapacityBytes { get; init; }
+
+    /// <summary>
     /// Style de chemin plutôt que de sous-domaine.
     /// </summary>
     /// <remarks>

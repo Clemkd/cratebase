@@ -186,7 +186,7 @@ function AccountMenu({
         <span className="min-w-0">
           <span className="block truncate text-xs font-medium text-ink">{label}</span>
           <span className="block truncate text-[11px] text-ink-faint">
-            {identity.isSuperuser ? 'superadministrateur' : identity.collectionName}
+            {identity.isSuperuser ? 'super-admin' : identity.collectionName}
           </span>
         </span>
       </span>

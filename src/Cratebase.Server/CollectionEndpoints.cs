@@ -122,7 +122,7 @@ public sealed record FieldRequest
 /// Endpoints d'administration des collections.
 /// </summary>
 /// <remarks>
-/// Tous réservés au superadministrateur : créer une collection, c'est créer une table.
+/// Tous réservés au super-admin : créer une collection, c'est créer une table.
 /// </remarks>
 public static class CollectionEndpoints
 {
@@ -207,7 +207,7 @@ public static class CollectionEndpoints
         }
 
         throw user.IsAuthenticated
-            ? new CratebaseForbiddenException("Réservé aux superadministrateurs.")
+            ? new CratebaseForbiddenException("Réservé aux super-admins.")
             : new CratebaseUnauthenticatedException();
     }
 }

@@ -138,7 +138,7 @@ Les six règles de PocketBase, reprises à l'identique dans leur sémantique :
 
 Trois états, repris tels quels :
 
-- `null` → **verrouillée** : superadmin seulement, 403 pour tout le reste. C'est le défaut.
+- `null` → **verrouillée** : super-admin seulement, 403 pour tout le reste. C'est le défaut.
 - `""` → ouverte à tous, y compris les visiteurs anonymes.
 - expression → autorisée si l'expression est vraie.
 
@@ -169,7 +169,7 @@ Les codes de statut différenciés ne sont pas cosmétiques : renvoyer 404 plut�
 | MFA (deux facteurs enchaînés, `mfaId`) | ✅ **TOTP RFC 6238**, que PocketBase n'a pas nativement |
 | OTP par e-mail | ⏳ — nécessite `IEmailSender`, non branché |
 | Vérification d'e-mail, réinitialisation, changement d'e-mail | ⏳ — même dépendance |
-| Usurpation par superadmin (`impersonate`) | ⏳ |
+| Usurpation par super-admin (`impersonate`) | ⏳ |
 | Clés d'API | ⏳ |
 | Jetons JWT HS256, sans session en base | ⚠️ **divergence assumée** — voir ci-dessous |
 
@@ -284,8 +284,8 @@ PocketBase — un hook peut court-circuiter, transformer, ou envelopper.
 | Tâches planifiées (cron) | ✅ `BackgroundService` + expressions cron |
 | SMTP / `sendmail` | ✅ `IEmailSender` (abstraction), impl. SMTP + impl. journal en dev |
 | Limitation de débit intégrée | ✅ repris de `Forge.Http` (partition `sub` → IP, 429 + `Retry-After`) |
-| Commandes CLI superadmin | ✅ `cratebase superuser create/update`, `migrate`, `migrate-provider` |
-| Gestion des superadministrateurs depuis la console | ✅ livré — création, changement de mot de passe, suppression **sauf du dernier compte** |
+| Commandes CLI super-admin | ✅ `cratebase superuser create/update`, `migrate`, `migrate-provider` |
+| Gestion des super-admins depuis la console | ✅ livré — création, changement de mot de passe, suppression **sauf du dernier compte** |
 | Répertoire `pb_data` | `./data` : `cratebase.db`, `storage/`, `backups/`, `migrations/` |
 
 **Pourquoi les sauvegardes sont écartées et non repoussées.** PocketBase sauvegarde en zippant
@@ -622,7 +622,7 @@ Chacune justifie du code et un test, pas une règle de documentation.
 | **Expansion automatique de `IN @liste` par l'ORM** | rien sur SQLite | ⚠️ *rencontrée* — non appliquée selon le pilote : le tableau part en paramètre unique et la requête est rejetée |
 | **Bulle fermée sur tout `scroll` capturé** | la liste se referme dès qu'on la fait défiler | ⚠️ *rencontrée* — l'écouteur ne distinguait pas le défilement de la bulle de celui de la page ; une liste plus haute que son cadre devenait impossible à parcourir, à la molette comme aux flèches, `scrollIntoView` déclenchant lui-même la fermeture |
 | **Histogramme et tableau comptés par deux appels** | un graphique qui annonce plus d'entrées que la table sous lui | ⚠️ *rencontrée* — chaque lecture du journal vide le tampon d'écriture, donc le second appel voit ce que le premier n'avait pas : 19 contre 17. Page et histogramme partent désormais du même appel |
-| **Suppression du dernier superadministrateur** | 204, tout va bien | l'instance devient inadministrable : les collections système sont verrouillées et l'amorçage ne recrée un compte que si la configuration en porte un. Aucune règle d'accès ne peut l'empêcher, puisque la garde porte sur le compte qui a le droit de tout faire — d'où un crochet de suppression |
+| **Suppression du dernier super-admin** | 204, tout va bien | l'instance devient inadministrable : les collections système sont verrouillées et l'amorçage ne recrée un compte que si la configuration en porte un. Aucune règle d'accès ne peut l'empêcher, puisque la garde porte sur le compte qui a le droit de tout faire — d'où un crochet de suppression |
 | **Changement de mot de passe qui ne révoque rien** | le mot de passe change, l'utilisateur se croit sauf | ⚠️ *rencontrée* — seule la clé de génération tournait, et rien ne la consulte à la résolution d'un jeton : la session volée restait ouverte, alors que changer son mot de passe est le premier réflexe après un vol |
 | **Champ vide envoyé pour un champ non modifié** | « l'adresse est obligatoire » sur un formulaire de mot de passe | ⚠️ *rencontrée* — un formulaire partagé envoyait toujours l'adresse, vide quand il ne la demandait pas ; le moteur comprend « efface l'adresse » et refuse un changement par ailleurs valide |
 | **PATCH de réglages désérialisé en objet complet** | l'écran affiche ce qu'on a envoyé | un client n'envoyant que le nom remettrait rétention et collecte d'adresse à leurs valeurs par défaut ; d'où une charge à propriétés facultatives, fusionnée sur l'existant |

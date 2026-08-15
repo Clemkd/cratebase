@@ -22,20 +22,22 @@ export const TAB_LABELS: Record<CollectionTab, string> = {
 /**
  * Sections de l'espace d'administration, dans l'ordre d'affichage.
  *
- * L'aperçu ouvre la liste parce qu'il ne modifie rien : on y entre pour savoir où on est avant de
- * toucher à quoi que ce soit.
+ * Les paramètres ouvrent la liste : c'est la section qu'on vient régler, et le tableau de bord —
+ * qui ne modifie rien — a quitté l'administration pour la racine de la console.
  */
 export const ADMIN_ITEMS: { id: AdminSection; label: string; icon: LucideIcon }[] = [
-  { id: 'overview', label: 'Aperçu', icon: Gauge },
   { id: 'settings', label: 'Paramètres', icon: SlidersHorizontal },
   { id: 'storage', label: 'Stockage', icon: HardDrive },
-  { id: 'superusers', label: 'Superadministrateurs', icon: ShieldCheck },
+  { id: 'superusers', label: 'Super-admins', icon: ShieldCheck },
   { id: 'providers', label: "Fournisseurs d'identité", icon: KeyRound },
 ]
 
 export function adminLabel(section: AdminSection): string {
   return ADMIN_ITEMS.find((entry) => entry.id === section)?.label ?? ''
 }
+
+/** Icône du tableau de bord, qui est aussi la racine de la console. */
+export const DASHBOARD_ICON: LucideIcon = Gauge
 
 /** Icône de l'écran des journaux, partagée par la colonne et le fil d'Ariane. */
 export const LOGS_ICON: LucideIcon = ScrollText

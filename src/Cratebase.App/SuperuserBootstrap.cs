@@ -3,7 +3,7 @@ using Cratebase.Auth;
 namespace Cratebase.App;
 
 /// <summary>
-/// Création du premier superadministrateur au démarrage.
+/// Création du premier super-admin au démarrage.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -11,7 +11,7 @@ namespace Cratebase.App;
 /// sans amorçage, l'installation n'est administrable par personne.
 /// </para>
 /// <para>
-/// L'amorçage ne s'applique <b>que si aucun superadministrateur n'existe</b>. Sans cette garde, un
+/// L'amorçage ne s'applique <b>que si aucun super-admin n'existe</b>. Sans cette garde, un
 /// mot de passe laissé dans les variables d'environnement réinitialiserait le compte à chaque
 /// redémarrage — y compris après que l'administrateur l'a changé.
 /// </para>
@@ -21,7 +21,7 @@ public static partial class SuperuserBootstrapExtensions
     [LoggerMessage(
         EventId = 10,
         Level = LogLevel.Warning,
-        Message = "Aucun superadministrateur n'existe et aucun n'est configuré. Poser " +
+        Message = "Aucun super-admin n'existe et aucun n'est configuré. Poser " +
                   "Cratebase:Superuser:Email et Cratebase:Superuser:Password pour en créer un au " +
                   "prochain démarrage.")]
     private static partial void LogNoSuperuser(ILogger logger);
@@ -29,7 +29,7 @@ public static partial class SuperuserBootstrapExtensions
     [LoggerMessage(
         EventId = 11,
         Level = LogLevel.Information,
-        Message = "Superadministrateur initial créé : {Email}")]
+        Message = "Super-admin initial créé : {Email}")]
     private static partial void LogSuperuserCreated(ILogger logger, string email);
 
     /// <summary>Clé de configuration de l'adresse.</summary>
@@ -38,7 +38,7 @@ public static partial class SuperuserBootstrapExtensions
     /// <summary>Clé de configuration du mot de passe.</summary>
     public const string PasswordKey = "Cratebase:Superuser:Password";
 
-    /// <summary>Crée le premier superadministrateur si la base n'en a aucun.</summary>
+    /// <summary>Crée le premier super-admin si la base n'en a aucun.</summary>
     public static async Task BootstrapSuperuserAsync(
         this IServiceProvider services,
         IConfiguration configuration,

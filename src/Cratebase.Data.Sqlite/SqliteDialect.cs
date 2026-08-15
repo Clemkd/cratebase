@@ -36,6 +36,15 @@ public sealed partial class SqliteDialect : ISqlDialect, ISchemaDdl
     ];
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Le produit des pages plutôt que la taille du fichier : c'est ce que la base occupe
+    /// réellement, sans le journal d'écriture ni les pages libérées mais non rendues au système.
+    /// Lire le fichier depuis le serveur donnerait un nombre plus gros et surtout non portable.
+    /// </remarks>
+    public string DatabaseSizeQuery =>
+        "SELECT (SELECT * FROM pragma_page_count()) * (SELECT * FROM pragma_page_size())";
+
+    /// <inheritdoc />
     public string QuoteIdentifier(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

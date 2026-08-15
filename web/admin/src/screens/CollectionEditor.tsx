@@ -645,7 +645,7 @@ function GeneralSection({
             label="Règles verrouillées"
             value={`${rules.locked.length} / ${total}`}
             icon={<Lock size={15} aria-hidden="true" />}
-            hint="Superadministrateur uniquement."
+            hint="Super-admin uniquement."
             onClick={() => onNavigate('rules')}
             actionLabel="Voir les règles d'accès"
           />

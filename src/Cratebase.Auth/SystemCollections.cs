@@ -30,7 +30,7 @@ public static class SystemCollections
         }
     }
 
-    /// <summary>Définition de la collection des superadministrateurs.</summary>
+    /// <summary>Définition de la collection des super-admins.</summary>
     public static CollectionDefinition Superusers() => new()
     {
         Id = Deterministic(1),
@@ -38,10 +38,10 @@ public static class SystemCollections
         Kind = CollectionKind.Auth,
         IsSystem = true,
 
-        // Toutes les règles verrouillées : seul un superadministrateur atteint cette collection,
+        // Toutes les règles verrouillées : seul un super-admin atteint cette collection,
         // ce qui lui permet d'administrer ses pairs depuis la console. Les secrets ne sont pas
         // protégés par la règle mais par les champs masqués — « password » et « tokenKey » ne
-        // sortent d'aucune route, superadministrateur compris.
+        // sortent d'aucune route, super-admin compris.
         Rules = AccessRules.Locked,
         Fields = [],
     };

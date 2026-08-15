@@ -176,10 +176,10 @@ function PasswordForm({
 }
 
 /**
- * Comptes superadministrateurs.
+ * Comptes super-admins.
  *
  * Écran distinct du navigateur de comptes ordinaire, et pas un cas particulier de celui-ci : un
- * superadministrateur **passe outre toutes les règles d'accès**, donc ses rôles et ses permissions
+ * super-admin **passe outre toutes les règles d'accès**, donc ses rôles et ses permissions
  * ne décident de rien. Les afficher — et pire, les rendre modifiables — laisserait croire à un
  * réglage de droits qui n'existe pas à ce niveau.
  */
@@ -217,7 +217,7 @@ export function Superusers({
 
     try {
       await api.records.create(collection.name, values)
-      toast.success('Superadministrateur créé.')
+      toast.success('Super-admin créé.')
       setCreating(false)
       await reload()
     } catch (failure) {
@@ -275,7 +275,7 @@ export function Superusers({
 
     try {
       await api.records.remove(collection.name, String(removing.id))
-      toast.success('Superadministrateur supprimé.')
+      toast.success('Super-admin supprimé.')
       setRemoving(null)
       await reload()
     } catch (failure) {
@@ -309,14 +309,14 @@ export function Superusers({
             setCreating(true)
           }}
         >
-          Nouveau superadministrateur
+          Nouveau super-admin
         </Button>
       </PageActions>
 
       <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] border border-border-subtle bg-surface-sunken px-4 py-3">
         <ShieldCheck size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-brand" />
         <p className="text-xs text-ink-muted">
-          Un superadministrateur passe outre <strong className="text-ink">toutes</strong> les règles
+          Un super-admin passe outre <strong className="text-ink">toutes</strong> les règles
           d'accès : ni rôle ni permission ne s'applique à lui. Le dernier compte ne peut pas être
           supprimé — sans lui, plus personne ne pourrait administrer l'instance.
         </p>
@@ -328,7 +328,7 @@ export function Superusers({
 
       {items.length > 0 && (
         <Card className="overflow-hidden">
-          <Table bare caption="Comptes superadministrateurs">
+          <Table bare caption="Comptes super-admins">
             <THead>
               <tr>
                 <Th>Adresse</Th>
@@ -422,7 +422,7 @@ export function Superusers({
       {creating && (
         <PasswordForm
           withEmail
-          title="Nouveau superadministrateur"
+          title="Nouveau super-admin"
           description="Le compte peut administrer toute l'instance dès sa création."
           submitLabel="Créer le compte"
           busy={busy}
@@ -452,7 +452,7 @@ export function Superusers({
       <ConfirmDialog
         open={removing !== null}
         busy={busy}
-        title="Supprimer ce superadministrateur ?"
+        title="Supprimer ce super-admin ?"
         message={
           <>
             Le compte <strong className="text-ink">{String(removing?.email ?? '')}</strong> et ses

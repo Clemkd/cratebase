@@ -159,7 +159,7 @@ public static class CratebaseExtensions
     /// <remarks>
     /// À appeler <b>avant</b> <see cref="MapCratebase"/> dans le pipeline : sans elle, toute
     /// requête est anonyme et les collections verrouillées deviennent inaccessibles, y compris au
-    /// superadministrateur.
+    /// super-admin.
     /// </remarks>
     public static IApplicationBuilder UseCratebaseAuthentication(this IApplicationBuilder app)
     {

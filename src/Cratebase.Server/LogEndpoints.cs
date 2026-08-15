@@ -11,7 +11,7 @@ namespace Cratebase.Server;
 /// Endpoints de consultation du journal.
 /// </summary>
 /// <remarks>
-/// Réservés au superadministrateur : le journal porte les chemins appelés, les identifiants des
+/// Réservés au super-admin : le journal porte les chemins appelés, les identifiants des
 /// appelants et, selon les réglages, leur adresse. C'est la table la plus sensible de l'instance
 /// après celle des comptes.
 /// </remarks>

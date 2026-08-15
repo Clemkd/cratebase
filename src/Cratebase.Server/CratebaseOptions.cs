@@ -117,6 +117,16 @@ public sealed class CratebaseOptions
     public StorageDescription StorageDescription { get; private set; } =
         new() { Kind = "local", Directory = "./data/storage" };
 
+    /// <summary>
+    /// Capacité déclarée du volume de la base, en octets. Zéro : inconnue.
+    /// </summary>
+    /// <remarks>
+    /// Sans objet sur SQLite, dont le fichier occupe le disque de l'hôte — celui-ci se mesure. Sur
+    /// PostgreSQL en revanche, aucune requête portable ne rend l'espace restant, et une instance
+    /// gérée n'en expose souvent aucun : la capacité vient donc de l'exploitant ou de nulle part.
+    /// </remarks>
+    public long DatabaseCapacityBytes { get; set; }
+
     /// <summary>Stocke les fichiers sur le disque local. Défaut.</summary>
     public CratebaseOptions UseLocalFiles(string directory)
     {
@@ -137,6 +147,7 @@ public sealed class CratebaseOptions
         StorageDescription = new StorageDescription
         {
             Kind = "s3",
+            CapacityBytes = storage.CapacityBytes,
             Bucket = storage.Bucket,
             Endpoint = storage.Endpoint,
             PublicEndpoint = storage.PublicEndpoint ?? string.Empty,
@@ -171,6 +182,9 @@ public sealed record StorageDescription
 
     /// <summary>Répertoire racine, pour le disque local.</summary>
     public string Directory { get; init; } = string.Empty;
+
+    /// <summary>Capacité déclarée du magasin, en octets. Zéro : inconnue.</summary>
+    public long CapacityBytes { get; init; }
 
     /// <summary>Nom du seau, pour S3.</summary>
     public string Bucket { get; init; } = string.Empty;

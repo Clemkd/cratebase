@@ -425,13 +425,13 @@ Invoke-RestMethod "$api/collections/_superusers/auth-logout" -Method Post -Heade
 Assert 'la deconnexion revoque reellement le jeton' ((StatusOf { Invoke-RestMethod "$api/collections" -Headers $temporaryHeaders }) -eq 401)
 Assert "le jeton d'origine reste valide" ((StatusOf { Invoke-RestMethod "$api/me" -Headers $adminHeaders }) -eq 200)
 
-Write-Host "`n== Superadministrateurs ==" -ForegroundColor Cyan
+Write-Host "`n== Super-admins ==" -ForegroundColor Cyan
 
-# Le compte d'amorcage est le seul superadministrateur : le supprimer rendrait l'instance
+# Le compte d'amorcage est le seul super-admin : le supprimer rendrait l'instance
 # inadministrable, puisque toutes les collections systeme sont verrouillees et que l'amorcage ne
 # recree un compte que si la configuration en porte un.
 $self = Invoke-RestMethod "$api/me" -Headers $adminHeaders
-Assert 'le dernier superadministrateur ne peut pas etre supprime' ((StatusOf {
+Assert 'le dernier super-admin ne peut pas etre supprime' ((StatusOf {
             Invoke-RestMethod "$api/collections/_superusers/records/$($self.id)" -Method Delete -Headers $adminHeaders
         }) -eq 409)
 Assert 'le compte est toujours la' ((StatusOf { Invoke-RestMethod "$api/me" -Headers $adminHeaders }) -eq 200)
@@ -440,7 +440,7 @@ $secondEmail = "second-$([Guid]::NewGuid().ToString('N').Substring(0, 8))@crateb
 $second = Invoke-RestMethod "$api/collections/_superusers/records" -Method Post -Headers $adminHeaders `
     -Body (@{ email = $secondEmail; password = 'motdepasse-initial'; passwordConfirm = 'motdepasse-initial' } | ConvertTo-Json)
 
-Assert 'un second superadministrateur se cree' ($null -ne $second.id)
+Assert 'un second super-admin se cree' ($null -ne $second.id)
 
 $secondSession = Invoke-RestMethod "$api/collections/_superusers/auth-with-password" -Method Post `
     -Headers $anonHeaders -Body (@{ identity = $secondEmail; password = 'motdepasse-initial' } | ConvertTo-Json)
@@ -466,7 +466,7 @@ Assert 'le nouveau mot de passe ouvre une session' ((StatusOf {
 
 # Tant qu'il en reste deux, la suppression est permise : la garde porte sur le dernier, pas sur
 # n'importe lequel.
-Assert 'un superadministrateur sur deux se supprime' ((StatusOf {
+Assert 'un super-admin sur deux se supprime' ((StatusOf {
             Invoke-RestMethod "$api/collections/_superusers/records/$($second.id)" -Method Delete -Headers $adminHeaders
         }) -eq 200)
 
@@ -555,6 +555,21 @@ if ($vivant) {
 $vignettes = Invoke-RestMethod "$api/storage/objects?kind=thumbs&perPage=200" -Headers $adminHeaders
 Assert 'le filtre de nature ne ramene que des vignettes' (
     ($vignettes.items | Where-Object { -not $_.isThumb }).Count -eq 0)
+
+$occupation = Invoke-RestMethod "$api/usage" -Headers $adminHeaders
+Assert 'la base se mesure elle-meme' ($occupation.database.bytes -gt 0)
+Assert 'le moteur est nomme' ($occupation.database.engine -in @('sqlite', 'postgres'))
+Assert 'les fichiers sont totalises' ($occupation.files.bytes -ge 0 -and $occupation.files.objects -ge 0)
+
+# Une capacite a zero signifie « inconnue » et non « nulle » : ni PostgreSQL ni S3 n'exposent de
+# limite de facon portable, et l'ecran doit alors montrer un volume sans jauge.
+Assert 'une capacite absente vaut zero, pas une invention' (
+    $occupation.database.capacityBytes -ge 0 -and $occupation.files.capacityBytes -ge 0)
+
+if ($occupation.host.available) {
+    Assert 'le volume hote est mesure' ($occupation.host.totalBytes -gt 0)
+    Assert 'l espace libre tient dans le total' ($occupation.host.freeBytes -le $occupation.host.totalBytes)
+}
 
 $sonde = Invoke-RestMethod "$api/storage/check" -Method Post -Headers $adminHeaders
 Assert 'le magasin passe le test de bout en bout' ($sonde.ok)

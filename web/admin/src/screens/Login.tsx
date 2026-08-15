@@ -34,7 +34,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
     <AuthLayout
       title="Connexion"
       description="Console d'administration."
-      footer="Réservé aux superadministrateurs. La session expire à la fermeture de l'onglet."
+      footer="Réservé aux super-admins. La session expire à la fermeture de l'onglet."
       aside={
         <Tooltip content={resolved === 'dark' ? 'Passer en clair' : 'Passer en sombre'}>
           <Button

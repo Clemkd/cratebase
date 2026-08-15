@@ -7,7 +7,7 @@ import { routeHref, type AdminSection, type Route } from '../hooks/useRoute'
 import { readFlag, writeFlag } from '../lib/preferences'
 import { collectionAlert, type CollectionAlert } from '../screens/CollectionHealth'
 import { Badge, Input, Skeleton, Tooltip, cn } from '../ui'
-import { ADMIN_ITEMS, FILES_ICON, LOGS_ICON } from './navigation'
+import { ADMIN_ITEMS, DASHBOARD_ICON, FILES_ICON, LOGS_ICON } from './navigation'
 
 const OPEN_KEYS = {
   collections: 'cratebase.sidebar.collections',
@@ -330,6 +330,14 @@ export function Sidebar({
         aria-label="Navigation principale"
         className={cn('scrollbar-none min-h-0 flex-1 space-y-1 overflow-y-auto pt-2', collapsed ? 'px-3' : 'px-2')}
       >
+        <Entry
+          href={routeHref({ kind: 'home' })}
+          icon={DASHBOARD_ICON}
+          label="Tableau de bord"
+          active={route.kind === 'home'}
+          collapsed={collapsed}
+        />
+
         <Menu
           id="collections"
           icon={Boxes}

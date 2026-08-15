@@ -9,7 +9,7 @@ namespace Cratebase.Auth;
 /// Attribution des rôles et des permissions à un compte.
 /// </summary>
 /// <remarks>
-/// Service distinct du moteur CRUD, et réservé au superadministrateur : l'élévation de privilèges
+/// Service distinct du moteur CRUD, et réservé au super-admin : l'élévation de privilèges
 /// ne doit pas emprunter le même chemin que la modification d'un champ ordinaire.
 /// </remarks>
 public sealed class GrantService(

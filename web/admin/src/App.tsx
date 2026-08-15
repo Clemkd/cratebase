@@ -7,11 +7,11 @@ import { AppShell } from './layout/AppShell'
 import { Page } from './layout/Page'
 import { TAB_LABELS, adminLabel } from './layout/navigation'
 import { AccountsBrowser } from './screens/AccountsBrowser'
-import { AdminOverview } from './screens/AdminOverview'
 import { AdminProviders } from './screens/AdminProviders'
 import { AdminSettings } from './screens/AdminSettings'
 import { AdminStorage } from './screens/AdminStorage'
 import { CollectionEditor } from './screens/CollectionEditor'
+import { Dashboard } from './screens/Dashboard'
 import { analyseIndexes, analyseRules } from './screens/CollectionHealth'
 import { Login } from './screens/Login'
 import { LogsBrowser } from './screens/LogsBrowser'
@@ -32,7 +32,6 @@ import {
 
 /** Ce que chaque section d'administration promet, en une phrase. */
 const ADMIN_DESCRIPTIONS: Record<AdminSection, string> = {
-  overview: "Ce que sert ce processus : moteur, stockage, version et volumétrie.",
   settings: "Réglages honorés par le moteur. Le reste appartient à la configuration de l'hôte.",
   storage:
     "Magasin des fichiers : configuration en vigueur, test de connexion, extraction. Lu, jamais écrit.",
@@ -163,16 +162,6 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
 
   const badges = useTabBadges(selected)
 
-  // Sans sélection explicite, on ouvre la première collection de données : atterrir sur un écran
-  // vide alors que la base en contient donnerait l'impression que rien n'a été chargé.
-  useEffect(() => {
-    if (route.kind !== 'home' || collections.length === 0) return
-
-    const first = collections.find((item) => !item.isSystem) ?? collections[0]
-
-    if (first) navigate({ kind: 'collection', name: first.name, tab: 'records' })
-  }, [route.kind, collections, navigate])
-
   // Une seule barre d'onglets pour toute la collection : les quatre vues du schéma y siègent au
   // même rang que les enregistrements. Deux barres empilées — l'une pour la collection, l'autre
   // pour le schéma — obligeaient à retenir laquelle commande quoi.
@@ -262,6 +251,16 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
         </Page>
       )}
 
+      {route.kind === 'home' && (
+        <Page
+          wide
+          title="Tableau de bord"
+          description="Ce que sert ce processus, et ce qu'il occupe : moteur, stockage, volumétrie."
+        >
+          <Dashboard onOpenLogs={() => navigate({ kind: 'logs' })} />
+        </Page>
+      )}
+
       {route.kind === 'files' && (
         <Page
           wide
@@ -288,10 +287,6 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
           title={adminLabel(route.section)}
           description={ADMIN_DESCRIPTIONS[route.section]}
         >
-          {route.section === 'overview' && (
-            <AdminOverview onOpenLogs={() => navigate({ kind: 'logs' })} />
-          )}
-
           {route.section === 'settings' && <AdminSettings onSaved={(next) => setAppName(next.appName)} />}
 
           {route.section === 'storage' && <AdminStorage />}
@@ -304,17 +299,14 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
                 onSignedOut={onSignedOut}
               />
             ) : (
-              <LoadingBlock label="Chargement des superadministrateurs…" />
+              <LoadingBlock label="Chargement des super-admins…" />
             ))}
 
           {route.section === 'providers' && <AdminProviders />}
         </Page>
       )}
 
-      {(route.kind === 'home' || route.kind === 'collection') &&
-        !loading &&
-        collections.length === 0 &&
-        !error && (
+      {route.kind === 'collection' && !loading && collections.length === 0 && !error && (
           <Page title="Console" description="Aucune collection n'existe encore dans cette base.">
             <EmptyState
               title="Aucune collection"

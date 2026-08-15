@@ -15,7 +15,7 @@ namespace Cratebase.Auth;
 /// </para>
 /// <para>
 /// Il porte aussi les deux invariantes que le moteur ne peut pas confier à une règle d'accès : un
-/// changement de mot de passe <b>révoque les sessions</b>, et le dernier superadministrateur ne
+/// changement de mot de passe <b>révoque les sessions</b>, et le dernier super-admin ne
 /// peut pas être supprimé.
 /// </para>
 /// </remarks>
@@ -63,7 +63,7 @@ public sealed class AuthRecordHook(AuthService auth, AuthTokenStore tokens) : IR
 
         // Ni le rôle ni les permissions ne peuvent venir du client. Une inscription ouverte, avec
         // « permissions » modifiable, permettrait à n'importe qui de s'accorder tous les droits en
-        // une requête. L'attribution passe par un endpoint réservé au superadministrateur.
+        // une requête. L'attribution passe par un endpoint réservé au super-admin.
         data[SystemFields.Roles] = Array.Empty<string>();
         data[SystemFields.Permissions] = Array.Empty<string>();
         data[SystemFields.Verified] = false;
@@ -128,7 +128,7 @@ public sealed class AuthRecordHook(AuthService auth, AuthTokenStore tokens) : IR
             return;
         }
 
-        // ⚠️ Supprimer le dernier superadministrateur rend l'instance inadministrable : toutes les
+        // ⚠️ Supprimer le dernier super-admin rend l'instance inadministrable : toutes les
         // collections système sont verrouillées, et l'amorçage ne recrée un compte que si la
         // configuration en porte un — ce qui n'est pas le cas d'un déploiement ordinaire. Aucune
         // règle d'accès ne peut exprimer cette garde, puisqu'elle porte justement sur le compte qui
@@ -138,7 +138,7 @@ public sealed class AuthRecordHook(AuthService auth, AuthTokenStore tokens) : IR
         if (only is not null && string.Equals(only, recordId, StringComparison.Ordinal))
         {
             throw new CratebaseConflictException(
-                "Ce compte est le dernier superadministrateur : le supprimer rendrait l'instance " +
+                "Ce compte est le dernier super-admin : le supprimer rendrait l'instance " +
                 "inadministrable. Créez-en un autre avant de supprimer celui-ci.");
         }
     }
