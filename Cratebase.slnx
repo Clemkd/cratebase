@@ -8,6 +8,7 @@
     <Project Path="src/Cratebase.Data.Sqlite/Cratebase.Data.Sqlite.csproj" />
     <Project Path="src/Cratebase.Data/Cratebase.Data.csproj" />
     <Project Path="src/Cratebase.Expressions/Cratebase.Expressions.csproj" />
+    <Project Path="src/Cratebase.Realtime/Cratebase.Realtime.csproj" />
     <Project Path="src/Cratebase.Records/Cratebase.Records.csproj" />
     <Project Path="src/Cratebase.Schema/Cratebase.Schema.csproj" />
     <Project Path="src/Cratebase.Server/Cratebase.Server.csproj" />

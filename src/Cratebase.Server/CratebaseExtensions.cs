@@ -3,6 +3,7 @@ using Cratebase.Admin;
 using Cratebase.Auth;
 using Cratebase.Core;
 using Cratebase.Data;
+using Cratebase.Realtime;
 using Cratebase.Records;
 using Cratebase.Schema;
 using Cratebase.Storage;
@@ -62,6 +63,13 @@ public static class CratebaseExtensions
         services.AddHttpClient("cratebase-oauth2", client =>
             client.Timeout = TimeSpan.FromSeconds(15));
         services.AddSingleton<IRecordMutationHook, AuthRecordHook>();
+
+        // Le temps réel s'enregistre comme n'importe quel crochet d'après-écriture : c'est la
+        // preuve que le point d'extension suffit, et non une faveur faite à un module interne.
+        services.TryAddSingleton<IRealtimeTransport>(_ => new InMemoryRealtimeTransport());
+        services.AddSingleton<RealtimeHub>();
+        services.AddSingleton<IRecordMutationHook, RealtimeRecordHook>();
+        services.AddHostedService<RealtimeDispatcher>();
         services.AddSingleton<IObjectStore>(_ => options.ObjectStoreFactory());
 
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
@@ -206,6 +214,7 @@ public static class CratebaseExtensions
         api.MapLogEndpoints();
         api.MapAdminEndpoints();
         api.MapStorageEndpoints();
+        api.MapRealtimeEndpoints();
 
         return endpoints;
     }

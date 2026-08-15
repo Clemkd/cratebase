@@ -56,6 +56,9 @@ public sealed record SettingsRequest
     /// <summary>Réglages du journal.</summary>
     public LogSettingsRequest? Logs { get; init; }
 
+    /// <summary>Réglages du temps réel.</summary>
+    public RealtimeSettingsRequest? Realtime { get; init; }
+
     /// <summary>Applique les valeurs fournies aux réglages en vigueur.</summary>
     public AppSettings Apply(AppSettings current)
     {
@@ -66,6 +69,30 @@ public sealed record SettingsRequest
             AppName = AppName ?? current.AppName,
             AppUrl = AppUrl ?? current.AppUrl,
             Logs = Logs?.Apply(current.Logs) ?? current.Logs,
+            Realtime = Realtime?.Apply(current.Realtime) ?? current.Realtime,
+        };
+    }
+}
+
+/// <summary>Réglages du temps réel soumis par la console.</summary>
+public sealed record RealtimeSettingsRequest
+{
+    /// <summary>Le temps réel est-il ouvert ?</summary>
+    public bool? Enabled { get; init; }
+
+    /// <summary>Flux simultanés admis.</summary>
+    public int? MaxClients { get; init; }
+
+    /// <summary>Applique les valeurs fournies aux réglages en vigueur.</summary>
+    public RealtimeSettings Apply(RealtimeSettings current)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+
+        return new RealtimeSettings
+        {
+            // `?? current` et non `?? défaut` : c'est ce qui distingue « absent » de « false ».
+            Enabled = Enabled ?? current.Enabled,
+            MaxClients = MaxClients ?? current.MaxClients,
         };
     }
 }

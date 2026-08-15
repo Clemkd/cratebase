@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CircleHelp, Database, Filter, Plus, RotateCw, Search, Trash2, X } from 'lucide-react'
 import { api, describeFailure, type Collection, type RecordValue } from '../api'
+import { useRealtime } from '../hooks/useRealtime'
 import { useRecords } from '../hooks/useRecords'
 import { visibleFields } from '../lib/fields'
 import { formatCount, plural } from '../lib/format'
@@ -90,6 +91,12 @@ export function RecordsBrowser({
   const columns = useMemo(() => visibleFields(collection), [collection])
   const query = useMemo(() => ({ page, perPage, filter, sort }), [page, perPage, filter, sort])
   const { result, loading, error, reload } = useRecords(collection.name, query)
+
+  // La console consomme son propre temps réel : une écriture venue d'ailleurs — un autre onglet,
+  // un client, un travailleur de fond — remet la liste à jour sans qu'on ait à recharger. C'est
+  // aussi la seule preuve qui vaille que le flux fonctionne pour les autres.
+  useRealtime([collection.name], () => void reload())
+
 
   // Changer de collection remet la barre d'outils à zéro : un filtre écrit pour une autre table
   // désigne des champs qui n'existent pas ici, donc produirait une erreur 400 déroutante. Un

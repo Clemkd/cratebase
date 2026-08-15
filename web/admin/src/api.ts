@@ -391,10 +391,16 @@ export interface LogSettings {
   logIp: boolean
 }
 
+export interface RealtimeSettings {
+  enabled: boolean
+  maxClients: number
+}
+
 export interface AppSettings {
   appName: string
   appUrl: string
   logs: LogSettings
+  realtime: RealtimeSettings
 }
 
 /**
@@ -404,6 +410,7 @@ export interface AppSettings {
  * l'objet complet remettrait à leur valeur par défaut les réglages qu'un écran ne connaît pas.
  */
 export interface SettingsPayload {
+  realtime?: Partial<RealtimeSettings>
   appName?: string
   appUrl?: string
   logs?: Partial<LogSettings>
@@ -540,6 +547,21 @@ export const api = {
      * archive.
      */
     token: async () => (await request<{ token: string }>('/files/token', { method: 'POST' })).token,
+  },
+
+  realtime: {
+    /**
+     * Déclare les sujets suivis par un flux.
+     *
+     * Remplace la liste, ne l'étend pas : changer d'écran doit pouvoir tout désabonner en une
+     * requête. C'est aussi cet appel qui attache le jeton au flux, qu'une `EventSource` ne peut
+     * pas porter.
+     */
+    subscribe: (clientId: string, subscriptions: string[]) =>
+      request<void>('/realtime', {
+        method: 'POST',
+        body: JSON.stringify({ clientId, subscriptions }),
+      }),
   },
 
   storage: {

@@ -10,13 +10,14 @@ container**. It includes:
 - **authentication**: local accounts, revocable tokens, roles and per-record grants, OAuth2 (Google,
   Facebook, Microsoft, GitHub), TOTP two-factor;
 - **files** on local disk — or S3 —, thumbnails and protected files included;
+- **realtime**: SSE streams per collection, access rules re-evaluated at broadcast;
 - a React **admin console**: collections, records, logs, settings;
 - a **REST API** usable from any client.
 
 > Design notes, the full PocketBase feature mapping and the catalogue of silent failure modes live
 > in [`CONCEPTION.md`](./CONCEPTION.md) (French).
 
-> ⚠️ **Under active development.** Realtime (SSE) and published packages (`dotnet new cratebase`,
+> ⚠️ **Under active development.** Published packages (`dotnet new cratebase`,
 > `@cratebase/client`) are not there yet. **Physical** backups from the console are ruled out rather
 > than postponed: they would necessarily be engine-specific (`VACUUM INTO` on one side, `pg_dump` on
 > the other). A **logical export** is planned — [`docs/SAUVEGARDE.md`](./docs/SAUVEGARDE.md), and
@@ -42,8 +43,8 @@ Cratebase is written so that day costs nothing:
 
 The same end-to-end suite runs on SQLite and on PostgreSQL, on local disk and on S3.
 
-In exchange, PocketBase has what Cratebase does not: realtime, backups from the console, a single
-binary to download and a published SDK ecosystem.
+In exchange, PocketBase has what Cratebase does not: backups from the console, a single binary to
+download and a published SDK ecosystem.
 
 ## Getting started
 
@@ -158,7 +159,7 @@ dotnet test Cratebase.slnx
 pwsh tests/smoke.ps1
 ```
 
-135 assertions against a running instance. They cover the happy path **and** the hostile ones:
+145 assertions against a running instance. They cover the happy path **and** the hostile ones:
 injection, off-schema field, unauthorised sort, locked rule, privilege escalation at sign-up, replay
 of a two-factor challenge, directory traversal on files.
 

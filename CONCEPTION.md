@@ -369,6 +369,33 @@ l'objet d'un plan distinct, [`docs/MIGRATION.md`](./docs/MIGRATION.md).
 - **L'extraction exclut les vignettes par défaut.** Elles se régénèrent à la demande : les archiver
   revient à archiver un cache, et à doubler le poids de l'archive.
 
+**Temps réel.**
+
+- **La règle de consultation est réévaluée à la diffusion**, et c'est ce qui décide de la valeur du
+  reste. Sans elle, s'abonner à une collection suffirait à recevoir des enregistrements que l'API
+  refuse de servir : le temps réel deviendrait un contournement de toutes les règles d'accès à la
+  fois. Les deux cas fréquents ne coûtent aucune requête — une règle verrouillée ne concerne que les
+  super-admins, une règle ouverte concerne tout le monde ; seule une règle conditionnelle demande une
+  lecture, une par appelant distinct et non une par abonné.
+- **Une suppression sur collection à règle conditionnelle n'est annoncée qu'aux super-admins.** La
+  ligne n'existe plus, donc la règle ne peut plus être appliquée, et personne ne peut prouver qu'il
+  avait le droit de la voir. Refuser est la seule position tenable : supposer irait dans le sens de
+  la fuite.
+- **SSE et non WebSocket.** Le besoin est unidirectionnel. SSE passe les mandataires sans
+  négociation, se reconnecte tout seul et tient sur du HTTP ordinaire ; un WebSocket apporterait un
+  canal montant dont rien ne se sert, contre une pile de plus à exploiter.
+- **Deux routes, parce que le navigateur l'impose.** Une source d'évènements ne porte aucun en-tête :
+  le flux s'ouvre anonyme et l'abonnement, requête ordinaire, y attache le jeton. C'est aussi ce qui
+  permet de changer de sujets sans rouvrir le flux.
+- **Le temps réel s'enregistre comme n'importe quel crochet d'après-écriture.** Il n'a besoin
+  d'aucun branchement privilégié : c'est la preuve que le point d'extension suffit, et un
+  utilisateur de la librairie qui veut envoyer un courriel ou alimenter un index écrit exactement le
+  même genre de classe.
+- **Les files sont bornées des deux côtés**, transport et client, et ce sont les messages les plus
+  anciens qui tombent. Un onglet en veille sur un réseau saturé ne doit pas ralentir la diffusion
+  pour tous les autres, et une file sans limite échange une lenteur visible contre une panne mémoire
+  qui ne l'est pas.
+
 ### 2.10 Migrations de schéma
 
 Le point que PocketBase traite bien et qu'il ne faut pas rater : **une collection créée dans la

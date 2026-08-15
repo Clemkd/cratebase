@@ -10,14 +10,15 @@ qui contient :
 - l'**authentification** : comptes locaux, jetons révocables, rôles et dérogations, OAuth2 (Google,
   Facebook, Microsoft, GitHub), double authentification TOTP ;
 - les **fichiers** sur disque local — ou S3 —, vignettes et fichiers protégés compris ;
+- le **temps réel** : flux SSE par collection, règles d'accès réévaluées à la diffusion ;
 - une **console d'administration** React : collections, enregistrements, journaux, réglages ;
 - une **API REST** utilisable depuis n'importe quel client.
 
 > Conception détaillée, correspondance avec PocketBase et catalogue des défaillances silencieuses :
 > [`CONCEPTION.md`](./CONCEPTION.md).
 
-> ⚠️ **Développement actif.** Le temps réel (SSE) et les paquets publiés (`dotnet new cratebase`,
-> `@cratebase/client`) ne sont pas encore là. La sauvegarde **physique** depuis la console est
+> ⚠️ **Développement actif.** Les paquets publiés (`dotnet new cratebase`, `@cratebase/client`) ne
+> sont pas encore là. La sauvegarde **physique** depuis la console est
 > écartée et non repoussée : elle serait forcément spécifique au moteur (`VACUUM INTO` d'un côté,
 > `pg_dump` de l'autre). L'**export logique**, lui, est planifié —
 > [`docs/SAUVEGARDE.md`](./docs/SAUVEGARDE.md), et [`docs/MIGRATION.md`](./docs/MIGRATION.md) pour
@@ -43,8 +44,8 @@ Cratebase est écrit pour que ce jour-là ne coûte rien :
 La même suite de bout en bout est jouée sur SQLite comme sur PostgreSQL, sur disque local comme sur
 S3.
 
-En contrepartie, PocketBase a ce que Cratebase n'a pas : le temps réel, les sauvegardes depuis la
-console, un binaire unique à télécharger et un écosystème de SDK déjà publiés.
+En contrepartie, PocketBase a ce que Cratebase n'a pas : les sauvegardes depuis la console, un
+binaire unique à télécharger et un écosystème de SDK déjà publiés.
 
 ## Démarrer
 
@@ -162,7 +163,7 @@ dotnet test Cratebase.slnx
 pwsh tests/smoke.ps1
 ```
 
-135 assertions contre une instance en cours d'exécution. Elles couvrent le chemin nominal **et** les
+145 assertions contre une instance en cours d'exécution. Elles couvrent le chemin nominal **et** les
 chemins hostiles : injection, champ hors schéma, tri non autorisé, règle verrouillée, élévation de
 privilèges à l'inscription, rejeu d'un défi de double authentification, traversée de répertoire.
 

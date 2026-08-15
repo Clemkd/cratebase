@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Temps réel de Cratebase : abonnements par collection, diffusion filtrée par les règles d'accès.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cratebase.Records\Cratebase.Records.csproj" />
+  </ItemGroup>
+
+</Project>

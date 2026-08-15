@@ -44,6 +44,26 @@ public sealed record LogSettings
 /// et n'apparaissent jamais ici : une table que la console sait lire finit dans une sauvegarde.
 /// </para>
 /// </remarks>
+/// <summary>Réglages du temps réel.</summary>
+public sealed record RealtimeSettings
+{
+    /// <summary>Nombre de flux simultanés au-delà duquel une nouvelle connexion est refusée.</summary>
+    public const int MaxClientsCeiling = 10_000;
+
+    /// <summary>Le temps réel est-il ouvert ?</summary>
+    public bool Enabled { get; init; } = true;
+
+    /// <summary>
+    /// Flux simultanés admis.
+    /// </summary>
+    /// <remarks>
+    /// Une borne, et non un réglage de confort : chaque flux retient une connexion et une file de
+    /// messages pour toute sa durée. Sans plafond, un client qui rouvre son flux en boucle épuise
+    /// les connexions du serveur sans jamais rien demander d'illégitime.
+    /// </remarks>
+    public int MaxClients { get; init; } = 200;
+}
+
 public sealed record AppSettings
 {
     /// <summary>Nom de l'instance, affiché par la console.</summary>
@@ -54,6 +74,9 @@ public sealed record AppSettings
 
     /// <summary>Réglages du journal.</summary>
     public LogSettings Logs { get; init; } = new();
+
+    /// <summary>Réglages du temps réel.</summary>
+    public RealtimeSettings Realtime { get; init; } = new();
 
     /// <summary>
     /// Valide et normalise les réglages soumis.
@@ -84,6 +107,12 @@ public sealed record AppSettings
         if (Logs.RetentionDays is < 0 or > 365)
         {
             errors["logs.retentionDays"] = ["La rétention va de 0 (illimitée) à 365 jours."];
+        }
+
+        if (Realtime.MaxClients is < 1 || Realtime.MaxClients > RealtimeSettings.MaxClientsCeiling)
+        {
+            errors["realtime.maxClients"] =
+                [$"Le nombre de flux va de 1 à {RealtimeSettings.MaxClientsCeiling}."];
         }
 
         if (errors.Count > 0)

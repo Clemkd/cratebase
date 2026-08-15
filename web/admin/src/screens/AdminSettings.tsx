@@ -214,6 +214,45 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
           />
         </div>
       </Panel>
+
+      <Panel
+        title="Temps réel"
+        description="Flux d'évènements poussés aux clients abonnés, la console comprise."
+      >
+        <div className="space-y-4">
+          <Checkbox
+            label="Diffuser les écritures aux abonnés"
+            hint="Décoché, les flux ouverts se taisent au lieu d'être coupés, et aucun nouveau ne s'ouvre."
+            checked={draft.realtime.enabled}
+            onChange={(event) =>
+              setDraft({
+                ...draft,
+                realtime: { ...draft.realtime, enabled: event.target.checked },
+              })
+            }
+          />
+
+          <Field
+            label="Flux simultanés"
+            error={first('realtime.maxClients')}
+            hint="Chaque flux retient une connexion pour toute sa durée : sans plafond, un client qui rouvre en boucle épuise le serveur."
+          >
+            <Input
+              type="number"
+              min={1}
+              max={10000}
+              value={draft.realtime.maxClients}
+              disabled={!draft.realtime.enabled}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  realtime: { ...draft.realtime, maxClients: Number(event.target.value) },
+                })
+              }
+            />
+          </Field>
+        </div>
+      </Panel>
     </div>
   )
 }

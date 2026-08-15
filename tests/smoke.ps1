@@ -43,6 +43,29 @@ function StatusOf([scriptblock]$action) {
 
 function Encode($value) { [uri]::EscapeDataString($value) }
 
+# Lecteur SSE : curl.exe en tache de fond, sortie relue dans un fichier. PowerShell n'a pas de
+# client d'evenements, et bricoler un HttpClient asynchrone ici couterait plus que ce qu'il prouve.
+function Start-Sse([string]$Url, [string]$Token) {
+    $file = Join-Path ([IO.Path]::GetTempPath()) "cratebase-sse-$([Guid]::NewGuid().ToString('N')).txt"
+    $arguments = @('-s', '-N', $Url)
+    if ($Token) { $arguments += @('-H', "Authorization: $Token") }
+
+    $process = Start-Process -FilePath 'curl.exe' -ArgumentList $arguments -PassThru -NoNewWindow `
+        -RedirectStandardOutput $file
+
+    return [pscustomobject]@{ Process = $process; File = $file }
+}
+
+function Read-Sse($stream) {
+    if (-not (Test-Path $stream.File)) { return '' }
+    return Get-Content $stream.File -Raw -ErrorAction SilentlyContinue
+}
+
+function Stop-Sse($stream) {
+    try { Stop-Process -Id $stream.Process.Id -Force -ErrorAction SilentlyContinue } catch { }
+    Remove-Item $stream.File -Force -ErrorAction SilentlyContinue
+}
+
 # TOTP côté client, pour exercer le flot de double authentification de bout en bout.
 # L'implémentation serveur est déjà prouvée par les vecteurs de la RFC 6238 dans les tests
 # unitaires ; celle-ci n'a qu'à produire un code valide.
@@ -563,6 +586,76 @@ Assert 'une retention hors bornes est refusee' ((StatusOf {
 
 Invoke-RestMethod "$api/settings" -Method Patch -Headers $adminHeaders `
     -Body (@{ appName = $reglages.appName } | ConvertTo-Json) | Out-Null
+
+Write-Host "`n== Temps reel ==" -ForegroundColor Cyan
+
+$flux = Start-Sse "$api/realtime" "Bearer $($session.token)"
+Start-Sleep -Milliseconds 900
+
+$accueil = Read-Sse $flux
+Assert 'le flux annonce un identifiant de client' ($accueil -match 'event: connect')
+
+$clientId = if ($accueil -match '"clientId":"([^"]+)"') { $Matches[1] } else { '' }
+Assert 'l identifiant de client est exploitable' ($clientId.Length -gt 10)
+
+Invoke-RestMethod "$api/realtime" -Method Post -Headers $adminHeaders `
+    -Body (@{ clientId = $clientId; subscriptions = @('posts') } | ConvertTo-Json) | Out-Null
+
+$vivant = Invoke-RestMethod $rec -Method Post -Headers $adminHeaders `
+    -Body (@{ titre = 'diffuse en direct'; views = 7; online = $true; tags = @() } | ConvertTo-Json -Depth 5)
+
+Start-Sleep -Milliseconds 900
+$recu = Read-Sse $flux
+
+Assert 'une creation est diffusee' ($recu -match 'event: posts')
+Assert 'l evenement porte l action' ($recu -match '"action":"create"')
+# L'enregistrement entier voyage : sans lui, chaque abonne devrait relire la ligne, et cent
+# abonnes produiraient cent lectures par ecriture.
+Assert 'l evenement porte l enregistrement' ($recu -match 'diffuse en direct')
+
+Invoke-RestMethod "$rec/$($vivant.id)" -Method Delete -Headers $adminHeaders | Out-Null
+Start-Sleep -Milliseconds 700
+Assert 'une suppression est diffusee' ((Read-Sse $flux) -match '"action":"delete"')
+
+Stop-Sse $flux
+
+# Le point qui decide de la valeur du reste : s'abonner ne doit pas contourner les regles d'acces.
+# La collection des super-admins est verrouillee ; un anonyme qui s'y abonne ne doit rien recevoir.
+$anonyme = Start-Sse "$api/realtime" ''
+Start-Sleep -Milliseconds 900
+$bienvenue = Read-Sse $anonyme
+$anonId = if ($bienvenue -match '"clientId":"([^"]+)"') { $Matches[1] } else { '' }
+
+Invoke-RestMethod "$api/realtime" -Method Post -Headers $anonHeaders `
+    -Body (@{ clientId = $anonId; subscriptions = @('_superusers', 'posts') } | ConvertTo-Json) | Out-Null
+
+$fantome = Invoke-RestMethod "$api/collections/_superusers/records" -Method Post -Headers $adminHeaders `
+    -Body (@{ email = "fantome-$([Guid]::NewGuid().ToString('N').Substring(0,8))@exemple.fr"
+              password = 'motdepasse-solide'; password_confirm = 'motdepasse-solide' } | ConvertTo-Json)
+
+Start-Sleep -Milliseconds 900
+$vu = Read-Sse $anonyme
+
+Assert 'un anonyme ne recoit rien d une collection verrouillee' ($vu -notmatch 'event: _superusers')
+
+Invoke-RestMethod "$api/collections/_superusers/records/$($fantome.id)" -Method Delete -Headers $adminHeaders | Out-Null
+Stop-Sse $anonyme
+
+Assert 'le temps reel se coupe depuis les reglages' ((Invoke-RestMethod "$api/settings" -Method Patch `
+            -Headers $adminHeaders -Body (@{ realtime = @{ enabled = $false } } | ConvertTo-Json -Depth 5)
+    ).realtime.enabled -eq $false)
+
+Assert 'un flux est refuse quand le temps reel est ferme' ((StatusOf {
+            Invoke-RestMethod "$api/realtime" -Headers $adminHeaders
+        }) -eq 400)
+
+Invoke-RestMethod "$api/settings" -Method Patch -Headers $adminHeaders `
+    -Body (@{ realtime = @{ enabled = $true } } | ConvertTo-Json -Depth 5) | Out-Null
+
+Assert 'un nombre de flux hors bornes est refuse' ((StatusOf {
+            Invoke-RestMethod "$api/settings" -Method Patch -Headers $adminHeaders `
+                -Body (@{ realtime = @{ maxClients = 0 } } | ConvertTo-Json -Depth 5)
+        }) -eq 400)
 
 Write-Host "`n== Stockage ==" -ForegroundColor Cyan
 

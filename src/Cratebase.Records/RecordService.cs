@@ -260,6 +260,9 @@ public sealed class RecordService(
 
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
+        await AnnounceAsync(collection, RecordAction.Create, recordId.ToString(), created, cancellationToken)
+            .ConfigureAwait(false);
+
         return created;
     }
 
@@ -375,7 +378,12 @@ public sealed class RecordService(
                 connection, null, collection, recordId, SqlPredicate.Unconstrained, cancellationToken)
             .ConfigureAwait(false);
 
-        return updated ?? throw new CratebaseNotFoundException();
+        if (updated is null) throw new CratebaseNotFoundException();
+
+        await AnnounceAsync(collection, RecordAction.Update, recordId, updated, cancellationToken)
+            .ConfigureAwait(false);
+
+        return updated;
     }
 
     /// <summary>Supprime un enregistrement.</summary>
@@ -433,6 +441,40 @@ public sealed class RecordService(
         if (affected == 0)
         {
             throw new CratebaseNotFoundException();
+        }
+
+        await AnnounceAsync(collection, RecordAction.Delete, recordId, null, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Prévient les crochets qu'une écriture a eu lieu.
+    /// </summary>
+    /// <remarks>
+    /// Les exceptions sont absorbées, une par crochet : un abonné injoignable ou un envoi de
+    /// courriel en échec ne doit pas transformer une création réussie en erreur pour l'appelant.
+    /// L'écriture est faite ; la seule chose que lever ici produirait, c'est un client qui la croit
+    /// perdue et la rejoue.
+    /// </remarks>
+    private async Task AnnounceAsync(
+        CollectionDefinition collection,
+        RecordAction action,
+        string recordId,
+        IReadOnlyDictionary<string, object?>? record,
+        CancellationToken cancellationToken)
+    {
+        foreach (var hook in _hooks)
+        {
+            try
+            {
+                await hook.AfterWriteAsync(collection, action, recordId, record, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception failure) when (failure is not OperationCanceledException)
+            {
+                // Volontairement silencieux vis-à-vis de l'appelant : c'est au crochet de journaliser
+                // son propre échec, lui seul sait ce qu'il tentait de faire.
+            }
         }
     }
 
