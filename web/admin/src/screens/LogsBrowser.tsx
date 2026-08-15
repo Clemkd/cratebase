@@ -411,7 +411,9 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
       <Card className="overflow-hidden">
           <Table bare caption="Entrées du journal">
             <THead>
-              <tr>
+              {/* Le libellé et son filtre forment un seul bloc : le trait ne les sépare pas, il
+                  ferme l'ensemble sous la ligne de filtres. */}
+              <tr className="[&>th]:border-b-0">
                 {/* Le seul tri qui ait un sens ici : deux états, pas trois. Un « aucun tri »
                     rendrait au journal l'ordre d'insertion, qui est déjà l'ordre chronologique —
                     un troisième clic sans effet visible. */}

@@ -349,7 +349,9 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
       <Card className="overflow-hidden">
         <Table bare caption="Objets du magasin">
           <THead>
-            <tr>
+            {/* Le libellé et son filtre forment un seul bloc : le trait ne les sépare pas, il
+                ferme l'ensemble sous la ligne de filtres. */}
+            <tr className="[&>th]:border-b-0">
               <Th className="w-14">Aperçu</Th>
               <Th>Fichier</Th>
               <Th className="w-40">Collection</Th>

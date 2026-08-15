@@ -1,10 +1,11 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useMemo, useState, type ReactNode } from 'react'
 import { Boxes, ChevronRight, Plus, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Collection } from '../api'
 import { groupCollections } from '../hooks/useCollections'
 import { routeHref, type AdminSection, type Route } from '../hooks/useRoute'
 import { readFlag, writeFlag } from '../lib/preferences'
+import { collectionAlert, type CollectionAlert } from '../screens/CollectionHealth'
 import { Badge, Button, Skeleton, Tooltip, cn } from '../ui'
 import { ADMIN_ITEMS, FILES_ICON, GROUPS, LOGS_ICON } from './navigation'
 
@@ -132,13 +133,21 @@ function Menu({
   )
 }
 
-/** Une collection dans le sous-menu. */
+/**
+ * Une collection dans le sous-menu.
+ *
+ * Le repère de criticité est posé au bout de la ligne, à une position constante d'une collection à
+ * l'autre : c'est ce qui permet de balayer la colonne et de voir d'un coup laquelle réclame de
+ * l'attention, sans lire un seul nom.
+ */
 function CollectionLink({
   collection,
+  alert,
   active,
   onSelect,
 }: {
   collection: Collection
+  alert: CollectionAlert | null
   active: boolean
   onSelect: (name: string) => void
 }) {
@@ -156,7 +165,18 @@ function CollectionLink({
         )}
       >
         <span className="truncate font-mono text-xs">{collection.name}</span>
-        {collection.kind === 'Auth' && <Badge tone="neutral">auth</Badge>}
+
+        <span className="flex shrink-0 items-center gap-1">
+          {collection.kind === 'Auth' && <Badge tone="neutral">auth</Badge>}
+          {alert && (
+            <Badge tone={alert.tone} title={alert.reason}>
+              {alert.count}
+              {/* Le nombre seul ne dit pas de quoi il s'agit à un lecteur d'écran, et la couleur ne
+                  lui dit rien du tout : la raison est donc lue, pas seulement survolée. */}
+              <span className="sr-only"> — {alert.reason}</span>
+            </Badge>
+          )}
+        </span>
       </a>
     </li>
   )
@@ -202,6 +222,21 @@ export function Sidebar({
   onExpand: () => void
 }) {
   const groups = groupCollections(collections)
+
+  // Le diagnostic est recalculé quand le catalogue change, pas à chaque rendu : la colonne se
+  // redessine à chaque navigation, et le balayage des index de quarante collections n'a aucune
+  // raison d'être refait pour un changement de page.
+  const alerts = useMemo(() => {
+    const found = new Map<string, CollectionAlert>()
+
+    for (const collection of collections) {
+      const alert = collectionAlert(collection)
+
+      if (alert) found.set(collection.name, alert)
+    }
+
+    return found
+  }, [collections])
 
   const [open, setOpen] = useState<Record<MenuId, boolean>>(() => ({
     collections: readFlag(OPEN_KEYS.collections, true),
@@ -294,6 +329,7 @@ export function Sidebar({
                       <CollectionLink
                         key={collection.id}
                         collection={collection}
+                        alert={alerts.get(collection.name) ?? null}
                         active={collection.name === activeName}
                         onSelect={onSelect}
                       />

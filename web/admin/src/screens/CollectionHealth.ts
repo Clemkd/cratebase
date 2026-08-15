@@ -1,4 +1,11 @@
-import type { AccessRules, CollectionIndex, CollectionKind, FieldType, RuleAction } from '../api'
+import type {
+  AccessRules,
+  Collection,
+  CollectionIndex,
+  CollectionKind,
+  FieldType,
+  RuleAction,
+} from '../api'
 import { supportsMultiple } from '../lib/fields'
 
 /**
@@ -212,6 +219,81 @@ export function analyseIndexes({
   }
 
   return issues
+}
+
+/* ------------------------------------------------------------------ Synthèse */
+
+/** Repère porté par une collection dans la colonne de navigation. */
+export interface CollectionAlert {
+  /** Gravité la plus élevée présente sur la collection. */
+  tone: IssueTone
+  /** Nombre d'éléments <b>à cette gravité</b>, et non le total tous niveaux confondus. */
+  count: number
+  /** Ce que le décompte recouvre, pour le survol. */
+  reason: string
+}
+
+/**
+ * Ce qu'une collection a de critique, résumé en un seul repère.
+ *
+ * Une seule gravité est rendue, la plus élevée, avec son propre décompte : additionner une règle
+ * d'écriture ouverte à tous et une relation non indexée donnerait « 2 » sans dire que l'une est une
+ * faille et l'autre une lenteur. Tant qu'il reste un élément grave, c'est lui qu'il faut voir.
+ *
+ * Calculé sur la définition enregistrée, jamais sur un brouillon : la colonne de navigation décrit
+ * l'état de la base, pas ce qu'un onglet ouvert est en train d'écrire.
+ */
+export function collectionAlert(collection: Collection): CollectionAlert | null {
+  const rules = analyseRules(collection.kind, collection.rules)
+  const issues = analyseIndexes({
+    indexes: collection.indexes,
+    savedIndexes: collection.indexes,
+    fields: collection.fields.map((field) => ({
+      name: field.name,
+      type: field.type,
+      multiple: field.multiple,
+    })),
+    kind: collection.kind,
+    collectionName: collection.name,
+    isNew: false,
+  })
+
+  const blocking = issues.filter((issue) => issue.tone === 'danger').length
+  const minor = issues.filter((issue) => issue.tone === 'warning').length
+
+  const describe = (parts: [number, string, string][]) =>
+    parts
+      .filter(([count]) => count > 0)
+      .map(([count, singular, plural]) => `${count} ${count > 1 ? plural : singular}`)
+      .join(', ')
+
+  const severe = rules.openWrites.length + blocking
+
+  if (severe > 0) {
+    return {
+      tone: 'danger',
+      count: severe,
+      reason: describe([
+        [rules.openWrites.length, "règle d'écriture ouverte à tous", "règles d'écriture ouvertes à tous"],
+        [blocking, 'anomalie d’index bloquante', 'anomalies d’index bloquantes'],
+      ]),
+    }
+  }
+
+  const notable = rules.openReads.length + minor
+
+  if (notable > 0) {
+    return {
+      tone: 'warning',
+      count: notable,
+      reason: describe([
+        [rules.openReads.length, 'règle de lecture ouverte à tous', 'règles de lecture ouvertes à tous'],
+        [minor, 'anomalie d’index', 'anomalies d’index'],
+      ]),
+    }
+  }
+
+  return null
 }
 
 /** Le champ admet-il plusieurs valeurs, d'après son type et son nombre maximal ? */
