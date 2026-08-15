@@ -63,7 +63,11 @@ public class ArchitectureTests
         Insensitive("json_*", @"\bjson_(?:set|insert|remove|patch|type|valid|quote)\b"),
         Insensitive("strftime", @"\bstrftime\b"),
         Insensitive("julianday", @"\bjulianday\b"),
-        Insensitive("unixepoch", @"\bunixepoch\b"),
+        // « unixepoch » nu reste sensible à la casse, pour la même raison que « jsonb » plus bas :
+        // `DateTimeOffset.UnixEpoch` est une propriété de la bibliothèque standard, et l'horodatage
+        // canonique s'y adosse. La fonction SQLite, elle, s'écrit en minuscules comme le reste du
+        // SQL de cette base.
+        Sensitive("unixepoch", @"\bunixepoch\b"),
         Insensitive("last_insert_rowid", @"\blast_insert_rowid\b"),
         Insensitive("sqlite_*", @"\bsqlite_\w+"),
         Insensitive("WITHOUT ROWID", @"\bwithout\s+rowid\b"),
