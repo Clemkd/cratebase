@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Boxes, ChevronRight, Plus, Search, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Collection } from '../api'
@@ -61,12 +61,80 @@ function Entry({
   return collapsed ? <Tooltip content={label}>{link}</Tooltip> : link
 }
 
+/** Délai de grâce avant fermeture d'une bulle, le temps que le curseur la rejoigne. */
+const FLYOUT_GRACE = 140
+
+/**
+ * Ancrage d'une bulle de sous-menu sur le rail réduit.
+ *
+ * La bulle est posée en `fixed` aux coordonnées mesurées du déclencheur : la colonne défile dans
+ * son propre cadre, et une bulle posée dans ce flux serait rognée par lui. Un défilement ou un
+ * redimensionnement rend les coordonnées fausses, donc la ferme.
+ */
+function useFlyout(anchor: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
+  const [box, setBox] = useState<{ top: number; left: number; maxHeight: number } | null>(null)
+  const closing = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const close = useCallback(() => {
+    clearTimeout(closing.current)
+    setBox(null)
+  }, [])
+
+  const open = useCallback(() => {
+    clearTimeout(closing.current)
+
+    const rect = anchor.current?.getBoundingClientRect()
+
+    if (!rect) return
+
+    const margin = 8
+    const top = Math.min(rect.top, Math.max(margin, globalThis.innerHeight - 320 - margin))
+
+    setBox({
+      top,
+      left: rect.right + 6,
+      maxHeight: Math.max(160, globalThis.innerHeight - top - margin),
+    })
+  }, [anchor])
+
+  // La fermeture est différée : sans ce répit, le trajet du curseur entre l'icône et la bulle —
+  // qui passe par six pixels de vide — refermerait la bulle avant qu'il n'y arrive.
+  const leave = useCallback(() => {
+    clearTimeout(closing.current)
+    closing.current = setTimeout(() => setBox(null), FLYOUT_GRACE)
+  }, [])
+
+  useEffect(() => {
+    if (!enabled) close()
+  }, [enabled, close])
+
+  useEffect(() => {
+    if (box === null) return
+
+    globalThis.addEventListener('scroll', close, true)
+    globalThis.addEventListener('resize', close)
+
+    return () => {
+      globalThis.removeEventListener('scroll', close, true)
+      globalThis.removeEventListener('resize', close)
+    }
+  }, [box, close])
+
+  useEffect(() => () => clearTimeout(closing.current), [])
+
+  return { box, open, leave, close }
+}
+
 /**
  * Entrée de premier niveau qui déploie un sous-menu.
  *
- * En mode réduit, l'entrée ne déploie rien : elle réclame le déploiement de la colonne entière.
- * Ouvrir un sous-menu de noms dans un rail de quatre rem afficherait une liste de mots tronqués au
- * troisième caractère.
+ * En mode réduit, le sous-menu ne s'ouvre pas dans le rail — quatre rem tronqueraient les noms au
+ * troisième caractère — mais dans une bulle posée à sa droite, au survol comme au focus. La colonne
+ * réduite reste ainsi une colonne de navigation complète : sans elle, replier la colonne revenait à
+ * ne plus pouvoir atteindre que trois destinations sur quinze.
+ *
+ * Le clic, lui, redéploie la colonne : c'est le geste de celui qui vient s'installer, quand la
+ * bulle est celui de qui passe.
  */
 function Menu({
   id,
@@ -92,6 +160,9 @@ function Menu({
   children: ReactNode
 }) {
   const panelId = useId()
+  const anchor = useRef<HTMLDivElement>(null)
+
+  const { box, open: openFlyout, leave, close } = useFlyout(anchor, collapsed)
 
   const button = (
     <button
@@ -126,14 +197,45 @@ function Menu({
   )
 
   return (
-    <div>
-      {collapsed ? <Tooltip content={label}>{button}</Tooltip> : button}
+    <div
+      ref={anchor}
+      onMouseEnter={collapsed ? openFlyout : undefined}
+      onMouseLeave={collapsed ? leave : undefined}
+      // Le focus ouvre la bulle comme le survol : une navigation au clavier n'a pas de curseur à
+      // promener, et lui laisser le seul clic reviendrait à lui imposer le redéploiement.
+      onFocus={collapsed ? openFlyout : undefined}
+      onBlur={collapsed ? leave : undefined}
+    >
+      {collapsed && box === null ? <Tooltip content={label}>{button}</Tooltip> : button}
 
       {!collapsed && open && (
         // Le trait vertical rattache visuellement les enfants à leur menu : sans lui, un sous-menu
         // ouvert se confond avec le niveau du dessus dès qu'on a fait défiler la colonne.
         <div id={panelId} className="mt-0.5 ml-4 border-l border-border-subtle pl-2">
           {children}
+        </div>
+      )}
+
+      {collapsed && box && (
+        <div
+          role="group"
+          aria-label={label}
+          onMouseEnter={openFlyout}
+          onMouseLeave={leave}
+          style={{ top: box.top, left: box.left, maxHeight: box.maxHeight }}
+          className="fixed z-50 w-60 overflow-y-auto overscroll-contain rounded-[var(--radius-card)] border border-border-subtle bg-surface p-2 shadow-popover"
+        >
+          <p className="mb-1 flex items-center gap-2 px-1 text-xs font-semibold text-ink">
+            <Icon size={13} aria-hidden="true" className="shrink-0 text-brand" />
+            {label}
+            {count !== undefined && (
+              <span className="ml-auto tabular-nums text-ink-faint">{count}</span>
+            )}
+          </p>
+
+          {/* Un clic dans la bulle mène quelque part : elle n'a plus lieu d'être ouverte à
+              l'arrivée sur la destination. */}
+          <div onClick={close}>{children}</div>
         </div>
       )}
     </div>
