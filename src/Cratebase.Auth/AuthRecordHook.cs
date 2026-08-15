@@ -22,7 +22,7 @@ namespace Cratebase.Auth;
 public sealed class AuthRecordHook(AuthService auth, AuthTokenStore tokens) : IRecordMutationHook
 {
     /// <summary>Nom du champ de confirmation du mot de passe.</summary>
-    public const string PasswordConfirmField = "passwordConfirm";
+    public const string PasswordConfirmField = "password_confirm";
 
     private readonly AuthService _auth = auth ?? throw new ArgumentNullException(nameof(auth));
 

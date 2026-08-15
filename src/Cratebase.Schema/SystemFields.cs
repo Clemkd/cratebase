@@ -6,9 +6,18 @@ namespace Cratebase.Schema;
 /// Champs que le moteur pose lui-même sur toute collection.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Leurs identifiants sont <b>déterministes</b> et non aléatoires : ils doivent être identiques sur
 /// toutes les installations, sinon un instantané de migration produit sur une machine renommerait
 /// les colonnes système sur une autre.
+/// </para>
+/// <para>
+/// Leurs noms sont en <b>snake_case anglais</b>, comme des colonnes de base et non comme des
+/// propriétés JavaScript. C'est ce que voit celui qui ouvre la base avec un autre outil, et une
+/// convention qui change selon qu'un champ est système ou non oblige à retenir laquelle s'applique
+/// où. Le renommage d'un champ système est repris automatiquement au démarrage : les identifiants
+/// étant stables, le planificateur y voit un renommage et préserve les données.
+/// </para>
 /// </remarks>
 public static class SystemFields
 {
@@ -25,7 +34,7 @@ public static class SystemFields
     public const string Email = "email";
 
     /// <summary>Nom du champ de visibilité de l'adresse.</summary>
-    public const string EmailVisibility = "emailVisibility";
+    public const string EmailVisibility = "email_visibility";
 
     /// <summary>Nom du champ d'adresse vérifiée.</summary>
     public const string Verified = "verified";
@@ -34,7 +43,7 @@ public static class SystemFields
     public const string Password = "password";
 
     /// <summary>Nom du champ de clé de jeton. Jamais renvoyé par l'API.</summary>
-    public const string TokenKey = "tokenKey";
+    public const string TokenKey = "token_key";
 
     /// <summary>Nom du champ portant les rôles d'un compte.</summary>
     public const string Roles = "roles";
@@ -50,7 +59,7 @@ public static class SystemFields
     /// pour être explicitement toléré — la tolérance est déclarée, pas laissée à un cas particulier
     /// enfoui dans le validateur.
     /// </remarks>
-    public const string PasswordConfirm = "passwordConfirm";
+    public const string PasswordConfirm = "password_confirm";
 
     /// <summary>
     /// Champs acceptés dans un corps de requête sans correspondre à une colonne.
@@ -159,7 +168,7 @@ public static class SystemFields
     public static IReadOnlyList<CollectionIndex> AuthIndexes(string collectionName) =>
     [
         new CollectionIndex($"idx_{collectionName}_email", [Email], Unique: true),
-        new CollectionIndex($"idx_{collectionName}_tokenKey", [TokenKey], Unique: true),
+        new CollectionIndex($"idx_{collectionName}_token_key", [TokenKey], Unique: true),
     ];
 
     /// <summary>Le champ est-il un champ système ?</summary>

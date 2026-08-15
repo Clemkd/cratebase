@@ -150,6 +150,10 @@ public static class CratebaseExtensions
 
         await SystemCollections.EnsureAsync(registry, cancellationToken).ConfigureAwait(false);
 
+        // Après la création des collections système, jamais avant : elles doivent exister pour être
+        // réalignées comme les autres.
+        await registry.ReconcileSystemFieldsAsync(cancellationToken).ConfigureAwait(false);
+
         await tokens.PurgeExpiredAsync(cancellationToken).ConfigureAwait(false);
     }
 

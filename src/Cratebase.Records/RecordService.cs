@@ -107,6 +107,39 @@ public sealed class RecordService(
             query.EffectivePage, query.EffectivePerPage, total, items);
     }
 
+    /// <summary>
+    /// Renseigne les champs de date automatique déclarés par la collection.
+    /// </summary>
+    /// <remarks>
+    /// <c>created</c> et <c>updated</c> sont posés juste avant, en dur : ce sont des champs système,
+    /// et le moteur ne peut pas dépendre d'options que quelqu'un pourrait décocher. Ceux-ci sont
+    /// déclarés par l'utilisateur — « vu le », « archivé le » — et suivent exactement la même règle,
+    /// sans quoi le type ne serait qu'une étiquette : la console laisserait le choisir et rien ne se
+    /// remplirait.
+    ///
+    /// La valeur soumise est écrasée, jamais respectée : un champ dit automatique dont un client
+    /// peut poser la date ne prouve plus rien sur le moment où l'écriture a eu lieu.
+    /// </remarks>
+    private static void StampAutoDates(
+        CollectionDefinition collection,
+        RecordData data,
+        DateTimeOffset instant,
+        bool creating)
+    {
+        foreach (var field in collection.Fields)
+        {
+            if (field.Type is not FieldType.AutoDate) continue;
+            if (SystemFields.IsSystemField(field.Name)) continue;
+
+            var applies = creating ? field.Options.OnCreate : field.Options.OnUpdate;
+
+            if (applies)
+            {
+                data[field.Name] = Timestamp.Normalize(instant);
+            }
+        }
+    }
+
     /// <summary>Consulte un enregistrement.</summary>
     public async Task<IReadOnlyDictionary<string, object?>> ViewAsync(
         string collectionName,
@@ -172,6 +205,8 @@ public sealed class RecordService(
         data[SystemFields.Id] = recordId.ToString();
         data[SystemFields.Created] = Timestamp.Normalize(now);
         data[SystemFields.Updated] = Timestamp.Normalize(now);
+
+        StampAutoDates(collection, data, now, creating: true);
 
         var writable = collection.Fields.Where(f => data.Contains(f.Name)).ToList();
         var columns = string.Join(", ", writable.Select(f => Dialect.QuoteIdentifier(f.ColumnName)));
@@ -279,7 +314,11 @@ public sealed class RecordService(
                 .ConfigureAwait(false);
         }
 
-        data[SystemFields.Updated] = Timestamp.Normalize(_clock.UtcNow);
+        var stamped = _clock.UtcNow;
+
+        data[SystemFields.Updated] = Timestamp.Normalize(stamped);
+
+        StampAutoDates(collection, data, stamped, creating: false);
 
         var writable = collection.Fields
             .Where(f => data.Contains(f.Name) && f.Name != SystemFields.Id && f.Name != SystemFields.Created)

@@ -162,7 +162,7 @@ dotnet test Cratebase.slnx
 pwsh tests/smoke.ps1
 ```
 
-124 assertions contre une instance en cours d'exécution. Elles couvrent le chemin nominal **et** les
+135 assertions contre une instance en cours d'exécution. Elles couvrent le chemin nominal **et** les
 chemins hostiles : injection, champ hors schéma, tri non autorisé, règle verrouillée, élévation de
 privilèges à l'inscription, rejeu d'un défi de double authentification, traversée de répertoire.
 

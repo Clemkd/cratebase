@@ -6,7 +6,13 @@ export interface GeoPoint {
   latitude: number
 }
 
-/** Types proposables à la création d'un champ, dans l'ordre d'usage attendu. */
+/**
+ * Types proposables à la création d'un champ, dans l'ordre d'usage attendu.
+ *
+ * `AutoDate` y figure : c'est le type des champs `created` et `updated`, et rien ne justifie de le
+ * réserver au moteur — un « dernier passage », un « archivé le » se décrivent exactement ainsi, et
+ * les écrire à la main dans chaque formulaire revient à réimplémenter ce que le moteur fait déjà.
+ */
 export const CREATABLE_TYPES: FieldType[] = [
   'Text',
   'Editor',
@@ -15,6 +21,7 @@ export const CREATABLE_TYPES: FieldType[] = [
   'Email',
   'Url',
   'Date',
+  'AutoDate',
   'Select',
   'Relation',
   'Json',
@@ -71,14 +78,14 @@ export function zeroValue(field: Field): unknown {
 /**
  * Le champ est-il modifiable depuis un formulaire ?
  *
- * Le validateur du serveur écarte tous les champs système sauf `email` et `emailVisibility` ; le
+ * Le validateur du serveur écarte tous les champs système sauf `email` et `email_visibility` ; le
  * mot de passe est traité à part par le crochet d'authentification. Les proposer à la saisie
  * donnerait l'illusion qu'ils sont enregistrés.
  */
 export function isEditable(field: Field): boolean {
   if (!field.isSystem) return field.type !== 'File'
 
-  return field.name === 'email' || field.name === 'emailVisibility'
+  return field.name === 'email' || field.name === 'email_visibility'
 }
 
 /** Champs affichables en colonne : tout sauf les champs masqués (mot de passe, clé de jeton). */

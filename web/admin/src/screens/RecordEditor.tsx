@@ -93,7 +93,7 @@ export function RecordEditor({
 
     if (isAuth && password !== '') {
       payload.password = password
-      payload.passwordConfirm = passwordConfirm
+      payload.password_confirm = passwordConfirm
     }
 
     try {
@@ -216,7 +216,7 @@ export function RecordEditor({
               />
             </Field>
 
-            <Field label="Confirmation" error={errors.passwordConfirm?.join(' ')}>
+            <Field label="Confirmation" error={errors.password_confirm?.join(' ')}>
               <Input
                 type="password"
                 autoComplete="new-password"

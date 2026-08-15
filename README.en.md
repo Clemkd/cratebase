@@ -158,7 +158,7 @@ dotnet test Cratebase.slnx
 pwsh tests/smoke.ps1
 ```
 
-124 assertions against a running instance. They cover the happy path **and** the hostile ones:
+135 assertions against a running instance. They cover the happy path **and** the hostile ones:
 injection, off-schema field, unauthorised sort, locked rule, privilege escalation at sign-up, replay
 of a two-factor challenge, directory traversal on files.
 

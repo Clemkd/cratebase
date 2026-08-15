@@ -171,6 +171,60 @@ public sealed class CollectionRegistry(
     }
 
     /// <summary>
+    /// Réaligne les collections existantes sur la définition courante des champs système.
+    /// </summary>
+    /// <remarks>
+    /// Appelée au démarrage. Renommer un champ système dans le code ne suffirait pas : la
+    /// définition enregistrée porterait encore l'ancien nom, et le moteur chercherait une colonne
+    /// qui n'existe plus. Le planificateur reconnaît le renommage à l'identifiant du champ, donc la
+    /// colonne est renommée et les données restent en place.
+    ///
+    /// Sans écart à reprendre, le plan est vide et rien n'est exécuté : c'est ce qui permet de
+    /// l'appeler à chaque démarrage sans y penser.
+    /// </remarks>
+    public async Task ReconcileSystemFieldsAsync(CancellationToken cancellationToken = default)
+    {
+        var reconciled = false;
+
+        foreach (var stored in All())
+        {
+            var aligned = WithoutStaleIndexes(Normalize(stored)) with { Updated = _clock.UtcNow };
+            var statements = SchemaPlanner.Plan(_connections.Ddl, _connections.Dialect, stored, aligned);
+
+            if (statements.Count == 0) continue;
+
+            await ApplyAsync(statements, aligned, null, cancellationToken).ConfigureAwait(false);
+            reconciled = true;
+        }
+
+        if (reconciled)
+        {
+            await ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Écarte les index qui désignent une colonne absente de la définition.
+    /// </summary>
+    /// <remarks>
+    /// Réservé au réalignement, et non appliqué aux mises à jour ordinaires. Renommer un champ
+    /// système laisse derrière lui l'index système d'avant, qui porte encore l'ancien nom de
+    /// colonne : le planificateur essaierait de le recréer sur une colonne qui n'existe plus, et le
+    /// démarrage échouerait. Hors migration, en revanche, un index sur un champ inexistant est une
+    /// erreur qu'il vaut mieux voir échouer que voir disparaître — l'écran de schéma la signale
+    /// déjà comme bloquante.
+    /// </remarks>
+    private static CollectionDefinition WithoutStaleIndexes(CollectionDefinition collection)
+    {
+        var columns = collection.Fields.Select(f => f.Name).ToHashSet(StringComparer.Ordinal);
+
+        return collection with
+        {
+            Indexes = [.. collection.Indexes.Where(index => index.Fields.All(columns.Contains))],
+        };
+    }
+
+    /// <summary>
     /// Complète une définition des champs et index que son type impose.
     /// </summary>
     private static CollectionDefinition Normalize(CollectionDefinition draft)
@@ -179,11 +233,15 @@ public sealed class CollectionRegistry(
             ? SystemFields.ForAuth()
             : SystemFields.ForBase();
 
-        // Les champs système passent en tête, dans l'ordre canonique, et les champs déclarés par
-        // l'utilisateur qui porteraient un nom système sont écartés : sinon un champ « id » défini
-        // à la main écraserait la clé primaire.
+        // Les champs système passent en tête, dans l'ordre canonique. Sont écartés du reste ceux
+        // qui portent un nom système — sinon un champ « id » défini à la main écraserait la clé
+        // primaire — et ceux qui portent un identifiant système : c'est ce second filtre qui permet
+        // de renommer un champ système sans que son ancienne version ne survive en double, avec le
+        // même identifiant que la nouvelle.
+        var systemIds = system.Select(f => f.Id).ToHashSet();
+
         var custom = draft.Fields
-            .Where(f => !SystemFields.IsSystemField(f.Name))
+            .Where(f => !systemIds.Contains(f.Id) && !SystemFields.IsSystemField(f.Name))
             .ToList();
 
         var indexes = draft.Kind is CollectionKind.Auth

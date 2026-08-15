@@ -48,7 +48,7 @@ interface PasswordFormProps {
    * L'envoyer vide reviendrait à demander au moteur d'effacer l'adresse du compte : il refuse, et
    * un changement de mot de passe parfaitement valide échoue en « l'adresse est obligatoire ».
    */
-  onSubmit: (values: { email?: string; password: string; passwordConfirm: string }) => void
+  onSubmit: (values: { email?: string; password: string; password_confirm: string }) => void
   onClose: () => void
 }
 
@@ -84,8 +84,8 @@ function PasswordForm({
 
     onSubmit(
       withEmail
-        ? { email: email.trim(), password, passwordConfirm: confirm }
-        : { password, passwordConfirm: confirm },
+        ? { email: email.trim(), password, password_confirm: confirm }
+        : { password, password_confirm: confirm },
     )
   }
 
@@ -159,7 +159,7 @@ function PasswordForm({
 
         <Field
           label="Confirmation"
-          error={mismatch ? 'La confirmation ne correspond pas au mot de passe.' : first('passwordConfirm')}
+          error={mismatch ? 'La confirmation ne correspond pas au mot de passe.' : first('password_confirm')}
           required
         >
           <Input
@@ -211,7 +211,7 @@ export function Superusers({
 
   const items = result?.items ?? []
 
-  const create = async (values: { email?: string; password: string; passwordConfirm: string }) => {
+  const create = async (values: { email?: string; password: string; password_confirm: string }) => {
     setBusy(true)
     setErrors({})
 
@@ -230,7 +230,7 @@ export function Superusers({
 
   const changePassword = async (
     account: RecordValue,
-    values: { email?: string; password: string; passwordConfirm: string },
+    values: { email?: string; password: string; password_confirm: string },
   ) => {
     setBusy(true)
     setErrors({})

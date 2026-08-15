@@ -78,7 +78,7 @@ $health = Invoke-RestMethod "$api/health"
 Assert 'le moteur repond' ($health.status -eq 'ok') "(moteur = $($health.engine))"
 Assert 'le superadmin est authentifie' ($session.token.Length -gt 20)
 Assert 'le mot de passe ne sort jamais' ($null -eq $session.record.password)
-Assert 'la cle de jeton ne sort jamais' ($null -eq $session.record.tokenKey)
+Assert 'la cle de jeton ne sort jamais' ($null -eq $session.record.token_key)
 
 $me = Invoke-RestMethod "$api/me" -Headers $adminHeaders
 Assert '/me reconnait le superadmin' ($me.isSuperuser -eq $true)
@@ -155,6 +155,46 @@ Assert 'le tri decroissant est applique' ($sorted.items[0].views -eq 120)
 Assert 'la projection retire les champs' ($null -eq $sorted.items[0].online)
 Assert 'skipTotal evite le decompte' ($sorted.totalItems -eq -1)
 
+Write-Host "`n== Dates automatiques ==" -ForegroundColor Cyan
+
+# Le type autodate n'est pas reserve au moteur : une collection peut en declarer un.
+$auto = @{
+    name    = 'essai_autodate'; type = 'Base'
+    fields  = @(
+        @{ name = 'titre'; type = 'Text'; required = $true; options = @{} },
+        @{ name = 'vu_le'; type = 'AutoDate'; options = @{ onCreate = $true; onUpdate = $true } },
+        @{ name = 'cree_le'; type = 'AutoDate'; options = @{ onCreate = $true } }
+    )
+    indexes = @()
+    rules   = @{ list = ''; view = ''; create = ''; update = ''; delete = '' }
+}
+
+$reste = try { Invoke-RestMethod "$api/collections/essai_autodate" -Headers $adminHeaders } catch { $null }
+if ($reste) { Invoke-RestMethod "$api/collections/essai_autodate" -Method Delete -Headers $adminHeaders | Out-Null }
+
+Invoke-RestMethod "$api/collections" -Method Post -Headers $adminHeaders -Body ($auto | ConvertTo-Json -Depth 8) | Out-Null
+
+# La date soumise est ecrasee : un champ dit automatique dont le client pose la valeur ne prouve
+# plus rien sur le moment ou l'ecriture a eu lieu.
+$ligne = Invoke-RestMethod "$api/collections/essai_autodate/records" -Method Post -Headers $adminHeaders `
+    -Body (@{ titre = 'essai'; vu_le = '1999-01-01T00:00:00.000Z' } | ConvertTo-Json)
+
+# ConvertFrom-Json rend des [datetime] pour les instants ISO : on compare des dates, pas des
+# chaines, sinon on teste le format d'affichage de la machine.
+Assert 'un autodate utilisateur est rempli a la creation' ([datetime]$ligne.vu_le -gt [datetime]'2020-01-01')
+Assert 'la valeur soumise est ecrasee' (([datetime]$ligne.vu_le).Year -ne 1999)
+Assert 'un autodate a la creation seule est rempli aussi' ([datetime]$ligne.cree_le -gt [datetime]'2020-01-01')
+
+Start-Sleep -Milliseconds 1100
+$modifie = Invoke-RestMethod "$api/collections/essai_autodate/records/$($ligne.id)" -Method Patch `
+    -Headers $adminHeaders -Body (@{ titre = 'essai modifie' } | ConvertTo-Json)
+
+Assert 'un autodate a la modification est rafraichi' ($modifie.vu_le -gt $ligne.vu_le)
+# Celui qui n'est pose qu'a la creation ne doit pas bouger, sinon « cree le » ne veut rien dire.
+Assert 'un autodate a la creation seule ne bouge pas' ($modifie.cree_le -eq $ligne.cree_le)
+
+Invoke-RestMethod "$api/collections/essai_autodate" -Method Delete -Headers $adminHeaders | Out-Null
+
 Write-Host "`n== Regles d'acces ==" -ForegroundColor Cyan
 $restricted = $definition.Clone()
 $restricted.rules = @{ list = 'online = true'; view = 'online = true'; create = ''; update = 'online = true'; delete = 'online = true' }
@@ -214,7 +254,7 @@ $old = try { Invoke-RestMethod "$api/collections/members" -Headers $adminHeaders
 if ($old) { Invoke-RestMethod "$api/collections/members" -Method Delete -Headers $adminHeaders | Out-Null }
 Invoke-RestMethod "$api/collections" -Method Post -Headers $adminHeaders -Body ($members | ConvertTo-Json -Depth 8) | Out-Null
 
-$signup = @{ email = 'membre@exemple.fr'; password = 'motdepasse-solide'; passwordConfirm = 'motdepasse-solide'; displayName = 'Membre' }
+$signup = @{ email = 'membre@exemple.fr'; password = 'motdepasse-solide'; password_confirm = 'motdepasse-solide'; displayName = 'Membre' }
 $account = Invoke-RestMethod "$api/collections/members/records" -Method Post -Headers $anonHeaders -Body ($signup | ConvertTo-Json)
 Assert 'un compte peut etre cree' ($account.email -eq 'membre@exemple.fr')
 Assert 'le condensat ne sort pas a la creation' ($null -eq $account.password)
@@ -227,7 +267,7 @@ Assert 'un mot de passe trop court est refuse' ((StatusOf {
         }) -eq 400)
 Assert 'une confirmation discordante est refusee' ((StatusOf {
             Invoke-RestMethod "$api/collections/members/records" -Method Post -Headers $anonHeaders `
-                -Body (@{ email = 'x@exemple.fr'; password = 'motdepasse-solide'; passwordConfirm = 'autre-chose' } | ConvertTo-Json)
+                -Body (@{ email = 'x@exemple.fr'; password = 'motdepasse-solide'; password_confirm = 'autre-chose' } | ConvertTo-Json)
         }) -eq 400)
 
 # LE test d'elevation de privileges : s'accorder des droits en s'inscrivant.
@@ -438,7 +478,7 @@ Assert 'le compte est toujours la' ((StatusOf { Invoke-RestMethod "$api/me" -Hea
 
 $secondEmail = "second-$([Guid]::NewGuid().ToString('N').Substring(0, 8))@cratebase.local"
 $second = Invoke-RestMethod "$api/collections/_superusers/records" -Method Post -Headers $adminHeaders `
-    -Body (@{ email = $secondEmail; password = 'motdepasse-initial'; passwordConfirm = 'motdepasse-initial' } | ConvertTo-Json)
+    -Body (@{ email = $secondEmail; password = 'motdepasse-initial'; password_confirm = 'motdepasse-initial' } | ConvertTo-Json)
 
 Assert 'un second super-admin se cree' ($null -ne $second.id)
 
@@ -452,7 +492,7 @@ Assert 'le second compte administre' ((StatusOf { Invoke-RestMethod "$api/collec
 # apres un vol de session ne deconnecte pas le voleur, alors que c'est le premier reflexe de
 # l'utilisateur — et il croirait le probleme regle.
 Invoke-RestMethod "$api/collections/_superusers/records/$($second.id)" -Method Patch -Headers $adminHeaders `
-    -Body (@{ password = 'motdepasse-remplace'; passwordConfirm = 'motdepasse-remplace' } | ConvertTo-Json) | Out-Null
+    -Body (@{ password = 'motdepasse-remplace'; password_confirm = 'motdepasse-remplace' } | ConvertTo-Json) | Out-Null
 
 Assert 'le changement de mot de passe revoque les sessions' ((StatusOf { Invoke-RestMethod "$api/me" -Headers $secondHeaders }) -eq 401)
 Assert "l'ancien mot de passe ne vaut plus rien" ((StatusOf {

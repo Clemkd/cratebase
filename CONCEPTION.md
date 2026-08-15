@@ -123,6 +123,22 @@ Tous repris. La colonne « stockage » est le point de portabilité — voir §5
 > zéros de tête. La normalisation est donc faite à l'écriture par le mappeur de type, jamais laissée
 > à l'appelant, et la suite de conformité compare les deux moteurs sur un jeu de dates limites.
 
+> **Nommage des champs système.** `snake_case` anglais — `email_visibility`, `token_key`, et
+> `password_confirm` en entrée. Ce sont des colonnes de base, pas des propriétés JavaScript : c'est
+> ce que voit celui qui ouvre la base avec un autre outil, et une convention qui change selon qu'un
+> champ est système ou non oblige à retenir laquelle s'applique où. Le renommage d'un champ système
+> est repris **automatiquement au démarrage** : les identifiants de champ étant déterministes, le
+> planificateur y voit un renommage et non une suppression suivie d'un ajout, donc les données
+> restent en place. Les index système qui désignaient l'ancien nom sont écartés du même geste, sans
+> quoi le moteur tenterait de les recréer sur une colonne disparue.
+
+> **`autodate` n'est pas réservé au moteur.** Le type est proposé à la création d'un champ, avec ses
+> deux options — posée à la création, posée à la modification. `created` et `updated` restent des
+> champs système posés en dur, parce que le moteur ne peut pas dépendre d'une case que quelqu'un
+> pourrait décocher ; un champ déclaré par l'utilisateur suit exactement la même règle. La valeur
+> soumise est **écrasée** : un champ dit automatique dont un client peut poser la date ne prouve plus
+> rien sur le moment où l'écriture a eu lieu.
+
 ### 2.3 Règles d'accès (le cœur du modèle)
 
 Les six règles de PocketBase, reprises à l'identique dans leur sémantique :

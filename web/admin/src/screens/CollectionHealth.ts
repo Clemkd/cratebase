@@ -204,7 +204,7 @@ export function analyseIndexes({
   if (kind === 'Auth' && !isNew) {
     const present = new Set(savedIndexes.map((index) => index.name))
 
-    for (const suffix of ['email', 'tokenKey']) {
+    for (const suffix of ['email', 'token_key']) {
       const expected = `idx_${collectionName}_${suffix}`
 
       if (present.has(expected)) continue

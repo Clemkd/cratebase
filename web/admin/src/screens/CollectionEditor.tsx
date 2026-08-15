@@ -137,7 +137,7 @@ function isSystemIndex(index: CollectionIndex, collection: Collection): boolean 
   return (
     collection.kind === 'Auth' &&
     (index.name === `idx_${collection.name}_email` ||
-      index.name === `idx_${collection.name}_tokenKey`)
+      index.name === `idx_${collection.name}_token_key`)
   )
 }
 
