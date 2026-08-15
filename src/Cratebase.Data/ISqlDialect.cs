@@ -113,4 +113,16 @@ public interface ISqlDialect
     /// Instructions à exécuter à l'ouverture de chaque connexion (mode WAL, clés étrangères…).
     /// </summary>
     IReadOnlyList<string> ConnectionInitializationStatements { get; }
+
+    /// <summary>
+    /// Requête scalaire rendant la taille de la base, en octets.
+    /// </summary>
+    /// <remarks>
+    /// Portée par le dialecte parce qu'elle n'existe pas ailleurs : SQLite la déduit de ses pages,
+    /// PostgreSQL a une fonction dédiée, et les deux formes relèvent du moteur. La mesurer depuis
+    /// le serveur en lisant un fichier marcherait pour SQLite et pour lui seul — l'écran
+    /// d'exploitation deviendrait alors muet dès la bascule, c'est-à-dire au moment précis où la
+    /// volumétrie commence à compter.
+    /// </remarks>
+    string DatabaseSizeQuery { get; }
 }

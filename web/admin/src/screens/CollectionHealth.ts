@@ -227,7 +227,7 @@ export function analyseIndexes({
 export interface CollectionAlert {
   /** Gravité la plus élevée présente sur la collection. */
   tone: IssueTone
-  /** Nombre d'éléments <b>à cette gravité</b>, et non le total tous niveaux confondus. */
+  /** Nombre total d'éléments signalés, toutes gravités confondues. */
   count: number
   /** Ce que le décompte recouvre, pour le survol. */
   reason: string
@@ -236,9 +236,12 @@ export interface CollectionAlert {
 /**
  * Ce qu'une collection a de critique, résumé en un seul repère.
  *
- * Une seule gravité est rendue, la plus élevée, avec son propre décompte : additionner une règle
- * d'écriture ouverte à tous et une relation non indexée donnerait « 2 » sans dire que l'une est une
- * faille et l'autre une lenteur. Tant qu'il reste un élément grave, c'est lui qu'il faut voir.
+ * <b>Le nombre compte tout ce que le diagnostic signale ; la couleur porte la gravité la plus
+ * élevée.</b> Les deux ne se lisent pas de la même façon et c'est voulu : le nombre doit coïncider
+ * avec ce que les onglets « Règles » et « Index » annoncent une fois la collection ouverte — une
+ * pastille qui dit 3 devant deux onglets qui en montrent 5 fait douter des trois compteurs à la
+ * fois. La couleur, elle, ne se moyenne pas : tant qu'une seule règle d'écriture est ouverte à
+ * tous, le repère est rouge, même entouré d'avertissements bénins.
  *
  * Calculé sur la définition enregistrée, jamais sur un brouillon : la colonne de navigation décrit
  * l'état de la base, pas ce qu'un onglet ouvert est en train d'écrire.
@@ -258,42 +261,25 @@ export function collectionAlert(collection: Collection): CollectionAlert | null 
     isNew: false,
   })
 
+  const count = rules.open.length + issues.length
+
+  if (count === 0) return null
+
   const blocking = issues.filter((issue) => issue.tone === 'danger').length
-  const minor = issues.filter((issue) => issue.tone === 'warning').length
 
-  const describe = (parts: [number, string, string][]) =>
-    parts
-      .filter(([count]) => count > 0)
-      .map(([count, singular, plural]) => `${count} ${count > 1 ? plural : singular}`)
-      .join(', ')
+  const reason = [
+    [rules.open.length, 'règle ouverte à tous', 'règles ouvertes à tous'] as const,
+    [issues.length, 'anomalie d’index', 'anomalies d’index'] as const,
+  ]
+    .filter(([total]) => total > 0)
+    .map(([total, singular, plural]) => `${total} ${total > 1 ? plural : singular}`)
+    .join(', ')
 
-  const severe = rules.openWrites.length + blocking
-
-  if (severe > 0) {
-    return {
-      tone: 'danger',
-      count: severe,
-      reason: describe([
-        [rules.openWrites.length, "règle d'écriture ouverte à tous", "règles d'écriture ouvertes à tous"],
-        [blocking, 'anomalie d’index bloquante', 'anomalies d’index bloquantes'],
-      ]),
-    }
+  return {
+    tone: rules.openWrites.length + blocking > 0 ? 'danger' : 'warning',
+    count,
+    reason,
   }
-
-  const notable = rules.openReads.length + minor
-
-  if (notable > 0) {
-    return {
-      tone: 'warning',
-      count: notable,
-      reason: describe([
-        [rules.openReads.length, 'règle de lecture ouverte à tous', 'règles de lecture ouvertes à tous'],
-        [minor, 'anomalie d’index', 'anomalies d’index'],
-      ]),
-    }
-  }
-
-  return null
 }
 
 /** Le champ admet-il plusieurs valeurs, d'après son type et son nombre maximal ? */
