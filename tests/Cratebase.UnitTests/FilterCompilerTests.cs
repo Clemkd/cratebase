@@ -25,13 +25,13 @@ public class FilterCompilerTests
         FilterRequestContext? request = null) =>
         Compiler(dialect, request).Compile(expression, "t");
 
-    // ── Frontière d'injection ──────────────────────────────────────────────────────────────────
+    // ── Injection boundary ─────────────────────────────────────────────────────────────────────
 
     [Theory]
-    [InlineData("inconnu = 1")]
-    [InlineData("title.sous = 1")]
+    [InlineData("unknown = 1")]
+    [InlineData("title.sub = 1")]
     [InlineData("password = 'x'")]
-    public void Un_champ_hors_schema_ne_devient_jamais_du_sql(string expression)
+    public void A_field_outside_the_schema_never_becomes_sql(string expression)
     {
         var error = Should.Throw<FilterSyntaxException>(() => Compile(expression));
 
@@ -39,36 +39,36 @@ public class FilterCompilerTests
     }
 
     [Fact]
-    public void Toute_valeur_devient_un_parametre()
+    public void Every_value_becomes_a_parameter()
     {
         var predicate = Compile(@"title = 'Robert\'); DROP TABLE posts;--'");
 
-        // La charge hostile est dans les paramètres, pas dans le texte SQL.
+        // The hostile payload is in the parameters, not in the SQL text.
         predicate.Sql.ShouldBe("\"t\".\"title\" = @p0");
         predicate.Parameters["p0"].ShouldBe("Robert'); DROP TABLE posts;--");
     }
 
     [Fact]
-    public void Lidiome_dechappement_sql_nexiste_pas_dans_ce_langage()
+    public void The_sql_escaping_idiom_does_not_exist_in_this_language()
     {
-        // Le doublement de quote de SQL n'est pas un échappement ici : « 'a''b' » se lit comme la
-        // chaîne « a » suivie de jetons parasites, et l'expression est rejetée. La charge utile
-        // d'injection la plus courante ne franchit donc même pas l'analyse syntaxique.
+        // Doubling a SQL quote isn't an escape here: "'a''b'" reads as the string "a" followed by
+        // stray tokens, and the expression is rejected. The most common injection payload
+        // therefore never even makes it past parsing.
         Should.Throw<FilterSyntaxException>(() => Compile("title = 'a''); DROP TABLE posts;--'"));
     }
 
     [Fact]
-    public void Les_identifiants_sont_echappes_et_qualifies() =>
+    public void Identifiers_are_escaped_and_qualified() =>
         Compile("title = 'x'").Sql.ShouldBe("\"t\".\"title\" = @p0");
 
-    // ── Composition : la règle ne peut qu'ajouter ──────────────────────────────────────────────
+    // ── Composition: a rule can only narrow ────────────────────────────────────────────────────
 
     [Fact]
-    public void Une_regle_et_un_filtre_se_composent_en_conjonction()
+    public void A_rule_and_a_filter_compose_as_a_conjunction()
     {
         var compiler = Compiler();
         var rule = compiler.Compile("owner = 'u1'", "t", "r");
-        var filter = compiler.Compile("title ~ 'actu'", "t", "f");
+        var filter = compiler.Compile("title ~ 'news'", "t", "f");
 
         var combined = rule.And(filter);
 
@@ -77,19 +77,19 @@ public class FilterCompilerTests
     }
 
     [Fact]
-    public void Composer_deux_predicats_de_meme_prefixe_est_une_erreur_de_programmation()
+    public void Composing_two_predicates_with_the_same_prefix_is_a_programming_error()
     {
         var compiler = Compiler();
         var a = compiler.Compile("owner = 'u1'", "t");
         var b = compiler.Compile("title = 'x'", "t");
 
-        // Le garde-fou : sans lui, la fusion écraserait silencieusement un paramètre et la règle
-        // s'appliquerait avec la valeur du filtre.
+        // The guard: without it, the merge would silently overwrite a parameter and the rule
+        // would end up applying with the filter's value.
         Should.Throw<InvalidOperationException>(() => a.And(b));
     }
 
     [Fact]
-    public void Un_predicat_sans_contrainte_seffece_dans_la_composition()
+    public void An_unconstrained_predicate_disappears_in_composition()
     {
         var compiler = Compiler();
         var rule = compiler.Compile((string?)null, "t", "r");
@@ -100,13 +100,13 @@ public class FilterCompilerTests
     }
 
     [Fact]
-    public void Le_predicat_de_refus_nadmet_aucune_ligne() =>
+    public void The_denial_predicate_admits_no_row() =>
         SqlPredicate.Denied.Sql.ShouldBe("1 = 0");
 
-    // ── Repli à la compilation ─────────────────────────────────────────────────────────────────
+    // ── Fallback at compile time ────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Lidiome_dauthentification_se_replie_selon_lappelant()
+    public void The_authentication_idiom_falls_back_based_on_the_caller()
     {
         var anonymous = Compile("@request.auth.id != ''");
         anonymous.Sql.ShouldBe("1 = 0");
@@ -119,7 +119,7 @@ public class FilterCompilerTests
     }
 
     [Fact]
-    public void Un_champ_de_lenregistrement_dauth_est_resolu_en_parametre()
+    public void A_field_of_the_auth_record_is_resolved_to_a_parameter()
     {
         var predicate = Compile(
             "owner = @request.auth.id",
@@ -130,7 +130,7 @@ public class FilterCompilerTests
     }
 
     [Fact]
-    public void Un_champ_libre_de_lenregistrement_dauth_est_atteignable()
+    public void A_free_field_of_the_auth_record_is_reachable()
     {
         var predicate = Compile(
             "@request.auth.role = 'editor'",
@@ -140,7 +140,7 @@ public class FilterCompilerTests
     }
 
     [Fact]
-    public void Le_verbe_et_le_contexte_de_requete_sont_resolus()
+    public void The_request_verb_and_context_are_resolved()
     {
         var request = new FilterRequestContext { Method = "POST", Context = "oauth2" };
 
@@ -149,7 +149,7 @@ public class FilterCompilerTests
     }
 
     [Fact]
-    public void Le_modificateur_isset_reflete_ce_qui_a_ete_soumis()
+    public void The_isset_modifier_reflects_what_was_submitted()
     {
         var request = new FilterRequestContext
         {
@@ -161,18 +161,18 @@ public class FilterCompilerTests
     }
 
     [Fact]
-    public void Le_modificateur_changed_compare_au_precedent_etat()
+    public void The_changed_modifier_compares_against_the_previous_state()
     {
         var request = new FilterRequestContext
         {
             Body = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
-                ["title"] = "nouveau",
+                ["title"] = "new",
                 ["views"] = 3d,
             },
             Original = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
-                ["title"] = "ancien",
+                ["title"] = "old",
                 ["views"] = 3d,
             },
         };
@@ -181,14 +181,14 @@ public class FilterCompilerTests
         Compile("@request.body.views:changed = true", request: request).Sql.ShouldBe("1 = 0");
     }
 
-    // ── Macros de date ─────────────────────────────────────────────────────────────────────────
+    // ── Date macros ─────────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Une_macro_devient_un_parametre_pas_une_fonction_du_moteur()
+    public void A_macro_becomes_a_parameter_not_an_engine_function()
     {
         var predicate = Compile("releasedAt < @now");
 
-        // Le point qui distingue Cratebase de PocketBase : aucun strftime() dans le SQL produit.
+        // The point that sets Cratebase apart from PocketBase: no strftime() in the produced SQL.
         predicate.Sql.ShouldBe("\"t\".\"released_at\" < @p0");
         predicate.Parameters["p0"].ShouldBe("2026-08-13T14:05:09.123Z");
     }
@@ -202,78 +202,78 @@ public class FilterCompilerTests
     [InlineData("@yearEnd", "2026-12-31T23:59:59.999Z")]
     [InlineData("@yesterday", "2026-08-12T14:05:09.123Z")]
     [InlineData("@tomorrow", "2026-08-14T14:05:09.123Z")]
-    public void Les_bornes_temporelles_sont_exactes(string macro, string expected) =>
+    public void The_time_bounds_are_exact(string macro, string expected) =>
         Compile($"releasedAt < {macro}").Parameters["p0"].ShouldBe(expected);
 
     [Fact]
-    public void Une_macro_inconnue_est_refusee() =>
-        Should.Throw<FilterSyntaxException>(() => Compile("releasedAt < @jamais"));
+    public void An_unknown_macro_is_rejected() =>
+        Should.Throw<FilterSyntaxException>(() => Compile("releasedAt < @never"));
 
-    // ── Normalisation par type ─────────────────────────────────────────────────────────────────
+    // ── Per-type normalization ──────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Un_booleen_est_normalise_en_0_1_sur_sqlite() =>
+    public void A_boolean_is_normalized_to_0_1_on_sqlite() =>
         Compile("published = true").Parameters["p0"].ShouldBe(1L);
 
     [Fact]
-    public void Un_booleen_reste_booleen_sur_postgresql() =>
+    public void A_boolean_stays_boolean_on_postgresql() =>
         Compile("published = true", PostgresDialect.Instance).Parameters["p0"].ShouldBe(true);
 
     [Fact]
-    public void Une_date_litterale_est_ramenee_a_la_forme_canonique() =>
+    public void A_literal_date_is_brought_back_to_canonical_form() =>
         Compile("releasedAt > '2026-08-13'").Parameters["p0"].ShouldBe("2026-08-13T00:00:00.000Z");
 
     [Fact]
-    public void Une_date_litterale_devient_un_instant_sur_postgresql() =>
+    public void A_literal_date_becomes_an_instant_on_postgresql() =>
         Compile("releasedAt > '2026-08-13'", PostgresDialect.Instance)
             .Parameters["p0"]
             .ShouldBe(new DateTimeOffset(2026, 8, 13, 0, 0, 0, TimeSpan.Zero));
 
-    // ── Opérateur « contient » ─────────────────────────────────────────────────────────────────
+    // ── "Contains" operator ─────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Loperande_est_enrobee_de_jokers()
+    public void The_operand_is_wrapped_in_wildcards()
     {
-        var predicate = Compile("title ~ 'actu'");
+        var predicate = Compile("title ~ 'news'");
 
         predicate.Sql.ShouldBe("\"t\".\"title\" LIKE @p0 ESCAPE '\\'");
-        predicate.Parameters["p0"].ShouldBe("%actu%");
+        predicate.Parameters["p0"].ShouldBe("%news%");
     }
 
     [Fact]
-    public void Les_jokers_ecrits_par_lutilisateur_sont_echappes() =>
+    public void Wildcards_written_by_the_user_are_escaped() =>
         Compile("title ~ '100%_x'").Parameters["p0"].ShouldBe(@"%100\%\_x%");
 
     [Fact]
-    public void Postgresql_utilise_ilike_pour_saligner_sur_sqlite() =>
-        Compile("title ~ 'actu'", PostgresDialect.Instance)
+    public void Postgresql_uses_ilike_to_align_with_sqlite() =>
+        Compile("title ~ 'news'", PostgresDialect.Instance)
             .Sql.ShouldBe("\"t\".\"title\" ILIKE @p0 ESCAPE '\\'");
 
     [Fact]
-    public void La_negation_de_contient_est_rendue() =>
-        Compile("title !~ 'actu'").Sql.ShouldStartWith("NOT (");
+    public void The_negation_of_contains_is_rendered() =>
+        Compile("title !~ 'news'").Sql.ShouldStartWith("NOT (");
 
     [Fact]
-    public void Contient_exige_une_valeur_a_droite() =>
+    public void Contains_requires_a_value_on_the_right() =>
         Should.Throw<FilterSyntaxException>(() => Compile("title ~ owner"));
 
-    // ── Champs multi-valués ────────────────────────────────────────────────────────────────────
+    // ── Multi-valued fields ─────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Par_defaut_un_champ_multivalue_exige_que_tous_les_elements_satisfassent() =>
-        Compile("tags = 'actu'").Sql.ShouldStartWith("NOT EXISTS (SELECT 1 FROM json_each(");
+    public void By_default_a_multivalued_field_requires_every_element_to_match() =>
+        Compile("tags = 'news'").Sql.ShouldStartWith("NOT EXISTS (SELECT 1 FROM json_each(");
 
     [Fact]
-    public void Le_prefixe_interrogatif_bascule_en_au_moins_un() =>
-        Compile("tags ?= 'actu'").Sql.ShouldStartWith("EXISTS (SELECT 1 FROM json_each(");
+    public void The_question_mark_prefix_switches_to_at_least_one() =>
+        Compile("tags ?= 'news'").Sql.ShouldStartWith("EXISTS (SELECT 1 FROM json_each(");
 
     [Fact]
-    public void Postgresql_deplie_le_tableau_json_de_la_meme_facon() =>
-        Compile("tags ?= 'actu'", PostgresDialect.Instance)
+    public void Postgresql_unnests_the_json_array_the_same_way() =>
+        Compile("tags ?= 'news'", PostgresDialect.Instance)
             .Sql.ShouldStartWith("EXISTS (SELECT 1 FROM jsonb_array_elements_text(");
 
     [Fact]
-    public void Le_modificateur_length_compte_les_elements()
+    public void The_length_modifier_counts_elements()
     {
         var predicate = Compile("tags:length > 2");
 
@@ -281,49 +281,49 @@ public class FilterCompilerTests
         predicate.Parameters["p0"].ShouldBe(2d);
     }
 
-    // ── Divers ─────────────────────────────────────────────────────────────────────────────────
+    // ── Miscellaneous ────────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void La_comparaison_a_null_devient_is_null()
+    public void Comparison_to_null_becomes_is_null()
     {
         Compile("title = null").Sql.ShouldBe("\"t\".\"title\" IS NULL");
         Compile("title != null").Sql.ShouldBe("\"t\".\"title\" IS NOT NULL");
     }
 
     [Fact]
-    public void Une_valeur_a_gauche_fait_pivoter_loperateur() =>
+    public void A_value_on_the_left_flips_the_operator() =>
         Compile("100 < views").Sql.ShouldBe("\"t\".\"views\" > @p0");
 
     [Fact]
-    public void Le_modificateur_lower_compare_en_minuscules()
+    public void The_lower_modifier_compares_lowercase()
     {
-        var predicate = Compile("title:lower = 'Actu'");
+        var predicate = Compile("title:lower = 'News'");
 
         predicate.Sql.ShouldBe("lower(\"t\".\"title\") = @p0");
-        predicate.Parameters["p0"].ShouldBe("actu");
+        predicate.Parameters["p0"].ShouldBe("news");
     }
 
     [Fact]
-    public void Les_connecteurs_logiques_sont_parenthèses() =>
+    public void Logical_connectors_are_parenthesized() =>
         Compile("title = 'a' && (views > 1 || published = true)")
             .Sql.ShouldBe(
                 "(\"t\".\"title\" = @p0 AND (\"t\".\"views\" > @p1 OR \"t\".\"published\" = @p2))");
 
     [Fact]
-    public void Deux_champs_se_comparent_entre_eux() =>
+    public void Two_fields_are_compared_against_each_other() =>
         Compile("title = owner").Sql.ShouldBe("\"t\".\"title\" = \"t\".\"owner\"");
 
     [Fact]
-    public void Les_jointures_de_collection_sont_refusees_explicitement()
+    public void Collection_joins_are_explicitly_rejected()
     {
         var error = Should.Throw<FilterSyntaxException>(
-            () => Compile("@collection.membres.user = 'x'"));
+            () => Compile("@collection.members.user = 'x'"));
 
         error.Message.ShouldContain("@collection");
     }
 
     [Fact]
-    public void Une_fonction_non_prise_en_charge_est_refusee_clairement()
+    public void An_unsupported_function_is_rejected_clearly()
     {
         var error = Should.Throw<FilterSyntaxException>(() => Compile("geoDistance(1,2,3,4) < 10"));
 

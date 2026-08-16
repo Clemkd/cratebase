@@ -6,28 +6,28 @@ using Shouldly;
 namespace Cratebase.UnitTests;
 
 /// <summary>
-/// Contrôle exécutable de la règle R1 : aucun SQL de dialecte hors des paquets
-/// <c>Cratebase.Data*</c>.
+/// Executable check for rule R1: no dialect-specific SQL outside the <c>Cratebase.Data*</c>
+/// packages.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Le document de conception adosse R1 à un <c>grep</c>. Un <c>grep</c> ne tourne pas tout seul et
-/// personne ne le lance avant de pousser : la règle ne tient que si elle est vérifiée par un test.
-/// C'est celui-ci. Ce qu'il protège n'est pas une convention de style, c'est la promesse du §1 —
-/// sortir SQLite pour PostgreSQL sans réécrire le code applicatif. Un seul <c>json_extract</c> dans
-/// le moteur suffit à la retirer.
+/// The design document backs R1 with a <c>grep</c>. A <c>grep</c> doesn't run itself and nobody
+/// runs it before pushing: the rule only holds if it's checked by a test. This is that test. What
+/// it protects isn't a style convention, it's the promise of §1 — swapping SQLite for PostgreSQL
+/// without rewriting application code. A single <c>json_extract</c> in the engine is enough to
+/// take that promise away.
 /// </para>
 /// <para>
-/// <b>Les commentaires sont exclus du balayage.</b> La distinction est essentielle ici : la base
-/// documente ses pièges de portabilité en nommant les fonctions interdites — <c>RecordId</c>
-/// explique qu'aucun identifiant ne dépend de <c>last_insert_rowid</c>, <c>FilterAst</c> explique
-/// pourquoi le langage de filtre n'expose pas <c>strftime()</c>. Échouer sur cette prose
-/// pousserait à la supprimer, donc à perdre l'explication de la règle pour satisfaire son contrôle.
+/// <b>Comments are excluded from the scan.</b> The distinction matters here: the codebase
+/// documents its portability pitfalls by naming the forbidden functions — <c>RecordId</c>
+/// explains that no identifier depends on <c>last_insert_rowid</c>, <c>FilterAst</c> explains why
+/// the filter language doesn't expose <c>strftime()</c>. Failing on that prose would push people
+/// to delete it, and so lose the explanation of the rule in order to satisfy its own check.
 /// </para>
 /// </remarks>
 public class ArchitectureTests
 {
-    /// <summary>Les paquets où le SQL propre à un moteur a le droit d'exister.</summary>
+    /// <summary>The packages where engine-specific SQL is allowed to exist.</summary>
     private static readonly string[] DialectPackages =
     [
         "Cratebase.Data",
@@ -36,22 +36,21 @@ public class ArchitectureTests
     ];
 
     /// <summary>
-    /// Marqueurs de SQL propre à un moteur.
+    /// Markers for engine-specific SQL.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// La casse fait partie du motif pour les mots-clés nus, et ce n'est pas une négligence.
-    /// <c>Identifier.Reserved</c> conserve <c>returning</c>, <c>analyze</c>, <c>collate</c> ou
-    /// <c>similar</c> en minuscules, comme <b>données</b> : c'est la liste blanche du DDL, pas du
-    /// SQL. Les chercher sans égard à la casse ferait échouer le test sur le fichier même qui
-    /// protège les identifiants, et la seule issue serait de l'exempter — donc d'ouvrir un trou
-    /// dans le contrôle là où il compte le plus. Le SQL de cette base écrit les mots-clés en
-    /// capitales et les fonctions en minuscules ; les motifs suivent cette forme.
+    /// Case is part of the pattern for bare keywords, and that's not an oversight.
+    /// <c>Identifier.Reserved</c> keeps <c>returning</c>, <c>analyze</c>, <c>collate</c> or
+    /// <c>similar</c> lowercase, like <b>data</b>: that's the DDL allow-list, not SQL. Matching
+    /// them case-insensitively would fail the test on the very file that protects identifiers, and
+    /// the only way out would be to exempt it — opening a hole in the check exactly where it
+    /// matters most. The SQL in this codebase writes keywords in uppercase and functions in
+    /// lowercase; the patterns follow that convention.
     /// </para>
     /// <para>
-    /// Les marqueurs dont la forme ne peut pas entrer en collision — noms à souligné, expressions
-    /// de plusieurs mots — restent insensibles à la casse : aucun identifiant C# ne ressemble à
-    /// <c>json_extract</c> ni à <c>ON CONFLICT</c>.
+    /// Markers whose shape can't collide — underscored names, multi-word expressions — stay
+    /// case-insensitive: no C# identifier looks like <c>json_extract</c> or <c>ON CONFLICT</c>.
     /// </para>
     /// </remarks>
     private static readonly Marker[] Markers =
@@ -63,10 +62,10 @@ public class ArchitectureTests
         Insensitive("json_*", @"\bjson_(?:set|insert|remove|patch|type|valid|quote)\b"),
         Insensitive("strftime", @"\bstrftime\b"),
         Insensitive("julianday", @"\bjulianday\b"),
-        // « unixepoch » nu reste sensible à la casse, pour la même raison que « jsonb » plus bas :
-        // `DateTimeOffset.UnixEpoch` est une propriété de la bibliothèque standard, et l'horodatage
-        // canonique s'y adosse. La fonction SQLite, elle, s'écrit en minuscules comme le reste du
-        // SQL de cette base.
+        // Bare "unixepoch" stays case-sensitive, for the same reason as "jsonb" further down:
+        // `DateTimeOffset.UnixEpoch` is a standard library property, and the canonical timestamp
+        // relies on it. The SQLite function, meanwhile, is written lowercase like the rest of this
+        // codebase's SQL.
         Sensitive("unixepoch", @"\bunixepoch\b"),
         Insensitive("last_insert_rowid", @"\blast_insert_rowid\b"),
         Insensitive("sqlite_*", @"\bsqlite_\w+"),
@@ -91,12 +90,12 @@ public class ArchitectureTests
         Insensitive("citext", @"\bcitext\b"),
         Insensitive("DISTINCT ON", @"\bdistinct\s+on\b"),
         Insensitive("SIMILAR TO", @"\bsimilar\s+to\b"),
-        // « jsonb » et « setval » nus restent sensibles à la casse : « jsonBody » et « setVal »
-        // sont des noms C# plausibles, et le transtypage « global::… » n'est pas du SQL.
+        // Bare "jsonb" and "setval" stay case-sensitive: "jsonBody" and "setVal" are plausible C#
+        // names, and the "global::…" cast isn't SQL.
         Sensitive("jsonb", @"\bjsonb\b"),
         Sensitive("nextval", @"\b(?:nextval|currval|setval)\b"),
         Sensitive(
-            "transtypage ::",
+            "cast ::",
             @"::(?:text|json|jsonb|integer|int|int4|int8|bigint|boolean|bool|numeric|real|uuid"
             + @"|timestamptz|timestamp|date|double\s+precision)\b"),
         Sensitive("ILIKE", @"\bILIKE\b"),
@@ -105,16 +104,16 @@ public class ArchitectureTests
         Sensitive("EXCLUDED.", @"\bEXCLUDED\s*\."),
         Sensitive("LISTEN/NOTIFY", @"\b(?:UNLISTEN|LISTEN|NOTIFY)\b"),
 
-        // ── Écrit des deux côtés, mais pas de la même façon ─────────────────────────────────────
+        // ── Written on both sides, but not the same way ─────────────────────────────────────────
         Insensitive("ON CONFLICT", @"\bon\s+conflict\b"),
     ];
 
     [Fact]
-    public void Aucun_sql_de_dialecte_hors_des_paquets_data()
+    public void No_dialect_sql_exists_outside_the_data_packages()
     {
         var files = SourceFiles();
 
-        // Sans ce garde-fou, une racine mal localisée ferait passer le test sur zéro fichier.
+        // Without this guard, a mislocated root would make the test pass on zero files.
         files.ShouldNotBeEmpty();
 
         var violations = files
@@ -129,11 +128,11 @@ public class ArchitectureTests
     }
 
     [Fact]
-    public void Le_balayage_reconnait_les_marqueurs_des_dialectes()
+    public void The_scan_recognizes_dialect_markers()
     {
-        // Contrôle positif. Le test précédent réussit quand il ne trouve rien : il faut donc
-        // prouver séparément que le balayage trouve ce qui existe. Les dialectes, eux, sont
-        // censés être remplis de marqueurs — c'est leur raison d'être.
+        // Positive control. The previous test passes when it finds nothing: so it must be proven
+        // separately that the scan finds what does exist. The dialects, by design, are supposed
+        // to be full of markers — that's their reason for being.
         var detected = SourceFiles()
             .Where(file => IsDialectPackage(file.RelativePath))
             .SelectMany(file => Scan(file.RelativePath, File.ReadAllText(file.FullPath)))
@@ -144,17 +143,17 @@ public class ArchitectureTests
         detected.ShouldContain("json_each");
         detected.ShouldContain("ILIKE");
         detected.ShouldContain("jsonb");
-        detected.ShouldContain("transtypage ::");
+        detected.ShouldContain("cast ::");
     }
 
     [Fact]
-    public void Les_sorties_de_compilation_sont_hors_du_balayage()
+    public void Build_outputs_are_excluded_from_the_scan()
     {
         IsBuildOutput("Cratebase.Data/obj/Debug/net10.0/Data.GlobalUsings.g.cs").ShouldBeTrue();
-        IsBuildOutput("Cratebase.Data/bin/Debug/net10.0/Copie.cs").ShouldBeTrue();
+        IsBuildOutput("Cratebase.Data/bin/Debug/net10.0/Copy.cs").ShouldBeTrue();
         IsBuildOutput("Cratebase.Data/ISqlDialect.cs").ShouldBeFalse();
 
-        // Segment entier, pas sous-chaîne : « Binder.cs » n'est pas une sortie de compilation.
+        // Whole segment, not substring: "Binder.cs" is not a build output.
         IsBuildOutput("Cratebase.Storage/Binder.cs").ShouldBeFalse();
 
         var segments = SourceFiles()
@@ -166,27 +165,27 @@ public class ArchitectureTests
     }
 
     [Fact]
-    public void Un_marqueur_cite_dans_un_commentaire_nest_pas_du_sql()
+    public void A_marker_quoted_in_a_comment_is_not_sql()
     {
         const string source = """
-            // strftime() n'existe pas sur PostgreSQL.
-            /// <remarks>Aucun <c>last_insert_rowid</c> : c'est la règle R4.</remarks>
-            /* json_each est du SQLite pur. */
-            var reference = "https://exemple.test/r1" + " ON CONFLICT ";
+            // strftime() doesn't exist on PostgreSQL.
+            /// <remarks>No <c>last_insert_rowid</c>: that's rule R4.</remarks>
+            /* json_each is pure SQLite. */
+            var reference = "https://example.test/r1" + " ON CONFLICT ";
             """;
 
-        var found = Scan("Cratebase.Exemple/Exemple.cs", source);
+        var found = Scan("Cratebase.Example/Example.cs", source);
 
-        // Seule la chaîne compte. Et le « // » de l'URL n'ouvre pas un commentaire : sinon le
-        // marqueur qui la suit sur la même ligne disparaîtrait du balayage.
+        // Only the string counts. And the URL's "//" doesn't open a comment: otherwise the marker
+        // that follows it on the same line would vanish from the scan.
         found.Select(violation => violation.Marker).ShouldBe(["ON CONFLICT"]);
 
-        // Le retrait des commentaires conserve les longueurs : les lignes signalées sont donc
-        // celles du fichier, pas celles d'un texte réduit.
+        // Stripping comments preserves length: the reported lines are therefore those of the
+        // original file, not of a shrunk text.
         found[0].Line.ShouldBe(4);
     }
 
-    // ── Balayage ───────────────────────────────────────────────────────────────────────────────
+    // ── Scanning ───────────────────────────────────────────────────────────────────────────────
 
     private static List<Violation> Scan(string relativePath, string source)
     {
@@ -211,13 +210,13 @@ public class ArchitectureTests
     }
 
     /// <summary>
-    /// Rend le source privé de ses commentaires, <b>à longueur inchangée</b>.
+    /// Returns the source stripped of its comments, <b>at unchanged length</b>.
     /// </summary>
     /// <remarks>
-    /// Les caractères de commentaire deviennent des espaces, les fins de ligne sont conservées : un
-    /// décalage dans le texte rendu désigne donc la même ligne que dans le fichier d'origine. Les
-    /// littéraux sont recopiés tels quels — verbatim et bruts compris, ces derniers portant tout le
-    /// SQL de cette base — sans quoi le « // » d'une URL ferait disparaître la fin de sa ligne.
+    /// Comment characters become spaces, line endings are preserved: an offset in the rendered
+    /// text therefore points at the same line as in the original file. Literals are copied
+    /// verbatim — raw and verbatim strings included, since the latter carry all the SQL in this
+    /// codebase — otherwise a URL's "//" would erase the rest of its line.
     /// </remarks>
     private static string WithoutComments(string source)
     {
@@ -268,11 +267,11 @@ public class ArchitectureTests
         return code.ToString();
     }
 
-    /// <summary>Recopie un littéral brut, clôture comprise, et rend la position d'après.</summary>
+    /// <summary>Copies a raw string literal, closing fence included, and returns the position after it.</summary>
     /// <remarks>
-    /// La barrière peut compter plus de trois guillemets, et le contenu peut en contenir moins :
-    /// c'est ce qui permet à <c>$"""… {dialect.QuoteIdentifier("id")} …"""</c> de rester un seul
-    /// littéral, donc au SQL qu'il porte d'être vu comme du SQL.
+    /// The fence can be more than three quotes, and the content can contain fewer: that's what
+    /// lets <c>$"""… {dialect.QuoteIdentifier("id")} …"""</c> stay a single literal, and so lets
+    /// the SQL it carries be seen as SQL.
     /// </remarks>
     private static int CopyRawString(string source, int start, StringBuilder code)
     {
@@ -312,7 +311,7 @@ public class ArchitectureTests
         return index;
     }
 
-    /// <summary>Recopie un littéral verbatim, où le guillemet se double pour s'échapper.</summary>
+    /// <summary>Copies a verbatim string literal, where the quote is doubled to escape itself.</summary>
     private static int CopyVerbatimString(string source, int start, StringBuilder code)
     {
         code.Append(source, start, 2);
@@ -342,7 +341,7 @@ public class ArchitectureTests
         return index;
     }
 
-    /// <summary>Recopie un littéral de chaîne ou de caractère à échappement par barre oblique.</summary>
+    /// <summary>Copies a string or character literal that uses backslash escaping.</summary>
     private static int CopyQuoted(string source, int start, char delimiter, StringBuilder code)
     {
         code.Append(delimiter);
@@ -391,11 +390,11 @@ public class ArchitectureTests
     // ── Sources ────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Localise la racine du dépôt en remontant depuis le répertoire d'exécution.
+    /// Locates the repository root by walking up from the execution directory.
     /// </summary>
     /// <remarks>
-    /// Aucun chemin en dur : le test doit rester valable depuis un clone, un conteneur de build ou
-    /// un arbre de travail détaché, où la racine ne porte pas le même nom.
+    /// No hardcoded path: the test must stay valid from a clone, a build container, or a detached
+    /// worktree, where the root doesn't carry the same name.
     /// </remarks>
     private static string RepositoryRoot()
     {
@@ -410,7 +409,7 @@ public class ArchitectureTests
         }
 
         throw new InvalidOperationException(
-            $"Racine du dépôt introuvable : aucun « Cratebase.slnx » au-dessus de « {AppContext.BaseDirectory} ».");
+            $"Repository root not found: no \"Cratebase.slnx\" above \"{AppContext.BaseDirectory}\".");
     }
 
     private static List<SourceFile> SourceFiles()
@@ -444,12 +443,12 @@ public class ArchitectureTests
         return DialectPackages.Contains(package, StringComparer.Ordinal);
     }
 
-    // ── Rapport ────────────────────────────────────────────────────────────────────────────────
+    // ── Report ─────────────────────────────────────────────────────────────────────────────────
 
     private static string Report(List<Violation> violations)
     {
         var builder = new StringBuilder()
-            .AppendLine("Règle R1 — du SQL propre à un moteur apparaît hors de Cratebase.Data* :")
+            .AppendLine("Rule R1 — engine-specific SQL appears outside Cratebase.Data*:")
             .AppendLine();
 
         foreach (var violation in violations
@@ -459,19 +458,19 @@ public class ArchitectureTests
             builder
                 .AppendLine(
                     CultureInfo.InvariantCulture,
-                    $"  src/{violation.RelativePath}:{violation.Line} — marqueur « {violation.Marker} »")
+                    $"  src/{violation.RelativePath}:{violation.Line} — marker \"{violation.Marker}\"")
                 .AppendLine(CultureInfo.InvariantCulture, $"      {violation.Text}")
                 .AppendLine();
         }
 
         return builder
-            .AppendLine("Le moteur de requêtes ne produit pas de chaîne SQL : il produit un arbre, que le")
-            .AppendLine("dialecte compile. Ce qui manque va donc dans ISqlDialect, rendu par chaque dialecte —")
-            .AppendLine("la frontière ne se déplace pas.")
+            .AppendLine("The query engine doesn't produce a SQL string: it produces a tree, which the")
+            .AppendLine("dialect compiles. Whatever's missing belongs in ISqlDialect, implemented by each")
+            .AppendLine("dialect — the boundary doesn't move.")
             .ToString();
     }
 
-    // ── Types internes ─────────────────────────────────────────────────────────────────────────
+    // ── Internal types ─────────────────────────────────────────────────────────────────────────
 
     private sealed record SourceFile(string RelativePath, string FullPath);
 

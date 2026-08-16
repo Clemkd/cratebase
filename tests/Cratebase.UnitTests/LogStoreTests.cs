@@ -7,9 +7,9 @@ using Shouldly;
 namespace Cratebase.UnitTests;
 
 /// <summary>
-/// Le journal est la seule table écrite hors du chemin de la requête : ses entrées transitent par
-/// un tampon, et tout ce qui s'y perd se perd en silence. D'où des tests qui exercent le cycle
-/// complet — dépôt, vidage, relecture — plutôt que les seules requêtes SQL.
+/// The log is the only table written outside the request path: its entries pass through a
+/// buffer, and anything lost there is lost silently. Hence tests that exercise the full cycle —
+/// record, flush, read back — rather than just the SQL queries.
 /// </summary>
 public sealed class LogStoreTests : IAsyncLifetime
 {
@@ -39,8 +39,8 @@ public sealed class LogStoreTests : IAsyncLifetime
     {
         _store.Dispose();
 
-        // Les connexions sont fermées après chaque opération, mais le pilote garde un bassin :
-        // sans purge, le fichier reste tenu et ne peut pas être supprimé.
+        // Connections are closed after every operation, but the driver keeps a pool: without a
+        // purge, the file stays held open and can't be deleted.
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         File.Delete(_path);
 
@@ -59,7 +59,7 @@ public sealed class LogStoreTests : IAsyncLifetime
     };
 
     [Fact]
-    public async Task Une_entree_deposee_est_relue_a_l_identique()
+    public async Task A_recorded_entry_is_read_back_identically()
     {
         _store.Record(Request("GET", "/api/collections", 200));
 
@@ -77,7 +77,7 @@ public sealed class LogStoreTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Rien_n_est_ecrit_tant_que_le_tampon_n_est_pas_vide()
+    public async Task Nothing_is_written_until_the_buffer_is_flushed()
     {
         _store.Record(Request("GET", "/api/collections", 200));
 
@@ -89,38 +89,38 @@ public sealed class LogStoreTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Le_filtre_de_niveau_retient_exactement_l_ensemble_demande()
+    public async Task The_level_filter_keeps_exactly_the_requested_set()
     {
         _store.Record(Request("GET", "/api/ok", 200));
-        _store.Record(Request("GET", "/api/absent", 404));
-        _store.Record(Request("POST", "/api/casse", 500));
+        _store.Record(Request("GET", "/api/missing", 404));
+        _store.Record(Request("POST", "/api/broken", 500));
 
         await _store.FlushAsync(Token);
 
-        var graves = await _store.QueryAsync(
+        var severe = await _store.QueryAsync(
             new LogQuery { Levels = [LogSeverity.Warning, LogSeverity.Error] },
             Token);
 
-        graves.TotalItems.ShouldBe(2);
-        graves.Items.Select(entry => entry.Status).ShouldBe([500, 404], ignoreOrder: true);
+        severe.TotalItems.ShouldBe(2);
+        severe.Items.Select(entry => entry.Status).ShouldBe([500, 404], ignoreOrder: true);
 
-        var erreurs = await _store.QueryAsync(new LogQuery { Levels = [LogSeverity.Error] }, Token);
+        var errors = await _store.QueryAsync(new LogQuery { Levels = [LogSeverity.Error] }, Token);
 
-        erreurs.Items.ShouldHaveSingleItem().Status.ShouldBe(500);
+        errors.Items.ShouldHaveSingleItem().Status.ShouldBe(500);
 
-        // Ce qu'une borne basse ne savait pas dire : les avertissements sans les erreurs.
-        var seulsAvertissements = await _store.QueryAsync(
+        // What a single lower bound couldn't express: warnings without errors.
+        var warningsOnly = await _store.QueryAsync(
             new LogQuery { Levels = [LogSeverity.Warning] },
             Token);
 
-        seulsAvertissements.Items.ShouldHaveSingleItem().Status.ShouldBe(404);
+        warningsOnly.Items.ShouldHaveSingleItem().Status.ShouldBe(404);
     }
 
     [Fact]
-    public async Task Un_ensemble_vide_ou_complet_ne_filtre_rien()
+    public async Task An_empty_or_full_set_filters_nothing()
     {
         _store.Record(Request("GET", "/api/ok", 200));
-        _store.Record(Request("POST", "/api/casse", 500));
+        _store.Record(Request("POST", "/api/broken", 500));
 
         await _store.FlushAsync(Token);
 
@@ -131,80 +131,80 @@ public sealed class LogStoreTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task La_recherche_porte_sur_le_message_et_sur_l_url()
+    public async Task Search_covers_both_the_message_and_the_url()
     {
         _store.Record(Request("GET", "/api/collections/posts/records", 200));
         _store.Record(Request("GET", "/api/collections/users/records", 200));
 
         await _store.FlushAsync(Token);
 
-        var trouve = await _store.QueryAsync(new LogQuery { Search = "posts" }, Token);
+        var found = await _store.QueryAsync(new LogQuery { Search = "posts" }, Token);
 
-        trouve.Items.ShouldHaveSingleItem().Url.ShouldContain("posts");
+        found.Items.ShouldHaveSingleItem().Url.ShouldContain("posts");
     }
 
     [Fact]
-    public async Task Les_jokers_de_la_recherche_sont_echappes()
+    public async Task Search_wildcards_are_escaped()
     {
         _store.Record(Request("GET", "/api/collections", 200));
 
         await _store.FlushAsync(Token);
 
-        // Sans échappement, « %_% » ramènerait toutes les lignes : c'est la façon la plus discrète
-        // de faire croire qu'une recherche a trouvé quelque chose.
+        // Without escaping, "%_%" would bring back every row: the most discreet way to make a
+        // search look like it found something.
         var page = await _store.QueryAsync(new LogQuery { Search = "%_%" }, Token);
 
         page.TotalItems.ShouldBe(0);
     }
 
     [Fact]
-    public async Task La_fenetre_temporelle_borne_la_page_et_l_histogramme()
+    public async Task The_time_window_bounds_both_the_page_and_the_histogram()
     {
-        var maintenant = _clock.UtcNow;
+        var now = _clock.UtcNow;
 
-        _store.Record(Request("GET", "/api/recent", 200, maintenant));
-        _store.Record(Request("GET", "/api/ancien", 200, maintenant.AddDays(-3)));
+        _store.Record(Request("GET", "/api/recent", 200, now));
+        _store.Record(Request("GET", "/api/old", 200, now.AddDays(-3)));
 
         await _store.FlushAsync(Token);
 
-        var recentes = await _store.QueryAsync(new LogQuery { From = maintenant.AddHours(-1) }, Token);
+        var recent = await _store.QueryAsync(new LogQuery { From = now.AddHours(-1) }, Token);
 
-        recentes.Items.ShouldHaveSingleItem().Url.ShouldBe("/api/recent");
+        recent.Items.ShouldHaveSingleItem().Url.ShouldBe("/api/recent");
 
-        var tranches = await _store.StatsAsync(
-            new LogQuery { From = maintenant.AddHours(-1) },
+        var buckets = await _store.StatsAsync(
+            new LogQuery { From = now.AddHours(-1) },
             LogGranularity.Hour,
             Token);
 
-        tranches.ShouldHaveSingleItem().Count.ShouldBe(1);
+        buckets.ShouldHaveSingleItem().Count.ShouldBe(1);
     }
 
     [Fact]
-    public async Task L_histogramme_regroupe_par_tranche_et_par_niveau()
+    public async Task The_histogram_groups_by_bucket_and_by_level()
     {
-        var heure = _clock.UtcNow;
+        var hour = _clock.UtcNow;
 
-        _store.Record(Request("GET", "/api/a", 200, heure));
-        _store.Record(Request("GET", "/api/b", 200, heure.AddMinutes(10)));
-        _store.Record(Request("GET", "/api/c", 500, heure.AddMinutes(20)));
+        _store.Record(Request("GET", "/api/a", 200, hour));
+        _store.Record(Request("GET", "/api/b", 200, hour.AddMinutes(10)));
+        _store.Record(Request("GET", "/api/c", 500, hour.AddMinutes(20)));
 
         await _store.FlushAsync(Token);
 
-        var tranches = await _store.StatsAsync(new LogQuery(), LogGranularity.Hour, Token);
+        var buckets = await _store.StatsAsync(new LogQuery(), LogGranularity.Hour, Token);
 
-        tranches.Count.ShouldBe(2);
-        tranches.Single(bucket => bucket.Level == LogSeverity.Info).Count.ShouldBe(2);
-        tranches.Single(bucket => bucket.Level == LogSeverity.Error).Count.ShouldBe(1);
+        buckets.Count.ShouldBe(2);
+        buckets.Single(bucket => bucket.Level == LogSeverity.Info).Count.ShouldBe(2);
+        buckets.Single(bucket => bucket.Level == LogSeverity.Error).Count.ShouldBe(1);
 
-        // La tranche horaire est le préfixe canonique : mêmes treize caractères des deux côtés.
-        tranches[0].Bucket.ShouldBe("2026-08-13T14");
+        // The hourly bucket is the canonical prefix: the same thirteen characters on both sides.
+        buckets[0].Bucket.ShouldBe("2026-08-13T14");
     }
 
     [Fact]
-    public async Task La_purge_supprime_au_dela_de_la_retention()
+    public async Task Purge_removes_entries_beyond_the_retention_window()
     {
-        _store.Record(Request("GET", "/api/vieux", 200, _clock.UtcNow.AddDays(-10)));
-        _store.Record(Request("GET", "/api/frais", 200, _clock.UtcNow));
+        _store.Record(Request("GET", "/api/old", 200, _clock.UtcNow.AddDays(-10)));
+        _store.Record(Request("GET", "/api/fresh", 200, _clock.UtcNow));
 
         await _store.FlushAsync(Token);
 
@@ -213,36 +213,36 @@ public sealed class LogStoreTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Une_retention_nulle_ne_supprime_rien()
+    public async Task A_zero_retention_removes_nothing()
     {
-        _store.Record(Request("GET", "/api/vieux", 200, _clock.UtcNow.AddDays(-400)));
+        _store.Record(Request("GET", "/api/old", 200, _clock.UtcNow.AddDays(-400)));
 
         await _store.FlushAsync(Token);
 
-        // Zéro veut dire « conserver sans limite ». Le traiter comme une coupure au présent viderait
-        // le journal à chaque passage du service d'entretien.
+        // Zero means "keep without limit". Treating it as a cutoff at the present would empty the
+        // log every time the maintenance service runs.
         (await _store.PurgeAsync(0, Token)).ShouldBe(0);
         (await _store.CountAsync(Token)).ShouldBe(1);
     }
 
     [Fact]
-    public async Task Vider_le_journal_emporte_aussi_le_tampon()
+    public async Task Clearing_the_log_also_takes_the_buffer_with_it()
     {
-        _store.Record(Request("GET", "/api/ecrit", 200));
+        _store.Record(Request("GET", "/api/written", 200));
         await _store.FlushAsync(Token);
 
-        _store.Record(Request("GET", "/api/en-attente", 200));
+        _store.Record(Request("GET", "/api/pending", 200));
 
         (await _store.ClearAsync(Token)).ShouldBe(1);
         await _store.FlushAsync(Token);
 
-        // Sans purge du tampon, l'entrée en attente réapparaîtrait quelques secondes après un
-        // vidage que l'administrateur croit terminé.
+        // Without purging the buffer, the pending entry would reappear a few seconds after a
+        // clear the administrator believes is complete.
         (await _store.CountAsync(Token)).ShouldBe(0);
     }
 
     [Fact]
-    public async Task La_pagination_rend_les_plus_recentes_d_abord()
+    public async Task Pagination_returns_the_most_recent_entries_first()
     {
         for (var index = 0; index < 5; index += 1)
         {
@@ -257,33 +257,33 @@ public sealed class LogStoreTests : IAsyncLifetime
         page.TotalPages.ShouldBe(3);
         page.Items.Select(entry => entry.Url).ShouldBe(["/api/4", "/api/3"]);
 
-        var ascendant = await _store.QueryAsync(new LogQuery { PerPage = 2, Ascending = true }, Token);
+        var ascending = await _store.QueryAsync(new LogQuery { PerPage = 2, Ascending = true }, Token);
 
-        ascendant.Items.Select(entry => entry.Url).ShouldBe(["/api/0", "/api/1"]);
+        ascending.Items.Select(entry => entry.Url).ShouldBe(["/api/0", "/api/1"]);
     }
 
     [Fact]
-    public async Task Les_details_libres_survivent_a_l_aller_retour()
+    public async Task Free_form_details_survive_the_round_trip()
     {
         _store.Record(
             LogSeverity.Error,
-            "Réglages illisibles",
+            "Unreadable settings",
             new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["exception"] = "JsonException",
-                ["tentatives"] = 3,
+                ["attempts"] = 3,
             });
 
         await _store.FlushAsync(Token);
 
         var entry = (await _store.QueryAsync(new LogQuery(), Token)).Items.ShouldHaveSingleItem();
 
-        entry.Message.ShouldBe("Réglages illisibles");
+        entry.Message.ShouldBe("Unreadable settings");
         entry.Data["exception"]?.ToString().ShouldBe("JsonException");
-        entry.Data["tentatives"]?.ToString().ShouldBe("3");
+        entry.Data["attempts"]?.ToString().ShouldBe("3");
 
-        // Une entrée d'application ne répond à aucune requête : ni méthode, ni statut, et surtout
-        // pas de NULL qui se propagerait dans les filtres.
+        // An application entry doesn't correspond to any request: no method, no status, and
+        // above all no NULL that would propagate through filters.
         entry.Method.ShouldBe(string.Empty);
         entry.Status.ShouldBe(0);
     }
