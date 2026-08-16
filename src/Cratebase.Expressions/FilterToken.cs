@@ -1,61 +1,61 @@
 namespace Cratebase.Expressions;
 
-/// <summary>Nature d'un lexème du langage de filtre.</summary>
+/// <summary>Kind of a filter language token.</summary>
 public enum FilterTokenKind
 {
-    /// <summary>Fin de l'entrée.</summary>
+    /// <summary>End of input.</summary>
     Eof,
 
-    /// <summary>Chemin d'identifiant : <c>title</c>, <c>author.name</c>, <c>@request.auth.id</c>.</summary>
+    /// <summary>Identifier path: <c>title</c>, <c>author.name</c>, <c>@request.auth.id</c>.</summary>
     Identifier,
 
-    /// <summary>Littéral textuel, quotes déjà retirées et échappements déjà résolus.</summary>
+    /// <summary>String literal, quotes already stripped and escapes already resolved.</summary>
     StringLiteral,
 
-    /// <summary>Littéral numérique.</summary>
+    /// <summary>Numeric literal.</summary>
     Number,
 
-    /// <summary>Mot-clé <c>true</c>.</summary>
+    /// <summary>Keyword <c>true</c>.</summary>
     True,
 
-    /// <summary>Mot-clé <c>false</c>.</summary>
+    /// <summary>Keyword <c>false</c>.</summary>
     False,
 
-    /// <summary>Mot-clé <c>null</c>.</summary>
+    /// <summary>Keyword <c>null</c>.</summary>
     Null,
 
-    /// <summary>Opérateur de comparaison, éventuellement préfixé par <c>?</c>.</summary>
+    /// <summary>Comparison operator, optionally prefixed with <c>?</c>.</summary>
     Operator,
 
-    /// <summary>Conjonction <c>&amp;&amp;</c>.</summary>
+    /// <summary>Conjunction <c>&amp;&amp;</c>.</summary>
     And,
 
-    /// <summary>Disjonction <c>||</c>.</summary>
+    /// <summary>Disjunction <c>||</c>.</summary>
     Or,
 
-    /// <summary>Parenthèse ouvrante.</summary>
+    /// <summary>Opening parenthesis.</summary>
     LeftParen,
 
-    /// <summary>Parenthèse fermante.</summary>
+    /// <summary>Closing parenthesis.</summary>
     RightParen,
 
-    /// <summary>Séparateur d'arguments de fonction.</summary>
+    /// <summary>Function argument separator.</summary>
     Comma,
 }
 
 /// <summary>
-/// Lexème produit par <see cref="FilterLexer"/>.
+/// Token produced by <see cref="FilterLexer"/>.
 /// </summary>
-/// <param name="Kind">Nature du lexème.</param>
-/// <param name="Text">Texte, déjà déquoté et déséchappé pour les chaînes.</param>
-/// <param name="Position">Décalage du premier caractère dans l'entrée, pour les messages d'erreur.</param>
+/// <param name="Kind">Kind of the token.</param>
+/// <param name="Text">Text, already unquoted and unescaped for strings.</param>
+/// <param name="Position">Offset of the first character in the input, for error messages.</param>
 public readonly record struct FilterToken(FilterTokenKind Kind, string Text, int Position)
 {
     /// <inheritdoc />
     public override string ToString() => Kind switch
     {
-        FilterTokenKind.Eof => "la fin de l'expression",
-        FilterTokenKind.StringLiteral => $"la chaîne « {Text} »",
-        _ => $"« {Text} »",
+        FilterTokenKind.Eof => "end of expression",
+        FilterTokenKind.StringLiteral => $"the string \"{Text}\"",
+        _ => $"\"{Text}\"",
     };
 }

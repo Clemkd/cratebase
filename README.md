@@ -19,14 +19,14 @@ application outgrows what a single file can take, there is no migration — ther
 **Cratebase exists so that day costs nothing.** SQLite to start, PostgreSQL at scale, local disk
 or S3 for files — the same application code runs on both, proven by a test suite executed against
 every combination. The full architecture and PocketBase feature mapping live in
-[`CONCEPTION.md`](./CONCEPTION.md) (French).
+[`DESIGN.md`](./DESIGN.md).
 
 > [!WARNING]
 > **Under active development.** Published packages (`dotnet new cratebase`, `@cratebase/client`)
 > are not available yet. Physical backups from the console are not planned (they would be
-> engine-specific); a logical export is planned — see [`docs/SAUVEGARDE.md`](./docs/SAUVEGARDE.md)
-> and [`docs/MIGRATION.md`](./docs/MIGRATION.md) (both in French). Everything else described below
-> exists and works.
+> engine-specific); a logical export and an engine/storage migration tool are planned — see
+> [`DESIGN.md`](./DESIGN.md#8-deployment-one-container-then-several). Everything else described
+> below exists and works.
 
 ## Contents
 
@@ -195,12 +195,10 @@ src/
   Cratebase.App             the runnable application
 web/admin/                   React-TS admin console
 tests/                       unit tests, smoke.ps1, postgres.ps1, minio.ps1
-CONCEPTION.md                design notes and PocketBase feature mapping (French)
+DESIGN.md                    design notes and PocketBase feature mapping
 ```
 
 ## Further reading
 
-- [`CONCEPTION.md`](./CONCEPTION.md) — detailed architecture, trade-offs and the catalogue of
-  silent failure modes avoided (French).
-- [`docs/SAUVEGARDE.md`](./docs/SAUVEGARDE.md) — logical export (planned, French).
-- [`docs/MIGRATION.md`](./docs/MIGRATION.md) — moving an instance that already holds data (French).
+[`DESIGN.md`](./DESIGN.md) — detailed architecture, trade-offs, the catalogue of silent failure
+modes avoided, and the planned logical export / engine migration tools.

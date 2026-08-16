@@ -1,20 +1,20 @@
 namespace Cratebase.Core;
 
 /// <summary>
-/// Source de temps. Injectée partout plutôt que d'appeler <see cref="DateTimeOffset.UtcNow"/>,
-/// pour que les macros de date du langage de filtre (<c>@now</c>, <c>@todayStart</c>…) soient
-/// testables sur les bascules d'heure, de jour et d'année.
+/// Source of time. Injected everywhere rather than calling <see cref="DateTimeOffset.UtcNow"/>
+/// directly, so the filter language's date macros (<c>@now</c>, <c>@todayStart</c>…) can be tested
+/// across hour, day, and year boundaries.
 /// </summary>
 public interface IClock
 {
-    /// <summary>Instant courant, toujours en UTC.</summary>
+    /// <summary>Current instant, always in UTC.</summary>
     DateTimeOffset UtcNow { get; }
 }
 
-/// <summary>Horloge système.</summary>
+/// <summary>System clock.</summary>
 public sealed class SystemClock : IClock
 {
-    /// <summary>Instance partagée.</summary>
+    /// <summary>Shared instance.</summary>
     public static readonly SystemClock Instance = new();
 
     /// <inheritdoc />

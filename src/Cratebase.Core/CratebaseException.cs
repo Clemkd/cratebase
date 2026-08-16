@@ -1,18 +1,18 @@
 namespace Cratebase.Core;
 
 /// <summary>
-/// Racine des erreurs métier de Cratebase. Chaque sous-type porte le statut HTTP qu'il produit,
-/// pour que la traduction en <c>ProblemDetails</c> n'ait rien à deviner.
+/// Root of Cratebase's business errors. Each subtype carries the HTTP status it produces, so
+/// translating to <c>ProblemDetails</c> never has to guess.
 /// </summary>
 public abstract class CratebaseException(string message, Exception? inner = null)
     : Exception(message, inner)
 {
-    /// <summary>Statut HTTP correspondant.</summary>
+    /// <summary>Corresponding HTTP status.</summary>
     public abstract int StatusCode { get; }
 }
 
 /// <summary>
-/// Requête invalide : corps mal formé, filtre non analysable, champ inconnu. Produit un 400.
+/// Invalid request: malformed body, unparsable filter, unknown field. Produces a 400.
 /// </summary>
 public sealed class CratebaseBadRequestException(string message, Exception? inner = null)
     : CratebaseException(message, inner)
@@ -22,26 +22,26 @@ public sealed class CratebaseBadRequestException(string message, Exception? inne
 }
 
 /// <summary>
-/// Échec de validation d'un ou plusieurs champs. Produit un 400 avec le détail par champ.
+/// Validation failure on one or more fields. Produces a 400 with a per-field detail.
 /// </summary>
 public sealed class CratebaseValidationException(IReadOnlyDictionary<string, string[]> errors)
-    : CratebaseException("La validation a échoué.")
+    : CratebaseException("Validation failed.")
 {
-    /// <summary>Messages d'erreur, indexés par nom de champ.</summary>
+    /// <summary>Error messages, indexed by field name.</summary>
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
 
     /// <inheritdoc />
     public override int StatusCode => 400;
 
-    /// <summary>Construit une erreur de validation portant sur un seul champ.</summary>
+    /// <summary>Builds a validation error for a single field.</summary>
     public static CratebaseValidationException ForField(string field, string message) =>
         new(new Dictionary<string, string[]> { [field] = [message] });
 }
 
 /// <summary>
-/// Appelant non authentifié alors que l'action l'exige. Produit un 401.
+/// Unauthenticated caller where the action requires one. Produces a 401.
 /// </summary>
-public sealed class CratebaseUnauthenticatedException(string message = "Authentification requise.")
+public sealed class CratebaseUnauthenticatedException(string message = "Authentication required.")
     : CratebaseException(message)
 {
     /// <inheritdoc />
@@ -49,15 +49,14 @@ public sealed class CratebaseUnauthenticatedException(string message = "Authenti
 }
 
 /// <summary>
-/// Appelant authentifié mais sans le droit demandé. Produit un 403.
+/// Authenticated caller lacking the required right. Produces a 403.
 /// </summary>
 /// <remarks>
-/// Réservé aux refus qu'on assume de divulguer : règle verrouillée (superadmin seulement) ou
-/// permission RBAC manquante sur l'endpoint. Un refus portant sur <b>l'existence</b> d'une ligne
-/// passe par <see cref="CratebaseNotFoundException"/>, sans quoi le 403 confirme que la ligne
-/// existe.
+/// Reserved for denials we accept disclosing: a locked rule (superuser only) or a missing RBAC
+/// permission on the endpoint. A denial about a row's <b>existence</b> goes through
+/// <see cref="CratebaseNotFoundException"/> instead — otherwise the 403 confirms the row exists.
 /// </remarks>
-public sealed class CratebaseForbiddenException(string message = "Droit insuffisant.")
+public sealed class CratebaseForbiddenException(string message = "Insufficient permission.")
     : CratebaseException(message)
 {
     /// <inheritdoc />
@@ -65,14 +64,14 @@ public sealed class CratebaseForbiddenException(string message = "Droit insuffis
 }
 
 /// <summary>
-/// Ressource inexistante, ou hors du périmètre autorisé. Produit un 404.
+/// Resource that does not exist, or is outside the authorized scope. Produces a 404.
 /// </summary>
 /// <remarks>
-/// Les violations de <c>viewRule</c>, <c>updateRule</c> et <c>deleteRule</c> passent ici
-/// volontairement : renvoyer 403 divulguerait l'existence de la ligne. C'est la sémantique de
-/// PocketBase, reprise pour cette raison précise.
+/// Violations of <c>viewRule</c>, <c>updateRule</c>, and <c>deleteRule</c> deliberately land here:
+/// returning 403 would disclose that the row exists. This is PocketBase's semantics, kept for
+/// exactly that reason.
 /// </remarks>
-public sealed class CratebaseNotFoundException(string message = "Ressource introuvable.")
+public sealed class CratebaseNotFoundException(string message = "Resource not found.")
     : CratebaseException(message)
 {
     /// <inheritdoc />
@@ -80,7 +79,7 @@ public sealed class CratebaseNotFoundException(string message = "Ressource intro
 }
 
 /// <summary>
-/// Conflit : contrainte d'unicité violée, ou écriture concurrente perdue. Produit un 409.
+/// Conflict: a uniqueness constraint was violated, or a concurrent write was lost. Produces a 409.
 /// </summary>
 public sealed class CratebaseConflictException(string message, Exception? inner = null)
     : CratebaseException(message, inner)

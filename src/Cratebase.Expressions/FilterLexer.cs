@@ -3,12 +3,12 @@ using System.Text;
 namespace Cratebase.Expressions;
 
 /// <summary>
-/// Analyse lexicale du langage de filtre.
+/// Lexical analysis of the filter language.
 /// </summary>
 /// <remarks>
-/// Le lexeur ne connaît ni les champs, ni le schéma, ni le SQL. Il ne produit que des lexèmes.
-/// C'est ce qui permet au même langage de servir à la fois le paramètre <c>?filter=</c> et les
-/// règles d'accès des collections, sans que l'un puisse contaminer l'autre.
+/// The lexer knows nothing about fields, the schema, or SQL. It only produces tokens. This is what
+/// lets the same language serve both the <c>?filter=</c> parameter and collection access rules,
+/// without either contaminating the other.
 /// </remarks>
 public sealed class FilterLexer(string input)
 {
@@ -16,9 +16,9 @@ public sealed class FilterLexer(string input)
     private int _position;
 
     /// <summary>
-    /// Découpe l'entrée en lexèmes, terminés par un <see cref="FilterTokenKind.Eof"/>.
+    /// Splits the input into tokens, terminated by an <see cref="FilterTokenKind.Eof"/>.
     /// </summary>
-    /// <exception cref="FilterSyntaxException">Caractère inattendu ou chaîne non terminée.</exception>
+    /// <exception cref="FilterSyntaxException">Unexpected character or unterminated string.</exception>
     public IReadOnlyList<FilterToken> Tokenize()
     {
         var tokens = new List<FilterToken>();
@@ -82,7 +82,7 @@ public sealed class FilterLexer(string input)
             return ReadIdentifierOrKeyword();
         }
 
-        throw new FilterSyntaxException($"caractère inattendu « {current} »", start);
+        throw new FilterSyntaxException($"unexpected character \"{current}\"", start);
     }
 
     private void SkipTriviaAndComments()
@@ -95,8 +95,8 @@ public sealed class FilterLexer(string input)
                 continue;
             }
 
-            // Commentaire de fin de ligne, comme chez PocketBase : utile dans les règles d'accès,
-            // qui sont lues bien plus souvent qu'elles ne sont écrites.
+            // End-of-line comment, as in PocketBase: useful in access rules, which are read far
+            // more often than they are written.
             if (_input[_position] == '/' && _position + 1 < _input.Length && _input[_position + 1] == '/')
             {
                 while (_position < _input.Length && _input[_position] is not ('\n' or '\r'))
@@ -117,7 +117,7 @@ public sealed class FilterLexer(string input)
 
         if (_position + 1 >= _input.Length || _input[_position + 1] != symbol)
         {
-            throw new FilterSyntaxException($"« {symbol} » isolé — attendu « {text} »", start);
+            throw new FilterSyntaxException($"lone \"{symbol}\" — expected \"{text}\"", start);
         }
 
         _position += 2;
@@ -127,7 +127,7 @@ public sealed class FilterLexer(string input)
     private FilterToken ReadString(char quote)
     {
         var start = _position;
-        _position++; // quote ouvrante
+        _position++; // opening quote
 
         var value = new StringBuilder();
 
@@ -159,7 +159,7 @@ public sealed class FilterLexer(string input)
             _position++;
         }
 
-        throw new FilterSyntaxException("chaîne non terminée", start);
+        throw new FilterSyntaxException("unterminated string", start);
     }
 
     private FilterToken ReadNumber()
@@ -229,7 +229,7 @@ public sealed class FilterLexer(string input)
 
             if (_position >= _input.Length || !IsOperatorStart(_input[_position]) || _input[_position] == '?')
             {
-                throw new FilterSyntaxException("« ? » doit préfixer un opérateur de comparaison", start);
+                throw new FilterSyntaxException("\"?\" must prefix a comparison operator", start);
             }
         }
 
@@ -269,7 +269,7 @@ public sealed class FilterLexer(string input)
                 return current == '>' ? ">" : "<";
 
             default:
-                throw new FilterSyntaxException($"opérateur inconnu « {current} »", start);
+                throw new FilterSyntaxException($"unknown operator \"{current}\"", start);
         }
     }
 
@@ -279,9 +279,9 @@ public sealed class FilterLexer(string input)
 
     private static bool IsIdentifierStart(char c) => char.IsAsciiLetter(c) || c is '_' or '@';
 
-    // Le point sépare les segments d'un chemin, le deux-points introduit un modificateur
-    // (:isset, :length, :each, :lower, :changed). Les deux appartiennent au lexème : c'est le
-    // parseur qui les décompose, une fois qu'il sait qu'il tient bien un identifiant.
+    // The dot separates a path's segments, the colon introduces a modifier (:isset, :length,
+    // :each, :lower, :changed). Both belong to the token: the parser breaks them apart once it
+    // knows it is indeed holding an identifier.
     private static bool IsIdentifierPart(char c) =>
         char.IsAsciiLetterOrDigit(c) || c is '_' or '@' or '.' or ':';
 }

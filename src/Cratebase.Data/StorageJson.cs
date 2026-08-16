@@ -5,31 +5,31 @@ using Cratebase.Core;
 namespace Cratebase.Data;
 
 /// <summary>
-/// Sérialisation des valeurs composites vers le stockage.
+/// Serialization of composite values for storage.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Décision de portabilité :</b> les champs multi-valués sont des tableaux JSON dans les deux
-/// moteurs — <c>TEXT</c> sur SQLite, <c>jsonb</c> sur PostgreSQL — et non des <c>text[]</c> natifs
-/// côté PostgreSQL. Le tableau natif serait plus rapide, mais il donnerait deux représentations
-/// différentes à la même donnée logique, donc deux sémantiques à faire coïncider sur le tri, la
-/// casse et les valeurs vides. Une seule forme, un seul comportement à prouver.
+/// <b>Portability decision:</b> multi-valued fields are JSON arrays on both engines — <c>TEXT</c>
+/// on SQLite, <c>jsonb</c> on PostgreSQL — rather than native <c>text[]</c> on the PostgreSQL side.
+/// A native array would be faster, but it would give two different representations to the same
+/// logical data, hence two semantics to reconcile on sorting, case, and empty values. One form
+/// only, one behavior to prove.
 /// </para>
 /// <para>
-/// L'ordre est stable et les valeurs ne sont jamais réordonnées : un champ multi-valué garde
-/// l'ordre soumis, parce que c'est ce que l'utilisateur voit dans l'interface.
+/// Order is stable and values are never reordered: a multi-valued field keeps the order it was
+/// submitted in, because that's what the user sees in the interface.
 /// </para>
 /// </remarks>
 public static class StorageJson
 {
-    /// <summary>Options de sérialisation, identiques pour les deux dialectes.</summary>
+    /// <summary>Serialization options, identical for both dialects.</summary>
     public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
         WriteIndented = false,
     };
 
-    /// <summary>Sérialise une valeur multi-valuée en tableau JSON.</summary>
+    /// <summary>Serializes a multi-valued value to a JSON array.</summary>
     public static string SerializeMultiple(object? value)
     {
         var items = value switch
@@ -46,7 +46,7 @@ public static class StorageJson
         return JsonSerializer.Serialize(items, Options);
     }
 
-    /// <summary>Relit un tableau JSON.</summary>
+    /// <summary>Reads back a JSON array.</summary>
     public static IReadOnlyList<string> DeserializeMultiple(object? stored)
     {
         if (stored is not string text || string.IsNullOrWhiteSpace(text))
@@ -64,11 +64,11 @@ public static class StorageJson
         }
     }
 
-    /// <summary>Sérialise un point géographique.</summary>
+    /// <summary>Serializes a geographic point.</summary>
     public static string SerializeGeoPoint(GeoPoint point) =>
         JsonSerializer.Serialize(point, Options);
 
-    /// <summary>Relit un point géographique.</summary>
+    /// <summary>Reads back a geographic point.</summary>
     public static GeoPoint DeserializeGeoPoint(object? stored)
     {
         if (stored is not string text || string.IsNullOrWhiteSpace(text))

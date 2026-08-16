@@ -1,56 +1,56 @@
 namespace Cratebase.Data;
 
 /// <summary>
-/// Prédicat compilé, composable <b>uniquement par conjonction</b>.
+/// Compiled predicate, composable <b>only by conjunction</b>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// C'est le type qui rend structurelle la règle du §7 de la conception : <i>une règle d'accès ne
-/// peut qu'ajouter une contrainte, jamais en retirer</i>. Il n'existe pas de <c>Or</c> public sur
-/// ce type, donc composer une règle et un filtre utilisateur en alternative est <b>inexprimable</b>
-/// — pas seulement déconseillé.
+/// This is the type that makes the design document's §7 rule structural: <i>an access rule can
+/// only add a constraint, never remove one</i>. There is no public <c>Or</c> on this type, so
+/// composing a rule and a user filter as alternatives is <b>unexpressible</b> — not merely
+/// discouraged.
 /// </para>
 /// <para>
-/// La disjonction reste évidemment disponible <i>à l'intérieur</i> d'une règle, via l'opérateur
-/// <c>||</c> du langage : c'est le compilateur qui l'écrit, sur un arbre déjà validé. Ce qui est
-/// interdit ici, c'est de la faire apparaître entre deux prédicats d'origines différentes.
+/// Disjunction obviously remains available <i>inside</i> a rule, via the language's <c>||</c>
+/// operator: the compiler writes it, on an already-validated tree. What is forbidden here is
+/// making it appear between two predicates from different origins.
 /// </para>
 /// </remarks>
 public readonly record struct SqlPredicate
 {
-    /// <summary>Prédicat qui ne contraint rien.</summary>
+    /// <summary>Predicate that constrains nothing.</summary>
     public static readonly SqlPredicate Unconstrained;
 
-    /// <summary>Prédicat qui n'admet aucune ligne.</summary>
+    /// <summary>Predicate that admits no row.</summary>
     /// <remarks>
-    /// Valeur d'une règle verrouillée pour un appelant non superadmin : la requête part quand
-    /// même, et ne ramène rien. Renvoyer une liste vide plutôt qu'une erreur est la sémantique de
-    /// <c>listRule</c> chez PocketBase, reprise telle quelle.
+    /// Value of a locked rule for a non-superuser caller: the query still runs, and returns
+    /// nothing. Returning an empty list rather than an error is PocketBase's <c>listRule</c>
+    /// semantics, kept as-is.
     /// </remarks>
     public static readonly SqlPredicate Denied = new(new SqlFragment("1 = 0", new Dictionary<string, object?>()));
 
-    /// <summary>Construit un prédicat à partir d'un fragment compilé.</summary>
+    /// <summary>Builds a predicate from a compiled fragment.</summary>
     public SqlPredicate(SqlFragment fragment) => Fragment = fragment;
 
-    /// <summary>Fragment SQL et ses paramètres.</summary>
+    /// <summary>SQL fragment and its parameters.</summary>
     public SqlFragment? Fragment { get; }
 
-    /// <summary>Le prédicat laisse-t-il tout passer ?</summary>
+    /// <summary>Does the predicate let everything through?</summary>
     public bool IsUnconstrained => Fragment is null || Fragment.IsEmpty;
 
-    /// <summary>Texte SQL, ou <c>1 = 1</c> si le prédicat ne contraint rien.</summary>
+    /// <summary>SQL text, or <c>1 = 1</c> if the predicate constrains nothing.</summary>
     public string Sql => IsUnconstrained ? "1 = 1" : Fragment!.Sql;
 
-    /// <summary>Paramètres du prédicat.</summary>
+    /// <summary>Predicate parameters.</summary>
     public IReadOnlyDictionary<string, object?> Parameters =>
         Fragment?.Parameters ?? new Dictionary<string, object?>();
 
     /// <summary>
-    /// Conjonction avec un autre prédicat. <b>Seule composition offerte.</b>
+    /// Conjunction with another predicate. <b>The only composition offered.</b>
     /// </summary>
     /// <exception cref="InvalidOperationException">
-    /// Les deux prédicats partagent un nom de paramètre. C'est une erreur de programmation : chaque
-    /// compilation doit recevoir son propre préfixe de paramètres.
+    /// Both predicates share a parameter name. This is a programming error: each compilation must
+    /// receive its own parameter prefix.
     /// </exception>
     public SqlPredicate And(SqlPredicate other)
     {
@@ -71,8 +71,8 @@ public readonly record struct SqlPredicate
             if (!parameters.TryAdd(name, value))
             {
                 throw new InvalidOperationException(
-                    $"Le paramètre « {name} » est déclaré par les deux prédicats composés. " +
-                    "Chaque compilation doit recevoir un préfixe de paramètres distinct.");
+                    $"Parameter \"{name}\" is declared by both composed predicates. " +
+                    "Each compilation must receive a distinct parameter prefix.");
             }
         }
 

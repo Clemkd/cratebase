@@ -3,30 +3,30 @@ using Cratebase.Core;
 namespace Cratebase.Data;
 
 /// <summary>
-/// Macros du langage de filtre, résolues à la compilation.
+/// Filter language macros, resolved at compile time.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Elles deviennent des <b>paramètres</b>, pas des appels de fonction SQL. C'est délibéré et c'est
-/// le point qui distingue Cratebase de PocketBase sur la portabilité : PocketBase traduit ses
-/// macros en <c>strftime()</c>, donc en SQLite, donc en cul-de-sac. Résolues côté application,
-/// elles produisent exactement la même valeur quel que soit le moteur.
+/// They become <b>parameters</b>, not SQL function calls. This is deliberate, and it's the point
+/// that sets Cratebase apart from PocketBase on portability: PocketBase translates its macros into
+/// <c>strftime()</c>, hence into SQLite, hence into a dead end. Resolved on the application side,
+/// they produce exactly the same value regardless of engine.
 /// </para>
 /// <para>
-/// Effet de bord souhaitable : la valeur est figée pour toute la durée d'une requête, donc deux
-/// comparaisons à <c>@now</c> dans la même expression ne peuvent pas tomber de part et d'autre
-/// d'une frontière de milliseconde.
+/// Desirable side effect: the value is frozen for the whole duration of a request, so two
+/// comparisons against <c>@now</c> in the same expression can never land on opposite sides of a
+/// millisecond boundary.
 /// </para>
 /// </remarks>
 public static class DateMacros
 {
     /// <summary>
-    /// Résout une macro.
+    /// Resolves a macro.
     /// </summary>
-    /// <param name="name">Nom de la macro, arobase comprise.</param>
-    /// <param name="now">Instant de référence de la requête.</param>
-    /// <param name="value">Valeur résolue : chaîne canonique, ou nombre pour les composantes.</param>
-    /// <returns><see langword="false"/> si la macro est inconnue.</returns>
+    /// <param name="name">Macro name, including the leading @.</param>
+    /// <param name="now">Request's reference instant.</param>
+    /// <param name="value">Resolved value: canonical string, or a number for components.</param>
+    /// <returns><see langword="false"/> if the macro is unknown.</returns>
     public static bool TryResolve(string name, DateTimeOffset now, out object? value)
     {
         var utc = now.ToUniversalTime();

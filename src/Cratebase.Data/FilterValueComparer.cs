@@ -3,18 +3,18 @@ using System.Globalization;
 namespace Cratebase.Data;
 
 /// <summary>
-/// Comparaison de deux valeurs constantes, pour le repli à la compilation.
+/// Comparison of two constant values, for compile-time folding.
 /// </summary>
 /// <remarks>
-/// Sert quand les deux opérandes sont connues sans toucher la base — cas très fréquent dans les
-/// règles d'accès : <c>@request.auth.id != ''</c>, <c>@request.method = 'GET'</c>. Le résultat
-/// devient <c>1=1</c> ou <c>1=0</c>, ce qui évite un paramètre et, surtout, garantit que la
-/// sémantique ne dépend pas des règles de conversion implicite du moteur — qui diffèrent entre
-/// SQLite et PostgreSQL précisément sur les comparaisons hétérogènes.
+/// Used when both operands are known without touching the database — a very common case in access
+/// rules: <c>@request.auth.id != ''</c>, <c>@request.method = 'GET'</c>. The result becomes
+/// <c>1=1</c> or <c>1=0</c>, which avoids a parameter and, more importantly, guarantees that the
+/// semantics does not depend on the engine's implicit conversion rules — which differ between
+/// SQLite and PostgreSQL precisely on heterogeneous comparisons.
 /// </remarks>
 public static class FilterValueComparer
 {
-    /// <summary>Évalue une comparaison entre deux valeurs constantes.</summary>
+    /// <summary>Evaluates a comparison between two constant values.</summary>
     public static bool Evaluate(object? left, ComparisonOperatorKind kind, object? right) => kind switch
     {
         ComparisonOperatorKind.Equal => AreEqual(left, right),
@@ -52,8 +52,8 @@ public static class FilterValueComparer
     {
         if (left is null || right is null)
         {
-            // Une comparaison d'ordre impliquant l'absence de valeur n'a pas de sens : on la rend
-            // fausse dans les deux sens, comme le ferait un NULL SQL.
+            // An order comparison involving a missing value is meaningless: made false both ways,
+            // as a SQL NULL would behave.
             return left is null && right is null ? 0 : int.MinValue / 2;
         }
 
@@ -94,8 +94,8 @@ public static class FilterValueComparer
 }
 
 /// <summary>
-/// Opérateur de comparaison, redéclaré ici pour que <c>Cratebase.Data</c> n'impose pas au
-/// consommateur de connaître l'AST.
+/// Comparison operator, redeclared here so <c>Cratebase.Data</c> doesn't force the consumer to
+/// know about the AST.
 /// </summary>
 public enum ComparisonOperatorKind
 {

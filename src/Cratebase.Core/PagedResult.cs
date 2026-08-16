@@ -1,14 +1,14 @@
 namespace Cratebase.Core;
 
 /// <summary>
-/// Enveloppe de liste. La forme reprend celle de PocketBase à l'identique, pour qu'un client écrit
-/// contre PocketBase n'ait rien à réapprendre.
+/// List envelope. The shape matches PocketBase's exactly, so a client written against PocketBase
+/// has nothing to relearn.
 /// </summary>
-/// <param name="Page">Page demandée, à partir de 1.</param>
-/// <param name="PerPage">Taille de page effective, après plafonnement par le serveur.</param>
-/// <param name="TotalItems">Nombre total de lignes, ou -1 si <c>skipTotal</c> a été demandé.</param>
-/// <param name="TotalPages">Nombre total de pages, ou -1 si <c>skipTotal</c> a été demandé.</param>
-/// <param name="Items">Lignes de la page.</param>
+/// <param name="Page">Requested page, starting at 1.</param>
+/// <param name="PerPage">Effective page size, after server-side capping.</param>
+/// <param name="TotalItems">Total row count, or -1 if <c>skipTotal</c> was requested.</param>
+/// <param name="TotalPages">Total page count, or -1 if <c>skipTotal</c> was requested.</param>
+/// <param name="Items">Rows of the page.</param>
 public sealed record PagedResult<T>(
     int Page,
     int PerPage,
@@ -16,10 +16,10 @@ public sealed record PagedResult<T>(
     long TotalPages,
     IReadOnlyList<T> Items);
 
-/// <summary>Fabriques de <see cref="PagedResult{T}"/>.</summary>
+/// <summary>Factories for <see cref="PagedResult{T}"/>.</summary>
 public static class PagedResult
 {
-    /// <summary>Construit une page dont le total a été calculé.</summary>
+    /// <summary>Builds a page whose total has been computed.</summary>
     public static PagedResult<T> Counted<T>(int page, int perPage, long totalItems, IReadOnlyList<T> items)
     {
         var totalPages = perPage <= 0 ? 0 : (totalItems + perPage - 1) / perPage;
@@ -27,8 +27,8 @@ public static class PagedResult
     }
 
     /// <summary>
-    /// Construit une page dont le total n'a pas été calculé, à la demande du client
-    /// (<c>skipTotal=1</c>). Les deux totaux valent -1, comme chez PocketBase.
+    /// Builds a page whose total was not computed, at the client's request
+    /// (<c>skipTotal=1</c>). Both totals are -1, as in PocketBase.
     /// </summary>
     public static PagedResult<T> Uncounted<T>(int page, int perPage, IReadOnlyList<T> items) =>
         new(page, perPage, -1, -1, items);

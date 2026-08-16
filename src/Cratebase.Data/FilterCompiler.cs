@@ -4,22 +4,21 @@ using Cratebase.Expressions;
 namespace Cratebase.Data;
 
 /// <summary>
-/// Compile un arbre de filtre en fragment SQL paramétré.
+/// Compiles a filter tree into a parameterized SQL fragment.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Deux invariants tiennent toute la sécurité du moteur, et ils sont structurels — pas
-/// documentaires :
+/// Two invariants carry the engine's whole security, and they are structural — not documentary:
 /// </para>
 /// <list type="number">
 /// <item>
-/// <b>Un chemin que le résolveur refuse ne devient jamais du SQL.</b> Il produit une erreur 400.
-/// Aucune valeur d'utilisateur n'est concaténée : tout passe par <see cref="SqlWriter.Parameter"/>.
+/// <b>A path the resolver refuses never becomes SQL.</b> It produces a 400 error. No user value is
+/// ever concatenated: everything goes through <see cref="SqlWriter.Parameter"/>.
 /// </item>
 /// <item>
-/// <b>Une règle d'accès ne peut être qu'ajoutée à un filtre, jamais alternée.</b> C'est pour cela
-/// que la composition passe par <see cref="SqlPredicate.And"/> et qu'aucun <c>Or</c> public
-/// n'existe : rendre l'erreur inexprimable vaut mieux que la proscrire.
+/// <b>An access rule can only be added to a filter, never alternated with it.</b> That's why
+/// composition goes through <see cref="SqlPredicate.And"/> and no public <c>Or</c> exists: making
+/// the mistake unexpressible beats merely forbidding it.
 /// </item>
 /// </list>
 /// </remarks>
@@ -41,14 +40,14 @@ public sealed class FilterCompiler(
     private readonly IClock _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
     /// <summary>
-    /// Compile un arbre en prédicat.
+    /// Compiles a tree into a predicate.
     /// </summary>
-    /// <param name="node">Arbre, ou <see langword="null"/> pour « aucune contrainte ».</param>
-    /// <param name="tableAlias">Alias de la table de la collection racine.</param>
+    /// <param name="node">Tree, or <see langword="null"/> for "no constraint".</param>
+    /// <param name="tableAlias">Alias of the root collection's table.</param>
     /// <param name="parameterPrefix">
-    /// Préfixe des noms de paramètres. Deux prédicats destinés à être composés doivent recevoir des
-    /// préfixes distincts — c'est ce qui permet à <see cref="SqlPredicate.And"/> de les fusionner
-    /// sans renommage, donc sans réécriture de texte SQL.
+    /// Prefix for parameter names. Two predicates meant to be composed must receive distinct
+    /// prefixes — that's what lets <see cref="SqlPredicate.And"/> merge them without renaming, and
+    /// therefore without rewriting SQL text.
     /// </param>
     public SqlPredicate Compile(FilterNode? node, string tableAlias, string parameterPrefix = "p")
     {
@@ -67,7 +66,7 @@ public sealed class FilterCompiler(
     }
 
     /// <summary>
-    /// Analyse puis compile une expression textuelle.
+    /// Parses then compiles a textual expression.
     /// </summary>
     public SqlPredicate Compile(string? expression, string tableAlias, string parameterPrefix = "p") =>
         Compile(FilterParser.Parse(expression), tableAlias, parameterPrefix);
@@ -89,7 +88,7 @@ public sealed class FilterCompiler(
                 return;
 
             default:
-                throw new FilterSyntaxException("nœud d'expression non pris en charge", node.Position);
+                throw new FilterSyntaxException("unsupported expression node", node.Position);
         }
     }
 
@@ -99,8 +98,8 @@ public sealed class FilterCompiler(
         var right = ResolveOperand(node.Right, alias);
         var kind = Map(node.Operator);
 
-        // Les deux côtés sont connus sans toucher la base : on tranche à la compilation.
-        // C'est le cas de la plupart des règles d'accès (« @request.auth.id != '' »).
+        // Both sides are known without touching the database: decide it at compile time. This is
+        // the case for most access rules ("@request.auth.id != '' ").
         if (left.IsConstant && right.IsConstant)
         {
             var outcome = FilterValueComparer.Evaluate(left.Value, kind, right.Value);
@@ -108,7 +107,7 @@ public sealed class FilterCompiler(
             return;
         }
 
-        // On ramène toujours le champ à gauche : un seul cas à écrire au lieu de deux.
+        // Always bring the field to the left: one case to write instead of two.
         if (left.IsConstant)
         {
             (left, right) = (right, left);
@@ -140,7 +139,7 @@ public sealed class FilterCompiler(
             return;
         }
 
-        // « = null » n'est jamais vrai en SQL : la seule lecture utile est « IS NULL ».
+        // "= null" is never true in SQL: the only useful reading is "IS NULL".
         if (value is null && kind is ComparisonOperatorKind.Equal or ComparisonOperatorKind.NotEqual)
         {
             writer.Raw(field.Sql)
@@ -159,9 +158,9 @@ public sealed class FilterCompiler(
             return;
         }
 
-        // Sur un champ multi-valué, « ?= » demande « au moins un élément », tout le reste demande
-        // « tous les éléments ». C'est la sémantique de PocketBase, et l'inverser élargirait
-        // silencieusement les règles portant sur des listes de rôles ou de relations.
+        // On a multi-valued field, "?=" asks for "at least one element", everything else asks for
+        // "every element". This is PocketBase's semantics, and reversing it would silently widen
+        // rules built on role or relation lists.
         writer.Raw(node.AnyOf
             ? _dialect.AnyElementMatches(field.Sql, comparison)
             : _dialect.AllElementsMatch(field.Sql, comparison));
@@ -175,8 +174,8 @@ public sealed class FilterCompiler(
         SqlWriter writer,
         bool multiple)
     {
-        // Sur un champ multi-valué, la comparaison porte sur l'élément courant, que le dialecte
-        // substituera à ce jeton.
+        // On a multi-valued field, the comparison targets the current element, which the dialect
+        // will substitute for this token.
         var target = multiple ? ElementPlaceholder : field.Sql;
         var descriptor = field.Field!;
 
@@ -209,17 +208,17 @@ public sealed class FilterCompiler(
     {
         if (kind is ComparisonOperatorKind.Like or ComparisonOperatorKind.NotLike)
         {
-            // « champ ~ champ » exigerait de construire le motif en SQL, donc de la concaténation
-            // propre à chaque moteur pour un besoin qu'on n'a jamais rencontré. Refus explicite
-            // plutôt qu'une traduction approximative.
+            // "field ~ field" would require building the pattern in SQL, hence concatenation
+            // specific to each engine, for a need we've never actually run into. Explicit refusal
+            // rather than an approximate translation.
             throw new FilterSyntaxException(
-                "l'opérateur « ~ » exige une valeur littérale à droite", node.Position);
+                "the \"~\" operator requires a literal value on the right", node.Position);
         }
 
         if (left.Field?.Multiple == true || right.Field?.Multiple == true)
         {
             throw new FilterSyntaxException(
-                "comparer deux champs dont l'un est multi-valué n'est pas pris en charge",
+                "comparing two fields where one is multi-valued is not supported",
                 node.Position);
         }
 
@@ -231,8 +230,8 @@ public sealed class FilterCompiler(
         LiteralNode literal => Operand.Constant(literal.Value),
         PathNode path => ResolvePath(path, alias),
         FunctionNode function => throw new FilterSyntaxException(
-            $"la fonction « {function.Name} » n'est pas encore prise en charge", function.Position),
-        _ => throw new FilterSyntaxException("opérande non prise en charge", node.Position),
+            $"function \"{function.Name}\" is not yet supported", function.Position),
+        _ => throw new FilterSyntaxException("unsupported operand", node.Position),
     };
 
     private Operand ResolvePath(PathNode path, string alias)
@@ -252,28 +251,28 @@ public sealed class FilterCompiler(
             return _request.TryResolve(path.Segments, out var value)
                 ? Operand.Constant(value)
                 : throw new FilterSyntaxException(
-                    $"méta-champ inconnu « {path} »", path.Position);
+                    $"unknown meta-field \"{path}\"", path.Position);
         }
 
         if (path.IsMacro)
         {
             return DateMacros.TryResolve(path.Segments[0], _clock.UtcNow, out var value)
                 ? Operand.Constant(value)
-                : throw new FilterSyntaxException($"macro inconnue « {path} »", path.Position);
+                : throw new FilterSyntaxException($"unknown macro \"{path}\"", path.Position);
         }
 
         if (path.IsCollectionPath)
         {
             throw new FilterSyntaxException(
-                "les jointures « @collection.* » ne sont pas encore prises en charge", path.Position);
+                "\"@collection.*\" joins are not yet supported", path.Position);
         }
 
-        // Le seul chemin restant est un champ. S'il n'est pas dans le schéma, c'est une erreur
-        // d'entrée — jamais une interpolation. C'est la frontière d'injection.
+        // The only path left is a field. If it isn't in the schema, that's an input error — never
+        // an interpolation. This is the injection boundary.
         if (!_resolver.TryResolve(path.Segments, out var field))
         {
             throw new FilterSyntaxException(
-                $"« {path} » n'est pas un champ de la collection « {_resolver.RootCollection} »",
+                $"\"{path}\" is not a field of collection \"{_resolver.RootCollection}\"",
                 path.Position);
         }
 
@@ -287,7 +286,7 @@ public sealed class FilterCompiler(
         double number => number,
         string text when double.TryParse(text, out var parsed) => parsed,
         _ => throw new FilterSyntaxException(
-            "« :length » se compare à un nombre", position),
+            "\":length\" compares against a number", position),
     };
 
     private static string? AsText(object? value) => value switch
@@ -319,7 +318,7 @@ public sealed class FilterCompiler(
         ComparisonOperatorKind.LessThan => ComparisonOperatorKind.GreaterThan,
         ComparisonOperatorKind.LessThanOrEqual => ComparisonOperatorKind.GreaterThanOrEqual,
         _ => throw new FilterSyntaxException(
-            "l'opérateur « ~ » exige le champ à gauche et une valeur à droite", position),
+            "the \"~\" operator requires the field on the left and a value on the right", position),
     };
 
     private static string SymbolOf(ComparisonOperatorKind kind, int position) => kind switch
@@ -330,12 +329,12 @@ public sealed class FilterCompiler(
         ComparisonOperatorKind.GreaterThanOrEqual => " >= ",
         ComparisonOperatorKind.LessThan => " < ",
         ComparisonOperatorKind.LessThanOrEqual => " <= ",
-        _ => throw new FilterSyntaxException("opérateur non applicable ici", position),
+        _ => throw new FilterSyntaxException("operator not applicable here", position),
     };
 
     /// <summary>
-    /// Jeton que les dialectes remplacent par l'élément courant, dans les comparaisons portant sur
-    /// un champ multi-valué.
+    /// Token that dialects replace with the current element, in comparisons targeting a
+    /// multi-valued field.
     /// </summary>
     public const string ElementPlaceholder = "{element}";
 

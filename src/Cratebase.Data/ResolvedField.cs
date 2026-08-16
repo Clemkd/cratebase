@@ -3,12 +3,12 @@ using Cratebase.Core;
 namespace Cratebase.Data;
 
 /// <summary>
-/// Champ résolu contre le schéma d'une collection.
+/// Field resolved against a collection's schema.
 /// </summary>
-/// <param name="ColumnName">Nom physique de la colonne.</param>
-/// <param name="Type">Type logique.</param>
-/// <param name="Multiple">Le champ porte-t-il plusieurs valeurs ?</param>
-/// <param name="TargetCollection">Collection visée, pour un champ de type relation.</param>
+/// <param name="ColumnName">Physical column name.</param>
+/// <param name="Type">Logical type.</param>
+/// <param name="Multiple">Does the field carry several values?</param>
+/// <param name="TargetCollection">Target collection, for a relation-type field.</param>
 public sealed record ResolvedField(
     string ColumnName,
     FieldType Type,
@@ -16,24 +16,23 @@ public sealed record ResolvedField(
     string? TargetCollection = null);
 
 /// <summary>
-/// Résolution d'un chemin d'identifiant contre le schéma.
+/// Resolution of an identifier path against the schema.
 /// </summary>
 /// <remarks>
-/// <b>C'est la liste blanche.</b> Un chemin que le résolveur refuse ne doit jamais atteindre le
-/// SQL : le compilateur lève une erreur 400. C'est ce qui rend l'injection impossible par
-/// construction plutôt que par vigilance — un champ inventé par un client n'a aucun moyen de
-/// devenir du texte SQL.
+/// <b>This is the allow-list.</b> A path the resolver refuses must never reach SQL: the compiler
+/// raises a 400 error. This is what makes injection impossible by construction rather than by
+/// vigilance — a field invented by a client has no way to become SQL text.
 /// </remarks>
 public interface IQueryFieldResolver
 {
-    /// <summary>Nom de la collection racine.</summary>
+    /// <summary>Name of the root collection.</summary>
     string RootCollection { get; }
 
     /// <summary>
-    /// Résout un chemin relatif à la collection racine.
+    /// Resolves a path relative to the root collection.
     /// </summary>
-    /// <param name="segments">Segments du chemin, par exemple <c>["author", "name"]</c>.</param>
-    /// <param name="field">Champ résolu, si le chemin est valide.</param>
-    /// <returns><see langword="false"/> si le chemin ne désigne aucun champ connu.</returns>
+    /// <param name="segments">Path segments, e.g. <c>["author", "name"]</c>.</param>
+    /// <param name="field">Resolved field, if the path is valid.</param>
+    /// <returns><see langword="false"/> if the path designates no known field.</returns>
     bool TryResolve(IReadOnlyList<string> segments, out ResolvedField field);
 }

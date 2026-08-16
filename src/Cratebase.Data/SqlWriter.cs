@@ -3,13 +3,13 @@ using System.Text;
 namespace Cratebase.Data;
 
 /// <summary>
-/// Accumule un fragment SQL et ses paramètres.
+/// Accumulates a SQL fragment and its parameters.
 /// </summary>
 /// <remarks>
-/// <b>Toute valeur passe par <see cref="AddParameter"/>.</b> C'est la frontière d'injection du
-/// moteur : aucune valeur d'utilisateur n'est concaténée dans le texte SQL, jamais, sous aucun
-/// prétexte. Les seuls fragments littéraux admis sont les identifiants issus du schéma, déjà
-/// résolus et échappés par le dialecte.
+/// <b>Every value goes through <see cref="AddParameter"/>.</b> This is the engine's injection
+/// boundary: no user value is ever concatenated into SQL text, under any circumstance. The only
+/// literal fragments admitted are identifiers coming from the schema, already resolved and escaped
+/// by the dialect.
 /// </remarks>
 public sealed class SqlWriter(ISqlDialect dialect, string parameterPrefix = "p")
 {
@@ -18,30 +18,30 @@ public sealed class SqlWriter(ISqlDialect dialect, string parameterPrefix = "p")
     private readonly string _parameterPrefix = parameterPrefix;
     private int _next;
 
-    /// <summary>Dialecte cible.</summary>
+    /// <summary>Target dialect.</summary>
     public ISqlDialect Dialect { get; } = dialect;
 
-    /// <summary>Paramètres accumulés, indexés par nom.</summary>
+    /// <summary>Accumulated parameters, indexed by name.</summary>
     public IReadOnlyDictionary<string, object?> Parameters => _parameters;
 
-    /// <summary>Texte SQL accumulé.</summary>
+    /// <summary>Accumulated SQL text.</summary>
     public override string ToString() => _sql.ToString();
 
-    /// <summary>Ajoute du texte SQL brut. Réservé aux fragments construits par le moteur.</summary>
+    /// <summary>Appends raw SQL text. Reserved for fragments built by the engine.</summary>
     public SqlWriter Raw(string sql)
     {
         _sql.Append(sql);
         return this;
     }
 
-    /// <summary>Ajoute un identifiant, échappé par le dialecte.</summary>
+    /// <summary>Appends an identifier, escaped by the dialect.</summary>
     public SqlWriter Identifier(string name)
     {
         _sql.Append(Dialect.QuoteIdentifier(name));
         return this;
     }
 
-    /// <summary>Ajoute une référence de colonne qualifiée par son alias de table.</summary>
+    /// <summary>Appends a column reference qualified by its table alias.</summary>
     public SqlWriter Column(string tableAlias, string columnName)
     {
         _sql.Append(Dialect.QuoteIdentifier(tableAlias))
@@ -52,7 +52,7 @@ public sealed class SqlWriter(ISqlDialect dialect, string parameterPrefix = "p")
     }
 
     /// <summary>
-    /// Enregistre une valeur et écrit son emplacement réservé.
+    /// Registers a value and writes its placeholder.
     /// </summary>
     public SqlWriter Parameter(object? value)
     {
@@ -61,7 +61,7 @@ public sealed class SqlWriter(ISqlDialect dialect, string parameterPrefix = "p")
     }
 
     /// <summary>
-    /// Enregistre une valeur et renvoie son emplacement réservé, sans l'écrire.
+    /// Registers a value and returns its placeholder, without writing it.
     /// </summary>
     public string AddParameter(object? value)
     {
@@ -71,20 +71,20 @@ public sealed class SqlWriter(ISqlDialect dialect, string parameterPrefix = "p")
         return "@" + name;
     }
 
-    /// <summary>Produit le fragment terminé.</summary>
+    /// <summary>Produces the finished fragment.</summary>
     public SqlFragment Build() => new(_sql.ToString(), _parameters);
 }
 
 /// <summary>
-/// Fragment SQL et ses paramètres.
+/// SQL fragment and its parameters.
 /// </summary>
-/// <param name="Sql">Texte SQL.</param>
-/// <param name="Parameters">Valeurs, indexées par nom de paramètre sans le préfixe.</param>
+/// <param name="Sql">SQL text.</param>
+/// <param name="Parameters">Values, indexed by parameter name without the prefix.</param>
 public sealed record SqlFragment(string Sql, IReadOnlyDictionary<string, object?> Parameters)
 {
-    /// <summary>Fragment vide.</summary>
+    /// <summary>Empty fragment.</summary>
     public static readonly SqlFragment Empty = new(string.Empty, new Dictionary<string, object?>());
 
-    /// <summary>Le fragment est-il vide ?</summary>
+    /// <summary>Is the fragment empty?</summary>
     public bool IsEmpty => string.IsNullOrEmpty(Sql);
 }

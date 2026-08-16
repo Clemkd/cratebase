@@ -3,42 +3,42 @@ using System.Globalization;
 namespace Cratebase.Core;
 
 /// <summary>
-/// Normalisation des instants. Point de portabilité critique entre SQLite et PostgreSQL.
+/// Normalization of instants. A critical portability point between SQLite and PostgreSQL.
 /// </summary>
 /// <remarks>
 /// <para>
-/// SQLite n'a pas de type date : il compare les instants <b>en tant que chaînes</b>. PostgreSQL les
-/// compare temporellement en <c>timestamptz</c>. Les deux ne donnent le même résultat que si la
-/// représentation textuelle est strictement canonique : UTC, précision fixe, zéros de tête,
-/// suffixe constant. Une seule date écrite en heure locale, ou avec une précision variable, suffit
-/// à faire diverger un filtre de plage entre les deux moteurs — sans le moindre message.
+/// SQLite has no date type: it compares instants <b>as strings</b>. PostgreSQL compares them
+/// temporally as <c>timestamptz</c>. The two only give the same result if the textual
+/// representation is strictly canonical: UTC, fixed precision, zero-padded, constant suffix. A
+/// single date written in local time, or with variable precision, is enough to make a range filter
+/// diverge between the two engines — without the slightest error message.
 /// </para>
 /// <para>
-/// La normalisation est donc appliquée par le mappeur de type à l'écriture, et jamais laissée à
-/// l'appelant. Le format retenu trie lexicographiquement dans le même ordre que chronologiquement,
-/// ce qui est la condition pour que <c>ORDER BY</c> soit identique des deux côtés.
+/// Normalization is therefore applied by the type mapper on write, and never left to the caller.
+/// The chosen format sorts lexicographically in the same order as chronologically, which is the
+/// condition for <c>ORDER BY</c> to be identical on both sides.
 /// </para>
 /// </remarks>
 public static class Timestamp
 {
     /// <summary>
-    /// Format canonique : <c>2026-08-13T14:05:09.123Z</c>. Longueur fixe de 24 caractères.
+    /// Canonical format: <c>2026-08-13T14:05:09.123Z</c>. Fixed length of 24 characters.
     /// </summary>
     public const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
 
-    /// <summary>Longueur d'une valeur canonique, en caractères.</summary>
+    /// <summary>Length of a canonical value, in characters.</summary>
     public const int Length = 24;
 
     /// <summary>
-    /// Convertit un instant en sa forme canonique UTC.
+    /// Converts an instant to its canonical UTC form.
     /// </summary>
     public static string Normalize(DateTimeOffset value) =>
         value.ToUniversalTime().ToString(Format, CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// Convertit un instant en sa forme canonique UTC. Un <see cref="DateTimeKind.Unspecified"/>
-    /// est interprété comme UTC — le moteur ne stocke jamais d'heure locale, donc une date sans
-    /// fuseau ne peut venir que d'une valeur déjà normalisée.
+    /// Converts an instant to its canonical UTC form. A <see cref="DateTimeKind.Unspecified"/> is
+    /// interpreted as UTC — the engine never stores a local time, so a date with no timezone can
+    /// only come from an already-normalized value.
     /// </summary>
     public static string Normalize(DateTime value) => Normalize(value.Kind switch
     {
@@ -48,10 +48,10 @@ public static class Timestamp
     });
 
     /// <summary>
-    /// Analyse une valeur fournie par un client. Accepte toute forme ISO-8601 reconnue par
-    /// <see cref="DateTimeOffset"/>, et renvoie la forme canonique.
+    /// Parses a value supplied by a client. Accepts any ISO-8601 form recognized by
+    /// <see cref="DateTimeOffset"/>, and returns the canonical form.
     /// </summary>
-    /// <returns><see langword="true"/> si la valeur est un instant reconnaissable.</returns>
+    /// <returns><see langword="true"/> if the value is a recognizable instant.</returns>
     public static bool TryNormalize(string? raw, out string canonical)
     {
         canonical = string.Empty;
@@ -75,7 +75,7 @@ public static class Timestamp
     }
 
     /// <summary>
-    /// Relit une valeur canonique issue du stockage.
+    /// Reads back a canonical value coming from storage.
     /// </summary>
     public static DateTimeOffset Parse(string canonical) => DateTimeOffset.ParseExact(
         canonical,
@@ -84,8 +84,8 @@ public static class Timestamp
         DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
     /// <summary>
-    /// Relit une valeur canonique issue du stockage, en tolérant la chaîne vide qui représente
-    /// l'absence de date.
+    /// Reads back a canonical value coming from storage, tolerating the empty string that
+    /// represents the absence of a date.
     /// </summary>
     public static DateTimeOffset? ParseOrNull(string? canonical) =>
         string.IsNullOrEmpty(canonical) ? null : Parse(canonical);

@@ -1,46 +1,46 @@
 namespace Cratebase.Core;
 
 /// <summary>
-/// Appelant de la requête courante.
+/// Caller of the current request.
 /// </summary>
 /// <remarks>
-/// Porte l'enregistrement d'authentification complet, et pas seulement des claims : le langage de
-/// filtre expose <c>@request.auth.*</c>, qui doit pouvoir atteindre n'importe quel champ de la
-/// collection d'auth — y compris un champ ajouté après coup par l'utilisateur de la librairie.
+/// Carries the full auth record, not just claims: the filter language exposes
+/// <c>@request.auth.*</c>, which must be able to reach any field of the auth collection —
+/// including a field added later by the library's user.
 /// </remarks>
 public interface ICurrentUser
 {
-    /// <summary>Indique si un enregistrement d'authentification a été résolu.</summary>
+    /// <summary>Indicates whether an auth record was resolved.</summary>
     bool IsAuthenticated { get; }
 
     /// <summary>
-    /// Indique si l'appelant est superadmin. Un superadmin contourne les règles d'accès, jamais la
-    /// validation ni les hooks.
+    /// Indicates whether the caller is a superuser. A superuser bypasses access rules, never
+    /// validation or hooks.
     /// </summary>
     bool IsSuperuser { get; }
 
-    /// <summary>Identifiant de l'enregistrement d'authentification, si authentifié.</summary>
+    /// <summary>Auth record identifier, if authenticated.</summary>
     RecordId? Id { get; }
 
-    /// <summary>Nom de la collection d'auth ayant authentifié l'appelant, si authentifié.</summary>
+    /// <summary>Name of the auth collection that authenticated the caller, if authenticated.</summary>
     string? CollectionName { get; }
 
     /// <summary>
-    /// Permissions RBAC effectives, rôles et dérogations individuelles déjà fusionnés.
+    /// Effective RBAC permissions, roles and individual overrides already merged.
     /// </summary>
     IReadOnlyCollection<string> Permissions { get; }
 
     /// <summary>
-    /// Champs de l'enregistrement d'authentification, pour la résolution de <c>@request.auth.*</c>.
-    /// Le mot de passe et la clé de jeton en sont toujours absents.
+    /// Fields of the auth record, for resolving <c>@request.auth.*</c>. The password and token key
+    /// are always absent from it.
     /// </summary>
     IReadOnlyDictionary<string, object?> Fields { get; }
 }
 
-/// <summary>Appelant anonyme.</summary>
+/// <summary>Anonymous caller.</summary>
 public sealed class AnonymousUser : ICurrentUser
 {
-    /// <summary>Instance partagée.</summary>
+    /// <summary>Shared instance.</summary>
     public static readonly AnonymousUser Instance = new();
 
     /// <inheritdoc />

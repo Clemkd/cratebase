@@ -1,16 +1,16 @@
 namespace Cratebase.Expressions;
 
-/// <summary>Connecteur logique.</summary>
+/// <summary>Logical connector.</summary>
 public enum LogicalOperator
 {
-    /// <summary>Conjonction.</summary>
+    /// <summary>Conjunction.</summary>
     And,
 
-    /// <summary>Disjonction.</summary>
+    /// <summary>Disjunction.</summary>
     Or,
 }
 
-/// <summary>Opérateur de comparaison.</summary>
+/// <summary>Comparison operator.</summary>
 public enum ComparisonOperator
 {
     /// <summary><c>=</c></summary>
@@ -31,42 +31,42 @@ public enum ComparisonOperator
     /// <summary><c>&lt;=</c></summary>
     LessThanOrEqual,
 
-    /// <summary><c>~</c> — contient. Toujours insensible à la casse (voir §5 de la conception).</summary>
+    /// <summary><c>~</c> — contains. Always case-insensitive (see design §5).</summary>
     Like,
 
-    /// <summary><c>!~</c> — ne contient pas.</summary>
+    /// <summary><c>!~</c> — does not contain.</summary>
     NotLike,
 }
 
 /// <summary>
-/// Modificateur appliqué à un chemin, introduit par <c>:</c>.
+/// Modifier applied to a path, introduced by <c>:</c>.
 /// </summary>
 public enum PathModifier
 {
-    /// <summary>Aucun.</summary>
+    /// <summary>None.</summary>
     None,
 
-    /// <summary><c>:isset</c> — le champ a-t-il été soumis ? Réservé aux chemins <c>@request.*</c>.</summary>
+    /// <summary><c>:isset</c> — was the field submitted? Reserved for <c>@request.*</c> paths.</summary>
     IsSet,
 
-    /// <summary><c>:length</c> — nombre d'éléments d'un champ multi-valué.</summary>
+    /// <summary><c>:length</c> — element count of a multi-valued field.</summary>
     Length,
 
-    /// <summary><c>:each</c> — la condition s'applique à chaque élément.</summary>
+    /// <summary><c>:each</c> — the condition applies to each element.</summary>
     Each,
 
-    /// <summary><c>:lower</c> — comparaison en minuscules.</summary>
+    /// <summary><c>:lower</c> — lowercase comparison.</summary>
     Lower,
 
-    /// <summary><c>:changed</c> — le champ a-t-il été soumis <i>et</i> modifié ?</summary>
+    /// <summary><c>:changed</c> — was the field submitted <i>and</i> changed?</summary>
     Changed,
 }
 
-/// <summary>Nœud de l'arbre syntaxique d'un filtre.</summary>
-/// <param name="Position">Décalage dans l'expression d'origine, pour les messages d'erreur.</param>
+/// <summary>Node of a filter's syntax tree.</summary>
+/// <param name="Position">Offset in the original expression, for error messages.</param>
 public abstract record FilterNode(int Position);
 
-/// <summary>Combinaison logique de deux sous-expressions.</summary>
+/// <summary>Logical combination of two sub-expressions.</summary>
 public sealed record LogicalNode(
     LogicalOperator Operator,
     FilterNode Left,
@@ -74,16 +74,16 @@ public sealed record LogicalNode(
     int Position) : FilterNode(Position);
 
 /// <summary>
-/// Comparaison de deux opérandes.
+/// Comparison of two operands.
 /// </summary>
-/// <param name="Left">Opérande de gauche.</param>
-/// <param name="Operator">Opérateur de comparaison.</param>
+/// <param name="Left">Left operand.</param>
+/// <param name="Operator">Comparison operator.</param>
 /// <param name="AnyOf">
-/// Vrai si l'opérateur était préfixé par <c>?</c>. Sur un champ multi-valué, la comparaison passe
-/// alors de « tous les éléments satisfont » à « au moins un élément satisfait ».
+/// True if the operator was prefixed with <c>?</c>. On a multi-valued field, the comparison then
+/// switches from "every element satisfies" to "at least one element satisfies".
 /// </param>
-/// <param name="Right">Opérande de droite.</param>
-/// <param name="Position">Décalage dans l'expression d'origine.</param>
+/// <param name="Right">Right operand.</param>
+/// <param name="Position">Offset in the original expression.</param>
 public sealed record ComparisonNode(
     OperandNode Left,
     ComparisonOperator Operator,
@@ -91,55 +91,55 @@ public sealed record ComparisonNode(
     OperandNode Right,
     int Position) : FilterNode(Position);
 
-/// <summary>Opérande d'une comparaison.</summary>
+/// <summary>Operand of a comparison.</summary>
 public abstract record OperandNode(int Position);
 
 /// <summary>
-/// Valeur littérale : chaîne, nombre, booléen ou <see langword="null"/>.
+/// Literal value: string, number, boolean, or <see langword="null"/>.
 /// </summary>
 public sealed record LiteralNode(object? Value, int Position) : OperandNode(Position);
 
 /// <summary>
-/// Chemin d'accès à une valeur : champ de la collection (<c>title</c>), traversée de relation
-/// (<c>author.name</c>), méta-champ de requête (<c>@request.auth.id</c>), jointure
-/// (<c>@collection.posts.owner</c>) ou macro de date (<c>@now</c>).
+/// Access path to a value: a collection field (<c>title</c>), a relation traversal
+/// (<c>author.name</c>), a request meta-field (<c>@request.auth.id</c>), a join
+/// (<c>@collection.posts.owner</c>), or a date macro (<c>@now</c>).
 /// </summary>
 /// <remarks>
-/// Le parseur ne cherche pas à savoir ce que le chemin désigne : c'est l'analyse sémantique qui le
-/// résout contre le schéma. Un chemin non résolu est une erreur 400, jamais une interpolation —
-/// c'est la frontière d'injection du moteur.
+/// The parser does not try to know what the path designates: semantic analysis resolves it
+/// against the schema. An unresolved path is a 400 error, never an interpolation — this is the
+/// engine's injection boundary.
 /// </remarks>
 public sealed record PathNode(
     IReadOnlyList<string> Segments,
     PathModifier Modifier,
     int Position) : OperandNode(Position)
 {
-    /// <summary>Le chemin cible-t-il un méta-champ de requête ?</summary>
+    /// <summary>Does the path target a request meta-field?</summary>
     public bool IsRequestPath =>
         Segments.Count > 0 && Segments[0].Equals("@request", StringComparison.Ordinal);
 
-    /// <summary>Le chemin cible-t-il une autre collection par jointure ?</summary>
+    /// <summary>Does the path target another collection via a join?</summary>
     public bool IsCollectionPath =>
         Segments.Count > 0 && Segments[0].Equals("@collection", StringComparison.Ordinal);
 
-    /// <summary>Le chemin est-il une macro (date, ou autre valeur fournie par le moteur) ?</summary>
+    /// <summary>Is the path a macro (date, or another engine-supplied value)?</summary>
     public bool IsMacro =>
         Segments.Count == 1 && Segments[0].StartsWith('@') && !IsRequestPath && !IsCollectionPath;
 
-    /// <summary>Forme textuelle du chemin, telle qu'écrite.</summary>
+    /// <summary>Textual form of the path, as written.</summary>
     public override string ToString() => Modifier is PathModifier.None
         ? string.Join('.', Segments)
         : $"{string.Join('.', Segments)}:{Modifier.ToString().ToLowerInvariant()}";
 }
 
 /// <summary>
-/// Appel de fonction logique.
+/// Logical function call.
 /// </summary>
 /// <remarks>
-/// ⚠️ Les fonctions exposées sont <b>logiques</b>, jamais celles du moteur. PocketBase expose
-/// <c>strftime()</c>, qui est du SQLite pur : c'est précisément ce qui interdit d'en migrer une
-/// application. Chaque fonction admise ici a une traduction dans chaque dialecte, et la suite de
-/// conformité vérifie qu'elles rendent le même résultat.
+/// ⚠️ The exposed functions are <b>logical</b>, never the engine's own. PocketBase exposes
+/// <c>strftime()</c>, which is pure SQLite: precisely what forbids migrating an application off
+/// it. Every function admitted here has a translation in each dialect, and the conformance suite
+/// verifies they return the same result.
 /// </remarks>
 public sealed record FunctionNode(
     string Name,

@@ -3,13 +3,13 @@ using Cratebase.Core;
 namespace Cratebase.Data;
 
 /// <summary>
-/// Description physique d'une colonne, indépendante du dialecte.
+/// Physical description of a column, independent of the dialect.
 /// </summary>
-/// <param name="Name">Nom de la colonne.</param>
-/// <param name="Type">Type logique du champ.</param>
-/// <param name="Multiple">Le champ porte-t-il plusieurs valeurs ?</param>
-/// <param name="NotNull">La colonne refuse-t-elle l'absence de valeur ?</param>
-/// <param name="DefaultValue">Valeur par défaut, déjà convertie au stockage.</param>
+/// <param name="Name">Column name.</param>
+/// <param name="Type">Logical type of the field.</param>
+/// <param name="Multiple">Does the field carry several values?</param>
+/// <param name="NotNull">Does the column reject the absence of a value?</param>
+/// <param name="DefaultValue">Default value, already converted for storage.</param>
 public sealed record ColumnSpec(
     string Name,
     FieldType Type,
@@ -18,22 +18,22 @@ public sealed record ColumnSpec(
     object? DefaultValue = null);
 
 /// <summary>
-/// Clé étrangère d'un champ de relation.
+/// Foreign key of a relation field.
 /// </summary>
-/// <param name="Column">Colonne portant la référence.</param>
-/// <param name="TargetTable">Table visée.</param>
+/// <param name="Column">Column carrying the reference.</param>
+/// <param name="TargetTable">Target table.</param>
 /// <param name="CascadeDelete">
-/// La suppression du parent supprime-t-elle l'enfant ? Sinon la référence est mise à vide.
+/// Does deleting the parent delete the child? Otherwise the reference is cleared.
 /// </param>
 public sealed record ForeignKeySpec(string Column, string TargetTable, bool CascadeDelete);
 
 /// <summary>
-/// Index d'une table.
+/// Index of a table.
 /// </summary>
-/// <param name="Name">Nom de l'index. Unique dans la base.</param>
-/// <param name="Table">Table portée.</param>
-/// <param name="Columns">Colonnes, dans l'ordre.</param>
-/// <param name="Unique">L'index impose-t-il l'unicité ?</param>
+/// <param name="Name">Index name. Unique within the database.</param>
+/// <param name="Table">Table it belongs to.</param>
+/// <param name="Columns">Columns, in order.</param>
+/// <param name="Unique">Does the index enforce uniqueness?</param>
 public sealed record IndexSpec(
     string Name,
     string Table,
@@ -41,12 +41,12 @@ public sealed record IndexSpec(
     bool Unique = false);
 
 /// <summary>
-/// Description physique d'une table.
+/// Physical description of a table.
 /// </summary>
-/// <param name="Name">Nom de la table.</param>
-/// <param name="Columns">Colonnes, la clé primaire comprise.</param>
-/// <param name="PrimaryKey">Nom de la colonne de clé primaire.</param>
-/// <param name="ForeignKeys">Clés étrangères.</param>
+/// <param name="Name">Table name.</param>
+/// <param name="Columns">Columns, including the primary key.</param>
+/// <param name="PrimaryKey">Name of the primary key column.</param>
+/// <param name="ForeignKeys">Foreign keys.</param>
 public sealed record TableSpec(
     string Name,
     IReadOnlyList<ColumnSpec> Columns,
@@ -54,68 +54,68 @@ public sealed record TableSpec(
     IReadOnlyList<ForeignKeySpec> ForeignKeys);
 
 /// <summary>
-/// Génération du DDL.
+/// DDL generation.
 /// </summary>
 /// <remarks>
-/// Séparé de <see cref="ISqlDialect"/> parce que les deux surfaces n'évoluent pas au même rythme :
-/// le DDL bouge quand on ajoute un type de champ, le langage de requête quand on ajoute un
-/// opérateur. Les dialectes implémentent les deux.
+/// Separated from <see cref="ISqlDialect"/> because the two surfaces don't evolve at the same
+/// pace: DDL changes when a field type is added, the query language when an operator is added.
+/// Dialects implement both.
 /// </remarks>
 public interface ISchemaDdl
 {
     /// <summary>
-    /// Instructions à exécuter <b>avant d'ouvrir la transaction</b> d'un changement de schéma.
+    /// Statements to run <b>before opening the transaction</b> of a schema change.
     /// </summary>
     /// <remarks>
-    /// ⚠️ Sur SQLite, la reconstruction de table détruit la table d'origine. Si les clés étrangères
-    /// sont actives à ce moment-là, <c>ON DELETE CASCADE</c> se déclenche et <b>les lignes des
-    /// tables référençantes sont effacées</b> — une perte de données totale et silencieuse,
-    /// provoquée par une simple modification de type de champ. Le pragma doit donc être coupé, et
-    /// il ne peut pas l'être à l'intérieur d'une transaction : d'où cette séparation.
+    /// ⚠️ On SQLite, rebuilding a table destroys the original table. If foreign keys are active at
+    /// that moment, <c>ON DELETE CASCADE</c> fires and <b>rows in referencing tables are erased</b>
+    /// — a total, silent data loss, triggered by a simple field type change. The pragma must
+    /// therefore be turned off, and it cannot be turned off inside a transaction: hence this
+    /// separation.
     /// </remarks>
     IReadOnlyList<string> BeforeSchemaChange { get; }
 
-    /// <summary>Instructions à exécuter après avoir validé la transaction.</summary>
+    /// <summary>Statements to run after the transaction has committed.</summary>
     IReadOnlyList<string> AfterSchemaChange { get; }
 
     /// <summary>
-    /// Vérification d'intégrité à exécuter dans la transaction, avant validation. Rend une ligne
-    /// par violation détectée.
+    /// Integrity check to run inside the transaction, before commit. Returns one row per violation
+    /// detected.
     /// </summary>
     string? IntegrityCheckStatement { get; }
 
-    /// <summary>Crée une table.</summary>
+    /// <summary>Creates a table.</summary>
     IReadOnlyList<string> CreateTable(TableSpec table);
 
-    /// <summary>Supprime une table.</summary>
+    /// <summary>Drops a table.</summary>
     IReadOnlyList<string> DropTable(string table);
 
-    /// <summary>Renomme une table.</summary>
+    /// <summary>Renames a table.</summary>
     IReadOnlyList<string> RenameTable(string oldName, string newName);
 
-    /// <summary>Ajoute une colonne.</summary>
+    /// <summary>Adds a column.</summary>
     IReadOnlyList<string> AddColumn(string table, ColumnSpec column);
 
-    /// <summary>Supprime une colonne.</summary>
+    /// <summary>Drops a column.</summary>
     IReadOnlyList<string> DropColumn(string table, string column);
 
-    /// <summary>Renomme une colonne.</summary>
+    /// <summary>Renames a column.</summary>
     IReadOnlyList<string> RenameColumn(string table, string oldName, string newName);
 
     /// <summary>
-    /// Change le type d'une colonne.
+    /// Changes a column's type.
     /// </summary>
     /// <remarks>
-    /// ⚠️ SQLite ne sait pas le faire : il faut reconstruire la table. La reconstruction doit
-    /// <b>recréer les index</b>, sinon une contrainte d'unicité disparaît sans le moindre message
-    /// et les doublons s'installent. C'est pour cela que la méthode reçoit la table cible complète
-    /// et non la seule colonne.
+    /// ⚠️ SQLite cannot do this: the table must be rebuilt. The rebuild must <b>recreate the
+    /// indexes</b>, otherwise a uniqueness constraint disappears without the slightest message and
+    /// duplicates creep in. That's why the method receives the whole target table rather than just
+    /// the column.
     /// </remarks>
     IReadOnlyList<string> ChangeColumnType(TableSpec target, ColumnSpec column, IReadOnlyList<IndexSpec> indexes);
 
-    /// <summary>Crée un index.</summary>
+    /// <summary>Creates an index.</summary>
     IReadOnlyList<string> CreateIndex(IndexSpec index);
 
-    /// <summary>Supprime un index.</summary>
+    /// <summary>Drops an index.</summary>
     IReadOnlyList<string> DropIndex(string table, string indexName);
 }

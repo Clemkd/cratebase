@@ -3,40 +3,39 @@ using System.Globalization;
 namespace Cratebase.Expressions;
 
 /// <summary>
-/// Analyse syntaxique du langage de filtre : produit un arbre, jamais du SQL.
+/// Syntax analysis of the filter language: produces a tree, never SQL.
 /// </summary>
 /// <remarks>
 /// <para>
-/// C'est le même analyseur pour les deux usages du langage : le paramètre <c>?filter=</c> d'une
-/// requête, et les règles d'accès d'une collection. Un seul moteur, donc une seule sémantique à
-/// sécuriser — c'est ce qui évite qu'une expression autorisée dans un contexte se comporte
-/// autrement dans l'autre.
+/// This is the same parser for both uses of the language: a request's <c>?filter=</c> parameter,
+/// and a collection's access rules. One engine, so one semantics to secure — this is what stops an
+/// expression allowed in one context from behaving differently in the other.
 /// </para>
 /// <para>
-/// L'arbre produit ne référence aucun champ résolu. La liste blanche, la traversée de relations et
-/// la compilation en SQL sont l'affaire de l'analyse sémantique, en aval.
+/// The produced tree references no resolved field. The allow-list, relation traversal, and
+/// compilation to SQL are semantic analysis's job, downstream.
 /// </para>
 /// </remarks>
 public static class FilterParser
 {
-    /// <summary>Profondeur maximale d'imbrication de parenthèses.</summary>
+    /// <summary>Maximum nesting depth of parentheses.</summary>
     /// <remarks>
-    /// Borne obligatoire : sans elle, une expression profonde fait déborder la pile côté serveur.
-    /// C'est un déni de service en une chaîne de caractères.
+    /// A mandatory bound: without it, a deep expression overflows the server-side stack. That's a
+    /// denial of service in a string.
     /// </remarks>
     public const int MaxDepth = 32;
 
-    /// <summary>Longueur maximale d'une expression, en caractères.</summary>
+    /// <summary>Maximum length of an expression, in characters.</summary>
     public const int MaxLength = 8192;
 
     /// <summary>
-    /// Analyse une expression de filtre.
+    /// Parses a filter expression.
     /// </summary>
     /// <returns>
-    /// L'arbre correspondant, ou <see langword="null"/> si l'expression est vide — ce qui signifie
-    /// « aucune contrainte », et non « refuser tout ».
+    /// The corresponding tree, or <see langword="null"/> if the expression is empty — meaning "no
+    /// constraint", not "reject everything".
     /// </returns>
-    /// <exception cref="FilterSyntaxException">L'expression n'est pas analysable.</exception>
+    /// <exception cref="FilterSyntaxException">The expression is not parsable.</exception>
     public static FilterNode? Parse(string? expression)
     {
         if (string.IsNullOrWhiteSpace(expression))
@@ -47,7 +46,7 @@ public static class FilterParser
         if (expression.Length > MaxLength)
         {
             throw new FilterSyntaxException(
-                $"expression trop longue ({expression.Length} caractères, maximum {MaxLength})", 0);
+                $"expression too long ({expression.Length} characters, maximum {MaxLength})", 0);
         }
 
         var tokens = new FilterLexer(expression).Tokenize();
@@ -70,7 +69,7 @@ public static class FilterParser
             if (Current.Kind is not FilterTokenKind.Eof)
             {
                 throw new FilterSyntaxException(
-                    $"{Current} n'était pas attendu ici", Current.Position);
+                    $"{Current} was not expected here", Current.Position);
             }
         }
 
@@ -111,7 +110,7 @@ public static class FilterParser
             if (depth >= MaxDepth)
             {
                 throw new FilterSyntaxException(
-                    $"expression trop imbriquée (maximum {MaxDepth} niveaux)", Current.Position);
+                    $"expression too deeply nested (maximum {MaxDepth} levels)", Current.Position);
             }
 
             if (Current.Kind is FilterTokenKind.LeftParen)
@@ -121,7 +120,7 @@ public static class FilterParser
 
                 if (Current.Kind is not FilterTokenKind.RightParen)
                 {
-                    throw new FilterSyntaxException("parenthèse fermante manquante", Current.Position);
+                    throw new FilterSyntaxException("missing closing parenthesis", Current.Position);
                 }
 
                 _index++;
@@ -138,7 +137,7 @@ public static class FilterParser
             if (Current.Kind is not FilterTokenKind.Operator)
             {
                 throw new FilterSyntaxException(
-                    $"opérateur de comparaison attendu, trouvé {Current}", Current.Position);
+                    $"comparison operator expected, found {Current}", Current.Position);
             }
 
             var operatorToken = Current;
@@ -191,7 +190,7 @@ public static class FilterParser
                         : ParsePath(token);
 
                 default:
-                    throw new FilterSyntaxException($"opérande attendue, trouvé {token}", token.Position);
+                    throw new FilterSyntaxException($"operand expected, found {token}", token.Position);
             }
         }
 
@@ -201,10 +200,10 @@ public static class FilterParser
                 || name.Text.Contains(':', StringComparison.Ordinal))
             {
                 throw new FilterSyntaxException(
-                    $"« {name.Text} » n'est pas un nom de fonction valide", name.Position);
+                    $"\"{name.Text}\" is not a valid function name", name.Position);
             }
 
-            _index++; // parenthèse ouvrante
+            _index++; // opening parenthesis
 
             var arguments = new List<OperandNode>();
 
@@ -226,7 +225,7 @@ public static class FilterParser
             if (Current.Kind is not FilterTokenKind.RightParen)
             {
                 throw new FilterSyntaxException(
-                    "parenthèse fermante manquante après les arguments", Current.Position);
+                    "missing closing parenthesis after arguments", Current.Position);
             }
 
             _index++;
@@ -254,7 +253,7 @@ public static class FilterParser
                     "lower" => PathModifier.Lower,
                     "changed" => PathModifier.Changed,
                     _ => throw new FilterSyntaxException(
-                        $"modificateur inconnu « :{suffix} »", token.Position + colon),
+                        $"unknown modifier \":{suffix}\"", token.Position + colon),
                 };
             }
 
@@ -265,7 +264,7 @@ public static class FilterParser
                 if (segment.Length == 0)
                 {
                     throw new FilterSyntaxException(
-                        $"segment vide dans le chemin « {token.Text} »", token.Position);
+                        $"empty segment in path \"{token.Text}\"", token.Position);
                 }
             }
 
@@ -282,7 +281,7 @@ public static class FilterParser
             "<=" => ComparisonOperator.LessThanOrEqual,
             "~" => ComparisonOperator.Like,
             "!~" => ComparisonOperator.NotLike,
-            _ => throw new FilterSyntaxException($"opérateur inconnu « {symbol} »", position),
+            _ => throw new FilterSyntaxException($"unknown operator \"{symbol}\"", position),
         };
     }
 }

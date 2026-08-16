@@ -3,21 +3,21 @@ using System.Data.Common;
 namespace Cratebase.Data;
 
 /// <summary>
-/// Ouvre des connexions déjà configurées.
+/// Opens already-configured connections.
 /// </summary>
 public interface IDbConnectionFactory
 {
-    /// <summary>Dialecte du moteur cible.</summary>
+    /// <summary>Dialect of the target engine.</summary>
     ISqlDialect Dialect { get; }
 
-    /// <summary>Générateur de DDL du moteur cible.</summary>
+    /// <summary>DDL generator of the target engine.</summary>
     ISchemaDdl Ddl { get; }
 
-    /// <summary>Ouvre une connexion, instructions d'initialisation déjà exécutées.</summary>
+    /// <summary>Opens a connection, initialization statements already executed.</summary>
     Task<DbConnection> OpenAsync(CancellationToken cancellationToken = default);
 }
 
-/// <summary>Implémentation par défaut.</summary>
+/// <summary>Default implementation.</summary>
 public sealed class DbConnectionFactory(ISqlDialect dialect, ISchemaDdl ddl, string connectionString)
     : IDbConnectionFactory
 {
@@ -39,9 +39,9 @@ public sealed class DbConnectionFactory(ISqlDialect dialect, ISchemaDdl ddl, str
         {
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            // Les pragmas de SQLite sont attachés à la connexion, pas à la base : les réappliquer
-            // à chaque ouverture n'est pas une précaution, c'est une obligation. Une connexion du
-            // pool qui les aurait ratés désactiverait les clés étrangères pour toute sa durée de vie.
+            // SQLite pragmas are attached to the connection, not to the database: reapplying them
+            // on every open is not a precaution, it is a requirement. A pooled connection that
+            // missed them would run with foreign keys disabled for its entire lifetime.
             foreach (var statement in Dialect.ConnectionInitializationStatements)
             {
                 await using var command = connection.CreateCommand();

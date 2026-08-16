@@ -1,21 +1,20 @@
 namespace Cratebase.Core;
 
 /// <summary>
-/// Comparaison d'une permission détenue à une permission exigée, avec jokers.
+/// Compares a held permission against a required permission, with wildcards.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Le joker ne couvre qu'un seul niveau.</b> <c>posts.*</c> couvre <c>posts.write</c> mais pas
-/// <c>posts.comments.moderate</c>. C'est le choix de <c>instacontent</c>, repris tel quel : un
-/// joker récursif fait qu'accorder <c>posts.*</c> aujourd'hui accorde silencieusement, demain, une
-/// permission plus sensible ajoutée sous cette racine. Personne ne revoit les rôles à ce
-/// moment-là.
+/// <b>The wildcard covers only one level.</b> <c>posts.*</c> covers <c>posts.write</c> but not
+/// <c>posts.comments.moderate</c>. This is <c>instacontent</c>'s choice, kept as-is: a recursive
+/// wildcard means granting <c>posts.*</c> today silently grants, tomorrow, a more sensitive
+/// permission added under that root. Nobody reviews roles at that moment.
 /// </para>
 /// <para>
-/// ⚠️ Ce matcher a un jumeau TypeScript dans <c>@cratebase/client</c>, qui sert à masquer
-/// l'interface. Les deux partagent un jeu de cas de test commun (<c>permission-cases.json</c>) :
-/// une divergence entre les deux fait qu'un bouton s'affiche alors que l'API refusera, ou
-/// l'inverse. Toute modification ici se répercute là-bas, et le jeu de cas le prouve.
+/// ⚠️ This matcher has a TypeScript twin in <c>@cratebase/client</c>, used to hide UI. The two
+/// share a common test-case set (<c>permission-cases.json</c>): a divergence between them means a
+/// button shows while the API will refuse, or the reverse. Any change here ripples there, and the
+/// case set proves it.
 /// </para>
 /// </remarks>
 public static class PermissionMatcher
@@ -24,7 +23,7 @@ public static class PermissionMatcher
     private const string Wildcard = "*";
 
     /// <summary>
-    /// Indique si l'ensemble des permissions détenues satisfait la permission exigée.
+    /// Indicates whether the set of held permissions satisfies the required permission.
     /// </summary>
     public static bool IsSatisfied(IReadOnlyCollection<string> held, string required)
     {
@@ -43,7 +42,7 @@ public static class PermissionMatcher
     }
 
     /// <summary>
-    /// Indique si <paramref name="held"/> couvre <paramref name="required"/>.
+    /// Indicates whether <paramref name="held"/> covers <paramref name="required"/>.
     /// </summary>
     public static bool Covers(string? held, string required)
     {
@@ -59,13 +58,13 @@ public static class PermissionMatcher
             return true;
         }
 
-        // Le joker terminal couvre exactement un segment de plus, jamais davantage.
+        // The terminal wildcard covers exactly one more segment, never more.
         if (!held.EndsWith(Separator + Wildcard, StringComparison.Ordinal))
         {
             return false;
         }
 
-        var prefix = held.AsSpan(0, held.Length - 1);            // « posts.* » → « posts. »
+        var prefix = held.AsSpan(0, held.Length - 1);            // "posts.*" -> "posts."
         var target = required.AsSpan();
 
         if (!target.StartsWith(prefix, StringComparison.Ordinal))
