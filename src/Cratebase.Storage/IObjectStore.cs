@@ -2,65 +2,65 @@ using System.Runtime.CompilerServices;
 
 namespace Cratebase.Storage;
 
-/// <summary>Métadonnées d'un objet stocké.</summary>
-/// <param name="Key">Clé complète.</param>
-/// <param name="Length">Taille en octets.</param>
-/// <param name="ContentType">Type MIME.</param>
+/// <summary>Metadata of a stored object.</summary>
+/// <param name="Key">Full key.</param>
+/// <param name="Length">Size in bytes.</param>
+/// <param name="ContentType">MIME type.</param>
 public sealed record ObjectInfo(string Key, long Length, string ContentType);
 
 /// <summary>
-/// Stockage d'objets.
+/// Object storage.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Une seule abstraction pour le disque local et pour S3. C'est elle qui tient la deuxième promesse
-/// d'évolutivité : passer du disque à MinIO ou S3 est un changement de configuration, pas une
-/// réécriture. Le reste du moteur ne connaît que des <b>clés</b>, jamais des chemins.
+/// A single abstraction for local disk and for S3. This is what keeps the second scalability
+/// promise: moving from disk to MinIO or S3 is a configuration change, not a rewrite. The rest of
+/// the engine only ever knows about <b>keys</b>, never paths.
 /// </para>
 /// <para>
-/// Disposition des clés : <c>{collection}/{recordId}/{fichier}</c>. Elle porte l'appartenance, donc
-/// une autorisation peut se décider sur le préfixe seul, sans lire la base.
+/// Key layout: <c>{collection}/{recordId}/{file}</c>. It carries ownership, so authorization can
+/// be decided on the prefix alone, without reading the database.
 /// </para>
 /// </remarks>
 public interface IObjectStore
 {
-    /// <summary>Nom de l'implémentation, pour les diagnostics.</summary>
+    /// <summary>Name of the implementation, for diagnostics.</summary>
     string Name { get; }
 
     /// <summary>
-    /// Prépare le magasin : répertoire créé sur le disque local, seau créé côté S3.
+    /// Prepares the store: directory created on local disk, bucket created on S3.
     /// </summary>
     /// <remarks>
-    /// Polymorphe plutôt que laissée à l'hôte : sinon la préparation est faite pour le magasin
-    /// qu'on utilisait au moment où on y a pensé, et oubliée pour l'autre. Un seau absent ne se
-    /// manifeste qu'au premier import de fichier, longtemps après le démarrage.
+    /// Polymorphic rather than left to the host: otherwise preparation is done for whichever store
+    /// was in mind at the time, and forgotten for the other. A missing bucket only shows up on the
+    /// first file import, long after startup.
     /// </remarks>
     Task EnsureReadyAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Écrit un objet, en écrasant s'il existe.</summary>
+    /// <summary>Writes an object, overwriting it if it already exists.</summary>
     Task PutAsync(string key, Stream content, string contentType, CancellationToken cancellationToken = default);
 
-    /// <summary>Ouvre un objet en lecture, ou rend <see langword="null"/> s'il n'existe pas.</summary>
+    /// <summary>Opens an object for reading, or returns <see langword="null"/> if it doesn't exist.</summary>
     Task<Stream?> OpenReadAsync(string key, CancellationToken cancellationToken = default);
 
-    /// <summary>Décrit un objet, ou rend <see langword="null"/> s'il n'existe pas.</summary>
+    /// <summary>Describes an object, or returns <see langword="null"/> if it doesn't exist.</summary>
     Task<ObjectInfo?> StatAsync(string key, CancellationToken cancellationToken = default);
 
-    /// <summary>Supprime un objet. Ne lève pas s'il est déjà absent.</summary>
+    /// <summary>Deletes an object. Does not throw if it's already absent.</summary>
     Task DeleteAsync(string key, CancellationToken cancellationToken = default);
 
-    /// <summary>Supprime tous les objets sous un préfixe.</summary>
+    /// <summary>Deletes every object under a prefix.</summary>
     Task DeletePrefixAsync(string prefix, CancellationToken cancellationToken = default);
 
-    /// <summary>Énumère les clés sous un préfixe. La chaîne vide désigne le magasin entier.</summary>
+    /// <summary>Enumerates the keys under a prefix. An empty string means the whole store.</summary>
     IAsyncEnumerable<string> ListAsync(string prefix, CancellationToken cancellationToken = default);
 
-    /// <summary>Énumère les objets sous un préfixe, métadonnées comprises.</summary>
+    /// <summary>Enumerates the objects under a prefix, including metadata.</summary>
     /// <remarks>
-    /// L'implémentation par défaut décrit chaque clé une par une : correcte partout, coûteuse sur
-    /// un stockage distant, où elle vaut une requête réseau par objet. Les magasins dont le listage
-    /// rend déjà la taille — c'est le cas de S3 comme du disque local — la remplacent, et un
-    /// inventaire de dix mille fichiers redevient un balayage au lieu de dix mille appels.
+    /// The default implementation describes each key one at a time: correct everywhere, but costly
+    /// on remote storage, where it means one network request per object. Stores whose listing
+    /// already returns the size — S3 and local disk both do — override it, and an inventory of ten
+    /// thousand files becomes a scan instead of ten thousand calls.
     /// </remarks>
     async IAsyncEnumerable<ObjectInfo> ListInfoAsync(
         string prefix,
@@ -78,12 +78,12 @@ public interface IObjectStore
     }
 
     /// <summary>
-    /// Produit une URL signée de lecture directe, quand le stockage en propose.
+    /// Produces a signed direct-read URL, when the storage backend offers one.
     /// </summary>
     /// <remarks>
-    /// Rend <see langword="null"/> pour le stockage local, qui n'a pas d'URL propre : l'API sert
-    /// alors l'octet elle-même. Les deux chemins sont donc exercés dès le départ, et la bascule
-    /// vers S3 ne découvre pas un cas non couvert.
+    /// Returns <see langword="null"/> for local storage, which has no URL of its own: the API then
+    /// serves the bytes itself. Both paths are therefore exercised from the start, and the switch to
+    /// S3 doesn't uncover an untested case.
     /// </remarks>
     Task<Uri?> PresignedGetAsync(string key, TimeSpan lifetime, CancellationToken cancellationToken = default);
 }

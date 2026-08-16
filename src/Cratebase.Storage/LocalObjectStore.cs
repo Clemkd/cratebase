@@ -3,13 +3,13 @@ using System.Runtime.CompilerServices;
 namespace Cratebase.Storage;
 
 /// <summary>
-/// Stockage sur le disque local. Implémentation de départ, dans le conteneur unique.
+/// Storage on local disk. Starting implementation, for the single-container deployment.
 /// </summary>
 public sealed class LocalObjectStore : IObjectStore
 {
     private readonly string _root;
 
-    /// <summary>Construit un magasin enraciné dans un répertoire.</summary>
+    /// <summary>Builds a store rooted at a directory.</summary>
     public LocalObjectStore(string rootDirectory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
@@ -42,9 +42,9 @@ public sealed class LocalObjectStore : IObjectStore
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
-        // Écriture dans un fichier temporaire puis remplacement atomique : une écriture
-        // interrompue laisserait sinon un fichier tronqué que rien ne distingue d'un fichier
-        // valide, et l'enregistrement pointerait dessus.
+        // Write to a temporary file then swap atomically: an interrupted write would otherwise
+        // leave a truncated file indistinguishable from a valid one, and the record would point to
+        // it.
         var temporary = path + ".part";
 
         await using (var destination = new FileStream(
@@ -133,9 +133,9 @@ public sealed class LocalObjectStore : IObjectStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// Le système de fichiers rend la taille en même temps que le nom : la décrire depuis
-    /// l'énumération évite un <c>stat</c> par objet, et surtout la fenêtre pendant laquelle un
-    /// fichier listé aurait disparu avant d'être décrit.
+    /// The file system returns the size along with the name: describing it during enumeration
+    /// avoids a <c>stat</c> per object, and above all the window during which a listed file could
+    /// have disappeared before being described.
     /// </remarks>
     public async IAsyncEnumerable<ObjectInfo> ListInfoAsync(
         string prefix,
@@ -164,10 +164,10 @@ public sealed class LocalObjectStore : IObjectStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// Le disque local n'a pas d'URL propre : c'est l'API qui sert l'octet, après avoir appliqué la
-    /// règle de consultation. Rendre <see langword="null"/> ici n'est pas une lacune, c'est le
-    /// contrat — et l'appelant doit gérer ce cas dès le départ, sinon la bascule vers S3
-    /// découvrirait un chemin jamais exercé.
+    /// Local disk has no URL of its own: the API serves the bytes itself, after applying the view
+    /// rule. Returning <see langword="null"/> here isn't a gap, it's the contract — and the caller
+    /// must handle this case from the start, otherwise the switch to S3 would uncover a path that
+    /// was never exercised.
     /// </remarks>
     public Task<Uri?> PresignedGetAsync(
         string key,
@@ -175,12 +175,12 @@ public sealed class LocalObjectStore : IObjectStore
         CancellationToken cancellationToken = default) => Task.FromResult<Uri?>(null);
 
     /// <summary>
-    /// Résout un préfixe d'énumération, la chaîne vide désignant le magasin entier.
+    /// Resolves an enumeration prefix, with the empty string meaning the whole store.
     /// </summary>
     /// <remarks>
-    /// <see cref="Resolve"/> refuse la clé vide, et il doit continuer de le faire : une écriture ou
-    /// une lecture sans clé est une erreur d'appel. Énumérer sans préfixe, en revanche, est la façon
-    /// normale de dresser un inventaire — ce sont deux contrats distincts, d'où deux résolutions.
+    /// <see cref="Resolve"/> rejects an empty key, and it must keep doing so: a write or read
+    /// without a key is a caller error. Enumerating without a prefix, on the other hand, is the
+    /// normal way to build an inventory — these are two distinct contracts, hence two resolutions.
     /// </remarks>
     private string ResolvePrefix(string prefix) =>
         string.IsNullOrEmpty(prefix) ? _root : Resolve(prefix);
@@ -191,12 +191,12 @@ public sealed class LocalObjectStore : IObjectStore
 
         var path = Path.GetFullPath(Path.Combine(_root, key.Replace('/', Path.DirectorySeparatorChar)));
 
-        // Deuxième barrière, après la validation des segments : on vérifie que le chemin résolu
-        // reste sous la racine. Une seule barrière suffirait en théorie ; l'évasion de répertoire
-        // est assez coûteuse pour en mériter deux.
+        // Second barrier, after segment validation: we check that the resolved path stays under the
+        // root. One barrier would suffice in theory; directory escape is costly enough to deserve
+        // two.
         if (!path.StartsWith(_root, StringComparison.Ordinal))
         {
-            throw new ArgumentException($"La clé « {key} » sort du répertoire de stockage.", nameof(key));
+            throw new ArgumentException($"Key \"{key}\" escapes the storage directory.", nameof(key));
         }
 
         return path;

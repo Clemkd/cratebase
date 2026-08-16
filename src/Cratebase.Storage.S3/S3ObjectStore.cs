@@ -5,63 +5,63 @@ using Amazon.S3.Model;
 
 namespace Cratebase.Storage.S3;
 
-/// <summary>Configuration d'un stockage compatible S3.</summary>
+/// <summary>Configuration of an S3-compatible storage backend.</summary>
 public sealed class S3StorageOptions
 {
-    /// <summary>Nom du seau.</summary>
+    /// <summary>Bucket name.</summary>
     public required string Bucket { get; init; }
 
-    /// <summary>Clé d'accès.</summary>
+    /// <summary>Access key.</summary>
     public required string AccessKey { get; init; }
 
-    /// <summary>Clé secrète.</summary>
+    /// <summary>Secret key.</summary>
     public required string SecretKey { get; init; }
 
     /// <summary>
-    /// Point de terminaison vu par l'application.
+    /// Endpoint as seen by the application.
     /// </summary>
     /// <remarks>
-    /// En conteneur, c'est un nom de service interne (<c>http://minio:9000</c>) que le navigateur
-    /// ne sait pas résoudre.
+    /// In a container, this is an internal service name (<c>http://minio:9000</c>) that the browser
+    /// cannot resolve.
     /// </remarks>
     public required string Endpoint { get; init; }
 
     /// <summary>
-    /// Point de terminaison vu par le navigateur, s'il diffère du précédent.
+    /// Endpoint as seen by the browser, if different from the one above.
     /// </summary>
     /// <remarks>
-    /// ⚠️ <b>Le piège le plus coûteux du domaine.</b> Une URL présignée est signée <i>pour un hôte
-    /// donné</i> : si l'API signe pour <c>http://minio:9000</c> et que le navigateur appelle
-    /// <c>https://fichiers.exemple.fr</c>, la signature ne correspond plus et <b>tous les liens
-    /// sont rejetés</b>. D'où deux clients distincts, l'un pour agir, l'autre pour signer.
+    /// ⚠️ <b>The most costly trap in this domain.</b> A presigned URL is signed <i>for a specific
+    /// host</i>: if the API signs for <c>http://minio:9000</c> and the browser calls
+    /// <c>https://files.example.com</c>, the signature no longer matches and <b>every link is
+    /// rejected</b>. Hence two separate clients, one to act, one to sign.
     /// </remarks>
     public string? PublicEndpoint { get; init; }
 
-    /// <summary>Région. Sans objet hors AWS, mais exigée par le SDK.</summary>
+    /// <summary>Region. Meaningless outside AWS, but required by the SDK.</summary>
     public string Region { get; init; } = "us-east-1";
 
     /// <summary>
-    /// Capacité déclarée du seau, en octets. Zéro : inconnue.
+    /// Declared bucket capacity, in bytes. Zero: unknown.
     /// </summary>
     /// <remarks>
-    /// Déclarée par l'exploitant, parce qu'elle ne se lit nulle part : S3 n'impose aucune limite
-    /// par seau, et les services qui en imposent une l'exposent chacun à leur façon. La renseigner
-    /// donne à l'écran d'exploitation un dénominateur ; l'omettre y laisse un volume sans jauge,
-    /// ce qui reste honnête — une jauge inventée ne le serait pas.
+    /// Declared by the operator, because it can't be read anywhere: S3 imposes no per-bucket limit,
+    /// and the services that do impose one each expose it their own way. Setting it gives the
+    /// operations screen a denominator; leaving it out leaves an unmetered volume, which stays
+    /// honest — a made-up gauge would not be.
     /// </remarks>
     public long CapacityBytes { get; init; }
 
     /// <summary>
-    /// Style de chemin plutôt que de sous-domaine.
+    /// Path style rather than subdomain style.
     /// </summary>
     /// <remarks>
-    /// Indispensable hors AWS : MinIO, Garage et SeaweedFS n'exposent pas de sous-domaines par seau.
+    /// Required outside AWS: MinIO, Garage, and SeaweedFS don't expose per-bucket subdomains.
     /// </remarks>
     public bool ForcePathStyle { get; init; } = true;
 }
 
 /// <summary>
-/// Stockage compatible S3 : AWS S3, MinIO, Garage, Cloudflare R2, Backblaze B2.
+/// S3-compatible storage: AWS S3, MinIO, Garage, Cloudflare R2, Backblaze B2.
 /// </summary>
 public sealed class S3ObjectStore : IObjectStore, IDisposable
 {
@@ -70,7 +70,7 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
     private readonly string _bucket;
     private readonly bool _disablePayloadSigning;
 
-    /// <summary>Construit le magasin depuis sa configuration.</summary>
+    /// <summary>Builds the store from its configuration.</summary>
     public S3ObjectStore(S3StorageOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -78,14 +78,14 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
         _bucket = options.Bucket;
         _internal = Build(options, options.Endpoint);
 
-        // La signature de charge utile ne se désactive qu'en HTTPS : sur HTTP, c'est le seul
-        // élément qui garantit l'intégrité du corps, et le SDK refuse la combinaison. Un MinIO de
-        // développement écoute en clair, d'où le choix par le schéma plutôt qu'un drapeau fixe.
+        // Payload signing can only be disabled over HTTPS: over HTTP, it's the only thing that
+        // guarantees the body's integrity, and the SDK rejects the combination. A development MinIO
+        // listens in the clear, hence the choice by scheme rather than a fixed flag.
         _disablePayloadSigning = options.Endpoint.StartsWith(
             "https://", StringComparison.OrdinalIgnoreCase);
 
-        // Le second client n'existe que pour signer. S'il n'y a qu'un hôte, on réutilise le premier
-        // plutôt que d'en instancier un identique.
+        // The second client exists only to sign. If there's only one host, we reuse the first
+        // instead of instantiating an identical one.
         _public = string.IsNullOrWhiteSpace(options.PublicEndpoint)
             || string.Equals(options.PublicEndpoint, options.Endpoint, StringComparison.Ordinal)
                 ? _internal
@@ -178,7 +178,7 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
         {
             keys.Add(new KeyVersion { Key = key });
 
-            // S3 plafonne la suppression groupée à 1000 clés par appel.
+            // S3 caps bulk deletion at 1000 keys per call.
             if (keys.Count == 1000)
             {
                 await DeleteBatchAsync(keys, cancellationToken).ConfigureAwait(false);
@@ -223,9 +223,9 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// <c>ListObjectsV2</c> rend déjà la taille de chaque objet. L'implémentation par défaut
-    /// enchaînerait un <c>HEAD</c> par clé : sur un seau de dix mille fichiers, dix mille allers et
-    /// retours pour une information que la réponse portait.
+    /// <c>ListObjectsV2</c> already returns the size of each object. The default implementation
+    /// would chain a <c>HEAD</c> call per key: on a bucket of ten thousand files, that's ten
+    /// thousand round trips for information the response already carried.
     /// </remarks>
     public async IAsyncEnumerable<ObjectInfo> ListInfoAsync(
         string prefix,
@@ -247,9 +247,9 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
 
             foreach (var entry in response.S3Objects ?? [])
             {
-                // Le type n'est pas dans la réponse de listage : il est déduit de l'extension,
-                // comme à l'écriture. Un `HEAD` par objet pour le lire coûterait exactement ce que
-                // cette surcharge existe pour éviter.
+                // The type isn't part of the listing response: it's inferred from the extension,
+                // same as on write. A `HEAD` per object to read it would cost exactly what this
+                // override exists to avoid.
                 yield return new ObjectInfo(
                     entry.Key,
                     entry.Size ?? 0,
@@ -269,7 +269,7 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
     {
         ObjectKey.Validate(key);
 
-        // Signature par le client PUBLIC : c'est l'hôte que le navigateur appellera.
+        // Signed by the PUBLIC client: that's the host the browser will call.
         var url = await _public.GetPreSignedURLAsync(new GetPreSignedUrlRequest
         {
             BucketName = _bucket,
@@ -285,7 +285,7 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
     public Task EnsureReadyAsync(CancellationToken cancellationToken = default) =>
         EnsureBucketAsync(cancellationToken);
 
-    /// <summary>Crée le seau s'il n'existe pas.</summary>
+    /// <summary>Creates the bucket if it doesn't exist.</summary>
     public async Task EnsureBucketAsync(CancellationToken cancellationToken = default)
     {
         var buckets = await _internal.ListBucketsAsync(cancellationToken).ConfigureAwait(false);

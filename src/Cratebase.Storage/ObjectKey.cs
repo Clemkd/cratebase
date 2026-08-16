@@ -5,41 +5,41 @@ using System.Text;
 namespace Cratebase.Storage;
 
 /// <summary>
-/// Construction et validation des clés d'objets.
+/// Construction and validation of object keys.
 /// </summary>
 /// <remarks>
-/// <b>Frontière de sécurité.</b> Une clé finit en chemin de fichier sur le stockage local : un
-/// segment <c>..</c> ou un séparateur inattendu suffirait à lire ou écrire hors du répertoire de
-/// données. La validation est donc stricte et appliquée à l'entrée du magasin, pas à l'appelant.
+/// <b>Security boundary.</b> A key ends up as a file path on local storage: a <c>..</c> segment or
+/// an unexpected separator would be enough to read or write outside the data directory. Validation
+/// is therefore strict and applied at the store's entry point, not left to the caller.
 /// </remarks>
 public static class ObjectKey
 {
-    /// <summary>Longueur du suffixe aléatoire ajouté à chaque fichier importé.</summary>
+    /// <summary>Length of the random suffix appended to every imported file.</summary>
     public const int SuffixLength = 10;
 
-    /// <summary>Longueur maximale d'un nom de fichier stocké.</summary>
+    /// <summary>Maximum length of a stored file name.</summary>
     public const int MaxFileNameLength = 100;
 
     private const string SuffixAlphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-    /// <summary>Construit la clé d'un fichier d'enregistrement.</summary>
+    /// <summary>Builds the key of a record file.</summary>
     public static string For(string collection, string recordId, string fileName) =>
         $"{Segment(collection)}/{Segment(recordId)}/{Segment(fileName)}";
 
-    /// <summary>Construit le préfixe des objets d'un enregistrement.</summary>
+    /// <summary>Builds the prefix of a record's objects.</summary>
     public static string PrefixFor(string collection, string recordId) =>
         $"{Segment(collection)}/{Segment(recordId)}";
 
-    /// <summary>Construit la clé d'une vignette.</summary>
+    /// <summary>Builds the key of a thumbnail.</summary>
     public static string ThumbFor(string collection, string recordId, string fileName, string size) =>
         $"{Segment(collection)}/{Segment(recordId)}/thumbs_{Segment(fileName)}/{Segment(size)}";
 
     /// <summary>
-    /// Assainit un nom de fichier soumis et lui ajoute un suffixe aléatoire.
+    /// Sanitizes a submitted file name and appends a random suffix.
     /// </summary>
     /// <remarks>
-    /// Le suffixe n'est pas cosmétique : deux fichiers de même nom sur le même enregistrement
-    /// s'écraseraient, et un nom devinable rendrait les fichiers non protégés énumérables.
+    /// The suffix isn't cosmetic: two files with the same name on the same record would overwrite
+    /// each other, and a guessable name would make unprotected files enumerable.
     /// </remarks>
     public static string NewFileName(string? submitted)
     {
@@ -50,8 +50,8 @@ public static class ObjectKey
         var suffix = RandomSuffix();
         var safeExtension = Slugify(extension.TrimStart('.'));
 
-        // On borne le radical, pas l'ensemble : le suffixe et l'extension doivent survivre à la
-        // troncature, sinon l'unicité et le type se perdent sur les noms très longs.
+        // We cap the stem, not the whole name: the suffix and extension must survive truncation,
+        // otherwise uniqueness and type get lost on very long names.
         var budget = MaxFileNameLength - suffix.Length - safeExtension.Length - 2;
 
         if (budget > 0 && slug.Length > budget)
@@ -61,7 +61,7 @@ public static class ObjectKey
 
         if (slug.Length == 0)
         {
-            slug = "fichier";
+            slug = "file";
         }
 
         return safeExtension.Length > 0
@@ -69,13 +69,13 @@ public static class ObjectKey
             : $"{slug}_{suffix}";
     }
 
-    /// <summary>Valide un segment de clé.</summary>
-    /// <exception cref="ArgumentException">Le segment est vide ou contient un caractère interdit.</exception>
+    /// <summary>Validates a key segment.</summary>
+    /// <exception cref="ArgumentException">The segment is empty or contains a forbidden character.</exception>
     public static string Segment(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("Un segment de clé ne peut pas être vide.", nameof(value));
+            throw new ArgumentException("A key segment cannot be empty.", nameof(value));
         }
 
         if (value is ".." or "."
@@ -83,18 +83,18 @@ public static class ObjectKey
             || value.Contains('\\', StringComparison.Ordinal)
             || value.Contains('\0', StringComparison.Ordinal))
         {
-            throw new ArgumentException($"Segment de clé invalide : « {value} ».", nameof(value));
+            throw new ArgumentException($"Invalid key segment: \"{value}\".", nameof(value));
         }
 
         return value;
     }
 
-    /// <summary>Valide une clé complète.</summary>
+    /// <summary>Validates a full key.</summary>
     public static string Validate(string? key)
     {
         if (string.IsNullOrWhiteSpace(key))
         {
-            throw new ArgumentException("Une clé ne peut pas être vide.", nameof(key));
+            throw new ArgumentException("A key cannot be empty.", nameof(key));
         }
 
         foreach (var segment in key.Split('/'))
@@ -105,7 +105,7 @@ public static class ObjectKey
         return key;
     }
 
-    /// <summary>Devine le type MIME depuis l'extension.</summary>
+    /// <summary>Guesses the MIME type from the extension.</summary>
     public static string ContentTypeOf(string fileName) =>
         Path.GetExtension(fileName).ToLowerInvariant() switch
         {
