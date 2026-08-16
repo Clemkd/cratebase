@@ -3,22 +3,22 @@ using Cratebase.Data;
 namespace Cratebase.Schema;
 
 /// <summary>
-/// Calcule les instructions DDL faisant passer une collection d'un état à un autre.
+/// Computes the DDL statements that move a collection from one state to another.
 /// </summary>
 /// <remarks>
-/// Le planificateur ne touche pas la base : il rend une liste d'instructions. C'est ce qui permet
-/// de les inspecter, de les tester sans moteur, et de vérifier en conformité que les deux dialectes
-/// produisent des schémas équivalents pour la même transition.
+/// The planner never touches the database: it returns a list of statements. This is what makes
+/// them inspectable, testable without an engine, and lets the conformance suite verify that both
+/// dialects produce equivalent schemas for the same transition.
 /// </remarks>
 public static class SchemaPlanner
 {
     /// <summary>
-    /// Planifie une transition.
+    /// Plans a transition.
     /// </summary>
-    /// <param name="ddl">Générateur de DDL du dialecte cible.</param>
-    /// <param name="dialect">Dialecte, pour les types et les valeurs par défaut.</param>
-    /// <param name="before">État antérieur, ou <see langword="null"/> pour une création.</param>
-    /// <param name="after">État visé, ou <see langword="null"/> pour une suppression.</param>
+    /// <param name="ddl">DDL generator of the target dialect.</param>
+    /// <param name="dialect">Dialect, for types and default values.</param>
+    /// <param name="before">Prior state, or <see langword="null"/> for a creation.</param>
+    /// <param name="after">Target state, or <see langword="null"/> for a deletion.</param>
     public static IReadOnlyList<string> Plan(
         ISchemaDdl ddl,
         ISqlDialect dialect,
@@ -78,8 +78,8 @@ public static class SchemaPlanner
         var previous = before.Fields.ToDictionary(f => f.Id);
         var current = after.Fields.ToDictionary(f => f.Id);
 
-        // Les index sont retirés d'abord et reposés à la fin : un index portant sur une colonne
-        // renommée ou retypée doit disparaître avant qu'on y touche.
+        // Indexes are dropped first and recreated at the end: an index on a renamed or retyped
+        // column must disappear before that column is touched.
         var beforeIndexes = SchemaMapper.ToIndexSpecs(before);
         var afterIndexes = SchemaMapper.ToIndexSpecs(after);
 
@@ -96,9 +96,9 @@ public static class SchemaPlanner
                 continue;
             }
 
-            // Renommage : détecté par l'identifiant, jamais par le nom. Sans identifiant stable,
-            // cette transition passerait pour une suppression suivie d'un ajout, et la colonne
-            // serait vidée.
+            // Rename: detected by identifier, never by name. Without a stable identifier, this
+            // transition would look like a deletion followed by an addition, and the column would
+            // come back empty.
             if (!string.Equals(old.ColumnName, field.ColumnName, StringComparison.Ordinal))
             {
                 statements.AddRange(ddl.RenameColumn(table, old.ColumnName, field.ColumnName));

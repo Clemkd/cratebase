@@ -3,12 +3,12 @@ using Cratebase.Data;
 namespace Cratebase.Schema;
 
 /// <summary>
-/// Résout les chemins d'un filtre contre le schéma d'une collection.
+/// Resolves a filter's paths against a collection's schema.
 /// </summary>
 /// <remarks>
-/// C'est l'implémentation concrète de la liste blanche du compilateur. Elle ne connaît que les
-/// champs déclarés : tout le reste est refusé, et le refus produit une erreur 400 avant qu'aucun
-/// SQL ne soit écrit.
+/// This is the concrete implementation of the compiler's allow-list. It knows only the declared
+/// fields: everything else is refused, and the refusal produces a 400 error before any SQL is
+/// written.
 /// </remarks>
 public sealed class CollectionFieldResolver(CollectionDefinition collection) : IQueryFieldResolver
 {
@@ -25,10 +25,10 @@ public sealed class CollectionFieldResolver(CollectionDefinition collection) : I
 
         field = null!;
 
-        // La traversée de relations (« author.name ») demande une jointure, donc une réécriture de
-        // la requête et un contrôle d'accès supplémentaire sur la collection traversée. Tant que ce
-        // n'est pas écrit, on refuse explicitement plutôt que de résoudre le premier segment et de
-        // produire une requête au sens différent de ce qui a été demandé.
+        // Relation traversal ("author.name") requires a join, hence a query rewrite and an extra
+        // access check on the traversed collection. Until that's written, refuse explicitly rather
+        // than resolving the first segment and producing a query that means something different
+        // from what was asked.
         if (segments.Count != 1)
         {
             return false;
@@ -38,8 +38,8 @@ public sealed class CollectionFieldResolver(CollectionDefinition collection) : I
 
         if (definition is null || definition.Hidden)
         {
-            // Un champ masqué (mot de passe, clé de jeton) est traité comme inexistant : le rendre
-            // filtrable permettrait de deviner un secret caractère par caractère avec « ~ ».
+            // A hidden field (password, token key) is treated as nonexistent: making it filterable
+            // would let a secret be guessed one character at a time with "~".
             return false;
         }
 

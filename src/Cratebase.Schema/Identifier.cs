@@ -4,39 +4,38 @@ using Cratebase.Core;
 namespace Cratebase.Schema;
 
 /// <summary>
-/// Validation des noms de collections et de champs.
+/// Validation of collection and field names.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>C'est la liste blanche du DDL.</b> Un nom de collection devient un nom de table, un nom de
-/// champ devient un nom de colonne, et le DDL n'admet pas de paramètres : ces noms sont donc
-/// écrits dans du texte SQL. L'échappement du dialecte les protège, mais on n'accepte pas de
-/// dépendre d'une seule barrière — un nom est validé <b>au moment où la collection est créée</b>,
-/// pas au moment où une requête l'utilise.
+/// <b>This is DDL's allow-list.</b> A collection name becomes a table name, a field name becomes a
+/// column name, and DDL doesn't admit parameters: these names are therefore written into SQL text.
+/// The dialect's escaping protects them, but depending on a single barrier is not acceptable — a
+/// name is validated <b>when the collection is created</b>, not when a query uses it.
 /// </para>
 /// <para>
-/// Corollaire : la validation est stricte plutôt que permissive. Refuser un nom exotique coûte un
-/// message d'erreur ; l'accepter coûte potentiellement la base.
+/// Corollary: validation is strict rather than permissive. Rejecting an exotic name costs an error
+/// message; accepting it can cost the database.
 /// </para>
 /// </remarks>
 public static partial class Identifier
 {
-    /// <summary>Longueur maximale d'un identifiant.</summary>
+    /// <summary>Maximum length of an identifier.</summary>
     /// <remarks>
-    /// PostgreSQL tronque à 63 octets. Un nom plus long y serait silencieusement raccourci, donc
-    /// deux collections distinctes pourraient viser la même table après migration.
+    /// PostgreSQL truncates at 63 bytes. A longer name would be silently shortened there, so two
+    /// distinct collections could end up targeting the same table after migration.
     /// </remarks>
     public const int MaxLength = 63;
 
-    // Le souligné initial est admis par la forme, mais réservé au moteur : c'est
-    // CollectionValidator qui refuse une collection système déclarée par un utilisateur. Séparer
-    // les deux contrôles permet aux collections système (« _superusers ») d'exister sans ouvrir
-    // l'espace de noms à tout le monde.
+    // The leading underscore is admitted by the shape, but reserved for the engine:
+    // CollectionValidator is what rejects a system collection declared by a user. Separating the
+    // two checks lets system collections ("_superusers") exist without opening that namespace to
+    // everyone.
     [GeneratedRegex(@"^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.CultureInvariant)]
     private static partial Regex Shape { get; }
 
-    // Mots que SQLite ou PostgreSQL réservent, et qui produiraient un DDL invalide ou, pire, une
-    // requête valide au sens inattendu.
+    // Words reserved by SQLite or PostgreSQL, which would produce invalid DDL or, worse, a query
+    // that is valid but means something unexpected.
     private static readonly HashSet<string> Reserved = new(StringComparer.OrdinalIgnoreCase)
     {
         "abort", "action", "add", "all", "alter", "analyze", "and", "as", "asc", "authorization",
@@ -53,51 +52,51 @@ public static partial class Identifier
         "when", "where", "window", "with",
     };
 
-    /// <summary>Indique si un identifiant est acceptable.</summary>
+    /// <summary>Indicates whether an identifier is acceptable.</summary>
     public static bool IsValid(string? name) =>
         name is { Length: > 0 and <= MaxLength }
         && Shape.IsMatch(name)
         && !Reserved.Contains(name);
 
     /// <summary>
-    /// Valide un identifiant, ou lève une erreur d'entrée décrivant précisément le refus.
+    /// Validates an identifier, or throws an input error describing precisely why it was refused.
     /// </summary>
-    /// <param name="name">Nom à valider.</param>
-    /// <param name="subject">Ce que le nom désigne, pour le message : « collection », « champ ».</param>
+    /// <param name="name">Name to validate.</param>
+    /// <param name="subject">What the name designates, for the message: "collection", "field".</param>
     public static void Validate(string? name, string subject)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            throw new CratebaseBadRequestException($"Le nom de {subject} est obligatoire.");
+            throw new CratebaseBadRequestException($"The {subject} name is required.");
         }
 
         if (name.Length > MaxLength)
         {
             throw new CratebaseBadRequestException(
-                $"Le nom de {subject} « {name} » dépasse {MaxLength} caractères.");
+                $"The {subject} name \"{name}\" exceeds {MaxLength} characters.");
         }
 
         if (!Shape.IsMatch(name))
         {
             throw new CratebaseBadRequestException(
-                $"Le nom de {subject} « {name} » est invalide : une lettre, puis des lettres, " +
-                "chiffres ou soulignés.");
+                $"The {subject} name \"{name}\" is invalid: a letter, then letters, " +
+                "digits, or underscores.");
         }
 
         if (Reserved.Contains(name))
         {
             throw new CratebaseBadRequestException(
-                $"« {name} » est un mot réservé SQL et ne peut pas nommer un(e) {subject}.");
+                $"\"{name}\" is a reserved SQL word and cannot name a {subject}.");
         }
     }
 
     /// <summary>
-    /// Indique si un nom appartient à l'espace réservé au moteur.
+    /// Indicates whether a name belongs to the namespace reserved for the engine.
     /// </summary>
     /// <remarks>
-    /// Les tables internes sont préfixées d'un souligné (<c>_collections</c>, <c>_migrations</c>).
-    /// Comme <see cref="Shape"/> impose de commencer par une lettre, aucune collection créée par un
-    /// utilisateur ne peut entrer en collision avec elles.
+    /// Internal tables are prefixed with an underscore (<c>_collections</c>, <c>_migrations</c>).
+    /// Since <see cref="Shape"/> requires starting with a letter, no user-created collection can
+    /// collide with them.
     /// </remarks>
     public static bool IsSystemName(string? name) => name is { Length: > 0 } && name[0] == '_';
 }

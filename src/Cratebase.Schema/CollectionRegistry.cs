@@ -6,19 +6,19 @@ using Dapper;
 namespace Cratebase.Schema;
 
 /// <summary>
-/// Source d'autorité des collections : cache en mémoire, mutations transactionnelles.
+/// Authoritative source for collections: in-memory cache, transactional mutations.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Le cache évite de relire la table système à chaque requête. Il est reconstruit après toute
+/// The cache avoids re-reading the system table on every request. It is rebuilt after every
 /// mutation.
 /// </para>
 /// <para>
-/// ⚠️ <b>Limite connue en multi-instance :</b> une modification de collection faite sur l'instance A
-/// n'invalide pas le cache de l'instance B. Tant que le transport temps réel n'est pas branché
-/// (jalon 8), la propagation passe par le redémarrage. C'est acceptable parce qu'une modification
-/// de schéma est une opération d'administration, pas une opération de fonctionnement — mais ça doit
-/// être écrit plutôt que découvert.
+/// ⚠️ <b>Known limitation in multi-instance deployments:</b> a collection change made on instance A
+/// does not invalidate instance B's cache. Until the realtime transport is wired up (milestone 8),
+/// propagation happens via restart. This is acceptable because a schema change is an
+/// administration operation, not an operational one — but it should be written down rather than
+/// discovered.
 /// </para>
 /// </remarks>
 public sealed class CollectionRegistry(
@@ -39,7 +39,7 @@ public sealed class CollectionRegistry(
 
     private ConcurrentDictionary<string, CollectionDefinition> _byName = new(StringComparer.Ordinal);
 
-    /// <summary>Recharge le cache depuis la base.</summary>
+    /// <summary>Reloads the cache from the database.</summary>
     public async Task ReloadAsync(CancellationToken cancellationToken = default)
     {
         var collections = await _store.LoadAllAsync(cancellationToken).ConfigureAwait(false);
@@ -49,10 +49,10 @@ public sealed class CollectionRegistry(
             StringComparer.Ordinal);
     }
 
-    /// <summary>Toutes les collections connues.</summary>
+    /// <summary>Every known collection.</summary>
     public IReadOnlyList<CollectionDefinition> All() => [.. _byName.Values.OrderBy(c => c.Name, StringComparer.Ordinal)];
 
-    /// <summary>Retrouve une collection par son nom ou son identifiant.</summary>
+    /// <summary>Finds a collection by its name or identifier.</summary>
     public CollectionDefinition? Find(string nameOrId)
     {
         if (string.IsNullOrWhiteSpace(nameOrId))
@@ -70,12 +70,12 @@ public sealed class CollectionRegistry(
             : null;
     }
 
-    /// <summary>Retrouve une collection, ou lève un 404.</summary>
+    /// <summary>Finds a collection, or throws a 404.</summary>
     public CollectionDefinition Require(string nameOrId) =>
         Find(nameOrId) ?? throw new CratebaseNotFoundException(
-            $"La collection « {nameOrId} » n'existe pas.");
+            $"Collection \"{nameOrId}\" does not exist.");
 
-    /// <summary>Crée une collection et sa table.</summary>
+    /// <summary>Creates a collection and its table.</summary>
     public async Task<CollectionDefinition> CreateAsync(
         CollectionDefinition draft,
         CancellationToken cancellationToken = default)
@@ -84,7 +84,7 @@ public sealed class CollectionRegistry(
 
         if (Find(draft.Name) is not null)
         {
-            throw new CratebaseConflictException($"La collection « {draft.Name} » existe déjà.");
+            throw new CratebaseConflictException($"Collection \"{draft.Name}\" already exists.");
         }
 
         var now = _clock.UtcNow;
@@ -106,7 +106,7 @@ public sealed class CollectionRegistry(
         return Require(collection.Name);
     }
 
-    /// <summary>Modifie une collection et fait évoluer sa table.</summary>
+    /// <summary>Modifies a collection and evolves its table.</summary>
     public async Task<CollectionDefinition> UpdateAsync(
         string nameOrId,
         CollectionDefinition draft,
@@ -119,7 +119,7 @@ public sealed class CollectionRegistry(
         if (current.IsSystem)
         {
             throw new CratebaseForbiddenException(
-                $"La collection système « {current.Name} » ne peut pas être modifiée.");
+                $"System collection \"{current.Name}\" cannot be modified.");
         }
 
         var updated = Normalize(draft) with
@@ -139,7 +139,7 @@ public sealed class CollectionRegistry(
         return Require(updated.Name);
     }
 
-    /// <summary>Supprime une collection et sa table.</summary>
+    /// <summary>Deletes a collection and its table.</summary>
     public async Task DeleteAsync(string nameOrId, CancellationToken cancellationToken = default)
     {
         var current = Require(nameOrId);
@@ -147,7 +147,7 @@ public sealed class CollectionRegistry(
         if (current.IsSystem)
         {
             throw new CratebaseForbiddenException(
-                $"La collection système « {current.Name} » ne peut pas être supprimée.");
+                $"System collection \"{current.Name}\" cannot be deleted.");
         }
 
         var referencing = _byName.Values
@@ -161,7 +161,7 @@ public sealed class CollectionRegistry(
         if (referencing.Count > 0)
         {
             throw new CratebaseConflictException(
-                $"La collection « {current.Name} » est référencée par : {string.Join(", ", referencing)}.");
+                $"Collection \"{current.Name}\" is referenced by: {string.Join(", ", referencing)}.");
         }
 
         var statements = SchemaPlanner.Plan(_connections.Ddl, _connections.Dialect, current, null);
@@ -171,16 +171,16 @@ public sealed class CollectionRegistry(
     }
 
     /// <summary>
-    /// Réaligne les collections existantes sur la définition courante des champs système.
+    /// Realigns existing collections with the current definition of system fields.
     /// </summary>
     /// <remarks>
-    /// Appelée au démarrage. Renommer un champ système dans le code ne suffirait pas : la
-    /// définition enregistrée porterait encore l'ancien nom, et le moteur chercherait une colonne
-    /// qui n'existe plus. Le planificateur reconnaît le renommage à l'identifiant du champ, donc la
-    /// colonne est renommée et les données restent en place.
+    /// Called at startup. Renaming a system field in code alone would not be enough: the stored
+    /// definition would still carry the old name, and the engine would look for a column that no
+    /// longer exists. The planner recognizes the rename by the field's identifier, so the column
+    /// is renamed and the data stays in place.
     ///
-    /// Sans écart à reprendre, le plan est vide et rien n'est exécuté : c'est ce qui permet de
-    /// l'appeler à chaque démarrage sans y penser.
+    /// With nothing to reconcile, the plan is empty and nothing executes: that's what lets it be
+    /// called on every startup without a second thought.
     /// </remarks>
     public async Task ReconcileSystemFieldsAsync(CancellationToken cancellationToken = default)
     {
@@ -204,15 +204,14 @@ public sealed class CollectionRegistry(
     }
 
     /// <summary>
-    /// Écarte les index qui désignent une colonne absente de la définition.
+    /// Drops indexes that designate a column absent from the definition.
     /// </summary>
     /// <remarks>
-    /// Réservé au réalignement, et non appliqué aux mises à jour ordinaires. Renommer un champ
-    /// système laisse derrière lui l'index système d'avant, qui porte encore l'ancien nom de
-    /// colonne : le planificateur essaierait de le recréer sur une colonne qui n'existe plus, et le
-    /// démarrage échouerait. Hors migration, en revanche, un index sur un champ inexistant est une
-    /// erreur qu'il vaut mieux voir échouer que voir disparaître — l'écran de schéma la signale
-    /// déjà comme bloquante.
+    /// Reserved for realignment, and not applied to ordinary updates. Renaming a system field
+    /// leaves behind the previous system index, which still carries the old column name: the
+    /// planner would try to recreate it on a column that no longer exists, and startup would fail.
+    /// Outside of migration, on the other hand, an index on a nonexistent field is an error better
+    /// left to fail than silently dropped — the schema screen already flags it as blocking.
     /// </remarks>
     private static CollectionDefinition WithoutStaleIndexes(CollectionDefinition collection)
     {
@@ -225,7 +224,7 @@ public sealed class CollectionRegistry(
     }
 
     /// <summary>
-    /// Complète une définition des champs et index que son type impose.
+    /// Fills in a definition with the fields and indexes its type requires.
     /// </summary>
     private static CollectionDefinition Normalize(CollectionDefinition draft)
     {
@@ -233,11 +232,11 @@ public sealed class CollectionRegistry(
             ? SystemFields.ForAuth()
             : SystemFields.ForBase();
 
-        // Les champs système passent en tête, dans l'ordre canonique. Sont écartés du reste ceux
-        // qui portent un nom système — sinon un champ « id » défini à la main écraserait la clé
-        // primaire — et ceux qui portent un identifiant système : c'est ce second filtre qui permet
-        // de renommer un champ système sans que son ancienne version ne survive en double, avec le
-        // même identifiant que la nouvelle.
+        // System fields go first, in canonical order. Excluded from the rest are fields carrying a
+        // system name — otherwise a hand-defined "id" field would overwrite the primary key — and
+        // fields carrying a system identifier: this second filter is what lets a system field be
+        // renamed without its old version surviving as a duplicate under the same identifier as
+        // the new one.
         var systemIds = system.Select(f => f.Id).ToHashSet();
 
         var custom = draft.Fields
@@ -256,7 +255,7 @@ public sealed class CollectionRegistry(
     }
 
     /// <summary>
-    /// Exécute un lot de DDL et enregistre la définition, dans la même transaction.
+    /// Runs a batch of DDL and saves the definition, in the same transaction.
     /// </summary>
     private async Task ApplyAsync(
         IReadOnlyList<string> statements,
@@ -266,7 +265,7 @@ public sealed class CollectionRegistry(
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        // Hors transaction, obligatoirement : voir ISchemaDdl.BeforeSchemaChange.
+        // Outside the transaction, mandatorily: see ISchemaDdl.BeforeSchemaChange.
         foreach (var pragma in _connections.Ddl.BeforeSchemaChange)
         {
             await connection.ExecuteAsync(new CommandDefinition(pragma, cancellationToken: cancellationToken))
@@ -289,8 +288,8 @@ public sealed class CollectionRegistry(
                 catch (System.Data.Common.DbException error)
                     when (_connections.Dialect.TranslateException(error) is { } translated)
                 {
-                    // Un index unique posé sur une colonne qui contient déjà des doublons est un
-                    // conflit de données, pas une panne : 409 et non 500.
+                    // A unique index placed on a column that already contains duplicates is a data
+                    // conflict, not a failure: 409, not 500.
                     throw translated;
                 }
             }
@@ -331,9 +330,9 @@ public sealed class CollectionRegistry(
             return;
         }
 
-        // Les clés étrangères ayant été coupées le temps du lot, on vérifie avant de valider que la
-        // manœuvre n'a pas laissé de référence orpheline. Sans ce contrôle, couper le pragma
-        // reviendrait à désactiver l'intégrité en échange de rien.
+        // Since foreign keys were switched off for the duration of the batch, check before commit
+        // that the maneuver left no orphaned reference. Without this check, turning off the pragma
+        // would amount to disabling integrity for nothing in return.
         var violations = await connection.QueryAsync(new CommandDefinition(
                 check, transaction: transaction, cancellationToken: cancellationToken))
             .ConfigureAwait(false);
@@ -341,7 +340,7 @@ public sealed class CollectionRegistry(
         if (violations.Any())
         {
             throw new CratebaseConflictException(
-                "Le changement de schéma laisserait des références orphelines : annulé.");
+                "The schema change would leave orphaned references: rolled back.");
         }
     }
 }

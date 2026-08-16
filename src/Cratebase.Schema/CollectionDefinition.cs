@@ -2,73 +2,73 @@ using Cratebase.Core;
 
 namespace Cratebase.Schema;
 
-/// <summary>Nature d'une collection.</summary>
+/// <summary>Nature of a collection.</summary>
 public enum CollectionKind
 {
-    /// <summary>Collection de données ordinaire.</summary>
+    /// <summary>Ordinary data collection.</summary>
     Base = 1,
 
     /// <summary>
-    /// Collection d'authentification : porte des comptes, et expose les endpoints de connexion.
-    /// Plusieurs peuvent coexister — utilisateurs et administrateurs de clients, par exemple.
+    /// Authentication collection: carries accounts, and exposes login endpoints. Several can
+    /// coexist — end users and client administrators, for instance.
     /// </summary>
     Auth = 2,
 
     /// <summary>
-    /// Collection en lecture seule, alimentée par une requête.
+    /// Read-only collection, fed by a query.
     /// </summary>
     /// <remarks>
-    /// ⚠️ Contrairement à PocketBase, la requête n'est <b>pas</b> du SQL brut : c'est une requête
-    /// exprimée dans le langage de Cratebase. Autoriser du SQL rendrait la collection
-    /// intransportable d'un moteur à l'autre, ce qui contredirait la raison d'être du projet.
+    /// ⚠️ Unlike PocketBase, the query is <b>not</b> raw SQL: it's a query expressed in Cratebase's
+    /// own language. Allowing SQL would make the collection unportable between engines, which
+    /// would contradict the project's whole reason for existing.
     /// </remarks>
     View = 3,
 }
 
 /// <summary>
-/// Règles d'accès d'une collection.
+/// Access rules of a collection.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Trois états par règle, repris de PocketBase et structurants :
+/// Three states per rule, carried over from PocketBase and structural:
 /// </para>
 /// <list type="bullet">
-/// <item><see langword="null"/> — <b>verrouillée</b> : superadmin uniquement. C'est le défaut.</item>
-/// <item>chaîne vide — ouverte à tous, visiteurs anonymes compris.</item>
-/// <item>expression — autorisée si l'expression est vraie.</item>
+/// <item><see langword="null"/> — <b>locked</b>: superuser only. This is the default.</item>
+/// <item>empty string — open to everyone, including anonymous visitors.</item>
+/// <item>expression — allowed if the expression is true.</item>
 /// </list>
 /// <para>
-/// Confondre <see langword="null"/> et la chaîne vide ouvrirait toutes les collections du système.
-/// C'est pour cette raison que le type est <c>string?</c> et non <c>string</c> avec une convention.
+/// Conflating <see langword="null"/> and the empty string would open every collection in the
+/// system. This is why the type is <c>string?</c> rather than <c>string</c> with a convention.
 /// </para>
 /// </remarks>
 public sealed record AccessRules
 {
-    /// <summary>Toutes les règles verrouillées : l'état d'une collection nouvellement créée.</summary>
+    /// <summary>Every rule locked: the state of a newly created collection.</summary>
     public static readonly AccessRules Locked = new();
 
-    /// <summary>Règle de liste. Une violation rend une page vide, jamais une erreur.</summary>
+    /// <summary>List rule. A violation returns an empty page, never an error.</summary>
     public string? List { get; init; }
 
-    /// <summary>Règle de consultation. Une violation rend 404, pour ne pas divulguer l'existence.</summary>
+    /// <summary>View rule. A violation returns 404, so as not to disclose existence.</summary>
     public string? View { get; init; }
 
-    /// <summary>Règle de création. Une violation rend 400.</summary>
+    /// <summary>Create rule. A violation returns 400.</summary>
     public string? Create { get; init; }
 
-    /// <summary>Règle de modification. Une violation rend 404.</summary>
+    /// <summary>Update rule. A violation returns 404.</summary>
     public string? Update { get; init; }
 
-    /// <summary>Règle de suppression. Une violation rend 404.</summary>
+    /// <summary>Delete rule. A violation returns 404.</summary>
     public string? Delete { get; init; }
 
     /// <summary>
-    /// Règle de gestion, propre aux collections d'auth : qui peut modifier le mot de passe ou
-    /// l'adresse d'un autre compte. Une violation rend 403.
+    /// Management rule, specific to auth collections: who can change another account's password
+    /// or address. A violation returns 403.
     /// </summary>
     public string? Manage { get; init; }
 
-    /// <summary>Renvoie la règle correspondant à une action.</summary>
+    /// <summary>Returns the rule corresponding to an action.</summary>
     public string? For(CollectionAction action) => action switch
     {
         CollectionAction.List => List,
@@ -81,72 +81,72 @@ public sealed record AccessRules
     };
 }
 
-/// <summary>Action soumise à une règle d'accès.</summary>
+/// <summary>Action subject to an access rule.</summary>
 public enum CollectionAction
 {
-    /// <summary>Lister.</summary>
+    /// <summary>List.</summary>
     List,
 
-    /// <summary>Consulter une ligne.</summary>
+    /// <summary>View a row.</summary>
     View,
 
-    /// <summary>Créer.</summary>
+    /// <summary>Create.</summary>
     Create,
 
-    /// <summary>Modifier.</summary>
+    /// <summary>Update.</summary>
     Update,
 
-    /// <summary>Supprimer.</summary>
+    /// <summary>Delete.</summary>
     Delete,
 
-    /// <summary>Gérer un compte tiers.</summary>
+    /// <summary>Manage a third-party account.</summary>
     Manage,
 }
 
 /// <summary>
-/// Index déclaré sur une collection.
+/// Index declared on a collection.
 /// </summary>
-/// <param name="Name">Nom de l'index, unique dans la base.</param>
-/// <param name="Fields">Champs indexés, dans l'ordre.</param>
-/// <param name="Unique">L'index impose-t-il l'unicité ?</param>
+/// <param name="Name">Index name, unique within the database.</param>
+/// <param name="Fields">Indexed fields, in order.</param>
+/// <param name="Unique">Does the index enforce uniqueness?</param>
 public sealed record CollectionIndex(string Name, IReadOnlyList<string> Fields, bool Unique = false);
 
 /// <summary>
-/// Définition d'une collection.
+/// Definition of a collection.
 /// </summary>
 public sealed record CollectionDefinition
 {
-    /// <summary>Identifiant.</summary>
+    /// <summary>Identifier.</summary>
     public required RecordId Id { get; init; }
 
-    /// <summary>Nom. Sert aussi de nom de table, donc validé par <see cref="Identifier"/>.</summary>
+    /// <summary>Name. Also used as the table name, so validated by <see cref="Identifier"/>.</summary>
     public required string Name { get; init; }
 
     /// <summary>Nature.</summary>
     public CollectionKind Kind { get; init; } = CollectionKind.Base;
 
-    /// <summary>Champs, champs système compris.</summary>
+    /// <summary>Fields, system fields included.</summary>
     public IReadOnlyList<FieldDefinition> Fields { get; init; } = [];
 
-    /// <summary>Index déclarés.</summary>
+    /// <summary>Declared indexes.</summary>
     public IReadOnlyList<CollectionIndex> Indexes { get; init; } = [];
 
-    /// <summary>Règles d'accès. Verrouillées par défaut.</summary>
+    /// <summary>Access rules. Locked by default.</summary>
     public AccessRules Rules { get; init; } = AccessRules.Locked;
 
-    /// <summary>La collection appartient-elle au moteur ? Une collection système est protégée.</summary>
+    /// <summary>Does the collection belong to the engine? A system collection is protected.</summary>
     public bool IsSystem { get; init; }
 
-    /// <summary>Date de création.</summary>
+    /// <summary>Creation date.</summary>
     public DateTimeOffset Created { get; init; }
 
-    /// <summary>Date de dernière modification.</summary>
+    /// <summary>Last modification date.</summary>
     public DateTimeOffset Updated { get; init; }
 
-    /// <summary>Nom de la table portant les données.</summary>
+    /// <summary>Name of the table holding the data.</summary>
     public string TableName => Name;
 
-    /// <summary>Retrouve un champ par son nom.</summary>
+    /// <summary>Finds a field by its name.</summary>
     public FieldDefinition? Field(string name) =>
         Fields.FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.Ordinal));
 }

@@ -3,101 +3,101 @@ using Cratebase.Core;
 namespace Cratebase.Schema;
 
 /// <summary>
-/// Options d'un champ. Toutes facultatives, interprétées selon le type.
+/// Options of a field. All optional, interpreted according to the type.
 /// </summary>
 public sealed record FieldOptions
 {
-    /// <summary>Aucune option.</summary>
+    /// <summary>No option.</summary>
     public static readonly FieldOptions None = new();
 
-    /// <summary>Longueur ou valeur minimale.</summary>
+    /// <summary>Minimum length or value.</summary>
     public double? Min { get; init; }
 
-    /// <summary>Longueur ou valeur maximale.</summary>
+    /// <summary>Maximum length or value.</summary>
     public double? Max { get; init; }
 
-    /// <summary>Motif que la valeur doit respecter (type <see cref="FieldType.Text"/>).</summary>
+    /// <summary>Pattern the value must match (<see cref="FieldType.Text"/> type).</summary>
     public string? Pattern { get; init; }
 
-    /// <summary>Le champ est-il restreint aux entiers (type <see cref="FieldType.Number"/>) ?</summary>
+    /// <summary>Is the field restricted to integers (<see cref="FieldType.Number"/> type)?</summary>
     public bool IntegerOnly { get; init; }
 
-    /// <summary>Valeurs admises (type <see cref="FieldType.Select"/>).</summary>
+    /// <summary>Admitted values (<see cref="FieldType.Select"/> type).</summary>
     public IReadOnlyList<string> Values { get; init; } = [];
 
-    /// <summary>Collection visée (type <see cref="FieldType.Relation"/>).</summary>
+    /// <summary>Target collection (<see cref="FieldType.Relation"/> type).</summary>
     public string? TargetCollection { get; init; }
 
-    /// <summary>La suppression de la cible supprime-t-elle la ligne portant la relation ?</summary>
+    /// <summary>Does deleting the target delete the row carrying the relation?</summary>
     public bool CascadeDelete { get; init; }
 
-    /// <summary>Taille maximale d'un fichier, en octets.</summary>
+    /// <summary>Maximum file size, in bytes.</summary>
     public long? MaxFileSize { get; init; }
 
-    /// <summary>Types MIME admis (type <see cref="FieldType.File"/>).</summary>
+    /// <summary>Admitted MIME types (<see cref="FieldType.File"/> type).</summary>
     public IReadOnlyList<string> MimeTypes { get; init; } = [];
 
-    /// <summary>Tailles de vignettes à générer, au format <c>LxH</c>.</summary>
+    /// <summary>Thumbnail sizes to generate, in <c>WxH</c> form.</summary>
     public IReadOnlyList<string> ThumbSizes { get; init; } = [];
 
     /// <summary>
-    /// Le fichier est-il protégé ? Un fichier protégé n'est servi qu'aux appelants qui satisfont la
-    /// règle de consultation de la collection.
+    /// Is the file protected? A protected file is only served to callers who satisfy the
+    /// collection's view rule.
     /// </summary>
     public bool Protected { get; init; }
 
-    /// <summary>Renseigner à la création (type <see cref="FieldType.AutoDate"/>).</summary>
+    /// <summary>Set on creation (<see cref="FieldType.AutoDate"/> type).</summary>
     public bool OnCreate { get; init; }
 
-    /// <summary>Renseigner à chaque modification (type <see cref="FieldType.AutoDate"/>).</summary>
+    /// <summary>Set on every modification (<see cref="FieldType.AutoDate"/> type).</summary>
     public bool OnUpdate { get; init; }
 }
 
 /// <summary>
-/// Définition d'un champ de collection.
+/// Definition of a collection field.
 /// </summary>
 public sealed record FieldDefinition
 {
     /// <summary>
-    /// Identifiant stable du champ.
+    /// Stable identifier of the field.
     /// </summary>
     /// <remarks>
-    /// ⚠️ Indispensable, et facile à croire superflu. Sans identifiant, un renommage de champ est
-    /// indiscernable d'une suppression suivie d'un ajout : le planificateur émettrait
-    /// <c>DROP COLUMN</c> puis <c>ADD COLUMN</c>, et <b>toutes les données de la colonne
-    /// disparaîtraient</b> sans que rien ne le signale. L'identifiant rend le renommage détectable,
-    /// donc l'opération devient un <c>RENAME COLUMN</c> qui préserve le contenu.
+    /// ⚠️ Indispensable, and easy to assume unnecessary. Without an identifier, renaming a field is
+    /// indistinguishable from a deletion followed by an addition: the planner would emit
+    /// <c>DROP COLUMN</c> then <c>ADD COLUMN</c>, and <b>every value in that column would
+    /// disappear</b> with nothing to report it. The identifier makes a rename detectable, turning
+    /// the operation into a <c>RENAME COLUMN</c> that preserves the content.
     /// </remarks>
     public required RecordId Id { get; init; }
 
-    /// <summary>Nom. Sert aussi de nom de colonne, donc validé par <see cref="Identifier"/>.</summary>
+    /// <summary>Name. Also used as the column name, so validated by <see cref="Identifier"/>.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Type logique.</summary>
+    /// <summary>Logical type.</summary>
     public required FieldType Type { get; init; }
 
-    /// <summary>La valeur est-elle obligatoire ?</summary>
+    /// <summary>Is the value required?</summary>
     public bool Required { get; init; }
 
-    /// <summary>Le champ appartient-il au moteur ? Un champ système ne peut être ni renommé ni supprimé.</summary>
+    /// <summary>Does the field belong to the engine? A system field can be neither renamed nor deleted.</summary>
     public bool IsSystem { get; init; }
 
     /// <summary>
-    /// Le champ est-il masqué dans les réponses ? Vrai pour le mot de passe et la clé de jeton.
+    /// Is the field hidden from responses? True for the password and the token key.
     /// </summary>
     public bool Hidden { get; init; }
 
     /// <summary>
-    /// Nombre maximal de valeurs. <c>1</c> pour un champ simple, davantage pour un champ multiple.
+    /// Maximum number of values. <c>1</c> for a scalar field, more for a multi-valued field.
     /// </summary>
     public int MaxSelect { get; init; } = 1;
 
-    /// <summary>Options propres au type.</summary>
+    /// <summary>Options specific to the type.</summary>
     public FieldOptions Options { get; init; } = FieldOptions.None;
 
-    /// <summary>Le champ porte-t-il effectivement plusieurs valeurs ?</summary>
+    /// <summary>Does the field actually carry several values?</summary>
     public bool Multiple => MaxSelect != 1 && Type.SupportsMultiple();
 
-    /// <summary>Nom de la colonne portant le champ.</summary>
+    /// <summary>Name of the column carrying the field.</summary>
     public string ColumnName => Name;
 }

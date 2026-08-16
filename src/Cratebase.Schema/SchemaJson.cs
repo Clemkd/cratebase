@@ -5,17 +5,17 @@ using Cratebase.Core;
 namespace Cratebase.Schema;
 
 /// <summary>
-/// Sérialisation des définitions de collections.
+/// Serialization of collection definitions.
 /// </summary>
 /// <remarks>
-/// Ces options gouvernent à la fois le stockage en base et les instantanés de migration, donc leur
-/// stabilité est un contrat : changer la casse des noms ou le rendu des énumérations rendrait
-/// illisibles les instantanés déjà écrits. Les énumérations sont donc en <b>chaînes</b>, jamais en
-/// entiers — un numéro d'énumération se décale dès qu'on insère une valeur au milieu.
+/// These options govern both storage in the database and migration snapshots, so their stability
+/// is a contract: changing name casing or enum rendering would make already-written snapshots
+/// unreadable. Enums are therefore <b>strings</b>, never integers — an enum number shifts as soon
+/// as a value is inserted in the middle.
 /// </remarks>
 public static class SchemaJson
 {
-    /// <summary>Options partagées.</summary>
+    /// <summary>Shared options.</summary>
     public static readonly JsonSerializerOptions Options = Build();
 
     private static JsonSerializerOptions Build()
@@ -33,7 +33,7 @@ public static class SchemaJson
     }
 }
 
-/// <summary>Sérialise un <see cref="RecordId"/> sous sa forme canonique.</summary>
+/// <summary>Serializes a <see cref="RecordId"/> in its canonical form.</summary>
 public sealed class RecordIdJsonConverter : JsonConverter<RecordId>
 {
     /// <inheritdoc />
@@ -43,7 +43,7 @@ public sealed class RecordIdJsonConverter : JsonConverter<RecordId>
 
         return RecordId.TryParse(raw, out var id)
             ? id
-            : throw new JsonException($"« {raw} » n'est pas un identifiant valide.");
+            : throw new JsonException($"\"{raw}\" is not a valid identifier.");
     }
 
     /// <inheritdoc />

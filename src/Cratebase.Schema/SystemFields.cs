@@ -3,71 +3,71 @@ using Cratebase.Core;
 namespace Cratebase.Schema;
 
 /// <summary>
-/// Champs que le moteur pose lui-même sur toute collection.
+/// Fields the engine itself places on every collection.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Leurs identifiants sont <b>déterministes</b> et non aléatoires : ils doivent être identiques sur
-/// toutes les installations, sinon un instantané de migration produit sur une machine renommerait
-/// les colonnes système sur une autre.
+/// Their identifiers are <b>deterministic</b>, not random: they must be identical on every
+/// installation, otherwise a migration snapshot produced on one machine would rename the system
+/// columns on another.
 /// </para>
 /// <para>
-/// Leurs noms sont en <b>snake_case anglais</b>, comme des colonnes de base et non comme des
-/// propriétés JavaScript. C'est ce que voit celui qui ouvre la base avec un autre outil, et une
-/// convention qui change selon qu'un champ est système ou non oblige à retenir laquelle s'applique
-/// où. Le renommage d'un champ système est repris automatiquement au démarrage : les identifiants
-/// étant stables, le planificateur y voit un renommage et préserve les données.
+/// Their names are in <b>English snake_case</b>, like base columns rather than JavaScript
+/// properties. That's what someone opening the database with another tool sees, and a convention
+/// that changes depending on whether a field is a system field or not forces remembering which
+/// applies where. Renaming a system field is picked up automatically at startup: since the
+/// identifiers are stable, the planner sees a rename and preserves the data.
 /// </para>
 /// </remarks>
 public static class SystemFields
 {
-    /// <summary>Nom du champ d'identifiant.</summary>
+    /// <summary>Name of the identifier field.</summary>
     public const string Id = "id";
 
-    /// <summary>Nom du champ de date de création.</summary>
+    /// <summary>Name of the creation-date field.</summary>
     public const string Created = "created";
 
-    /// <summary>Nom du champ de date de modification.</summary>
+    /// <summary>Name of the modification-date field.</summary>
     public const string Updated = "updated";
 
-    /// <summary>Nom du champ d'adresse de courriel des collections d'auth.</summary>
+    /// <summary>Name of the email address field on auth collections.</summary>
     public const string Email = "email";
 
-    /// <summary>Nom du champ de visibilité de l'adresse.</summary>
+    /// <summary>Name of the address-visibility field.</summary>
     public const string EmailVisibility = "email_visibility";
 
-    /// <summary>Nom du champ d'adresse vérifiée.</summary>
+    /// <summary>Name of the verified-address field.</summary>
     public const string Verified = "verified";
 
-    /// <summary>Nom du champ de mot de passe. Jamais renvoyé par l'API.</summary>
+    /// <summary>Name of the password field. Never returned by the API.</summary>
     public const string Password = "password";
 
-    /// <summary>Nom du champ de clé de jeton. Jamais renvoyé par l'API.</summary>
+    /// <summary>Name of the token-key field. Never returned by the API.</summary>
     public const string TokenKey = "token_key";
 
-    /// <summary>Nom du champ portant les rôles d'un compte.</summary>
+    /// <summary>Name of the field carrying an account's roles.</summary>
     public const string Roles = "roles";
 
-    /// <summary>Nom du champ portant les permissions accordées directement à un compte.</summary>
+    /// <summary>Name of the field carrying permissions granted directly to an account.</summary>
     public const string Permissions = "permissions";
 
     /// <summary>
-    /// Champ de confirmation du mot de passe : accepté en entrée, jamais stocké.
+    /// Password confirmation field: accepted on input, never stored.
     /// </summary>
     /// <remarks>
-    /// Il n'est pas une colonne, donc la validation le refuserait comme champ inconnu. Il figure ici
-    /// pour être explicitement toléré — la tolérance est déclarée, pas laissée à un cas particulier
-    /// enfoui dans le validateur.
+    /// It is not a column, so validation would otherwise reject it as an unknown field. It's
+    /// listed here to be explicitly tolerated — the tolerance is declared, not left as a special
+    /// case buried in the validator.
     /// </remarks>
     public const string PasswordConfirm = "password_confirm";
 
     /// <summary>
-    /// Champs acceptés dans un corps de requête sans correspondre à une colonne.
+    /// Fields accepted in a request body without corresponding to a column.
     /// </summary>
     public static IReadOnlySet<string> InputOnlyFields { get; } =
         new HashSet<string>(StringComparer.Ordinal) { PasswordConfirm };
 
-    /// <summary>Champs présents sur toute collection.</summary>
+    /// <summary>Fields present on every collection.</summary>
     public static IReadOnlyList<FieldDefinition> ForBase() =>
     [
         new FieldDefinition
@@ -96,7 +96,7 @@ public static class SystemFields
         },
     ];
 
-    /// <summary>Champs supplémentaires d'une collection d'authentification.</summary>
+    /// <summary>Extra fields of an authentication collection.</summary>
     public static IReadOnlyList<FieldDefinition> ForAuth() =>
     [
         .. ForBase(),
@@ -141,11 +141,11 @@ public static class SystemFields
             Hidden = true,
         },
 
-        // Rôles et permissions sont des champs SYSTÈME, donc refusés dans un corps de requête
-        // ordinaire. Les rendre modifiables par l'API des enregistrements permettrait à un compte
-        // de s'accorder ses propres droits en POSTant « permissions: ['*'] » — dès lors que la
-        // règle de création est ouverte, ce qui est le cas le plus courant sur une inscription.
-        // L'attribution passe donc par un endpoint réservé au super-admin.
+        // Roles and permissions are SYSTEM fields, so they're rejected in an ordinary request
+        // body. Making them writable through the records API would let an account grant itself
+        // rights by POSTing "permissions: ['*']" — as soon as the create rule is open, which is
+        // the most common case on sign-up. Assignment therefore goes through a superuser-only
+        // endpoint.
         new FieldDefinition
         {
             Id = Deterministic(9),
@@ -164,14 +164,14 @@ public static class SystemFields
         },
     ];
 
-    /// <summary>Index imposés à une collection d'authentification.</summary>
+    /// <summary>Indexes required on an authentication collection.</summary>
     public static IReadOnlyList<CollectionIndex> AuthIndexes(string collectionName) =>
     [
         new CollectionIndex($"idx_{collectionName}_email", [Email], Unique: true),
         new CollectionIndex($"idx_{collectionName}_token_key", [TokenKey], Unique: true),
     ];
 
-    /// <summary>Le champ est-il un champ système ?</summary>
+    /// <summary>Is the field a system field?</summary>
     public static bool IsSystemField(string name) => name is
         Id or Created or Updated or Email or EmailVisibility or Verified or Password or TokenKey
         or Roles or Permissions;

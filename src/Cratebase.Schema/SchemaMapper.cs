@@ -4,11 +4,11 @@ using Cratebase.Data;
 namespace Cratebase.Schema;
 
 /// <summary>
-/// Traduit une définition de collection en description physique de table.
+/// Translates a collection definition into a physical table description.
 /// </summary>
 public static class SchemaMapper
 {
-    /// <summary>Construit la description de table d'une collection.</summary>
+    /// <summary>Builds a collection's table description.</summary>
     public static TableSpec ToTableSpec(CollectionDefinition collection, ISqlDialect dialect)
     {
         ArgumentNullException.ThrowIfNull(collection);
@@ -19,10 +19,10 @@ public static class SchemaMapper
 
         foreach (var field in collection.Fields)
         {
-            // Une relation multi-valuée est stockée en tableau JSON : aucune clé étrangère n'est
-            // possible dessus. L'intégrité et la cascade sont alors appliquées par le moteur, dans
-            // la transaction de suppression — moins fort que la base, mais c'est le prix du
-            // multi-valué, et c'est le choix de PocketBase aussi.
+            // A multi-valued relation is stored as a JSON array: no foreign key is possible on it.
+            // Integrity and cascading are then applied by the engine, inside the delete
+            // transaction — weaker than the database, but that's the price of being multi-valued,
+            // and it's PocketBase's choice too.
             if (field.Type is not FieldType.Relation
                 || field.Multiple
                 || field.Options.TargetCollection is not { Length: > 0 } target)
@@ -36,15 +36,15 @@ public static class SchemaMapper
         return new TableSpec(collection.TableName, columns, SystemFields.Id, foreignKeys);
     }
 
-    /// <summary>Construit la description d'une colonne.</summary>
+    /// <summary>Builds a column's description.</summary>
     public static ColumnSpec ToColumnSpec(FieldDefinition field, ISqlDialect dialect)
     {
         ArgumentNullException.ThrowIfNull(field);
         ArgumentNullException.ThrowIfNull(dialect);
 
-        // Aucun champ n'est nullable sauf le JSON : c'est la règle de PocketBase, reprise parce
-        // qu'elle supprime la distinction « absent » / « vide », qui rend les filtres ambigus et
-        // les résultats dépendants du moteur.
+        // No field is nullable except JSON: this is PocketBase's rule, kept because it removes the
+        // "absent" vs. "empty" distinction, which makes filters ambiguous and results dependent on
+        // the engine.
         var nullable = field.Type is FieldType.Json;
 
         var zero = field.Type.ZeroValue(field.Multiple);
@@ -58,7 +58,7 @@ public static class SchemaMapper
             storageDefault);
     }
 
-    /// <summary>Construit les descriptions d'index d'une collection.</summary>
+    /// <summary>Builds a collection's index descriptions.</summary>
     public static IReadOnlyList<IndexSpec> ToIndexSpecs(CollectionDefinition collection)
     {
         ArgumentNullException.ThrowIfNull(collection);

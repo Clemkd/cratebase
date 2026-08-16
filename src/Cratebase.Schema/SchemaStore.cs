@@ -7,29 +7,29 @@ using Dapper;
 namespace Cratebase.Schema;
 
 /// <summary>
-/// Persistance des définitions de collections.
+/// Persistence of collection definitions.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Les collections sont stockées <b>en tant que données</b>, dans une table système, et non en tant
-/// que code. C'est ce qui rend le schéma portable : migrer de moteur consiste à relire cette table
-/// et à régénérer le DDL pour la cible. C'est la règle R5 du document de conception, et c'est
-/// l'avantage structurel du modèle à collections dynamiques.
+/// Collections are stored <b>as data</b>, in a system table, not as code. This is what makes the
+/// schema portable: migrating engines means re-reading this table and regenerating the DDL for the
+/// target. This is rule R5 of the design document, and the structural advantage of the
+/// dynamic-collection model.
 /// </para>
 /// </remarks>
 public sealed class SchemaStore(IDbConnectionFactory connections)
 {
-    /// <summary>Table portant les définitions de collections.</summary>
+    /// <summary>Table carrying collection definitions.</summary>
     public const string CollectionsTable = "_collections";
 
-    /// <summary>Table portant l'historique des migrations appliquées.</summary>
+    /// <summary>Table carrying the history of applied migrations.</summary>
     public const string MigrationsTable = "_migrations";
 
     private readonly IDbConnectionFactory _connections = connections
         ?? throw new ArgumentNullException(nameof(connections));
 
     /// <summary>
-    /// Crée les tables système si elles n'existent pas.
+    /// Creates system tables if they don't exist.
     /// </summary>
     public async Task EnsureSystemTablesAsync(CancellationToken cancellationToken = default)
     {
@@ -68,7 +68,7 @@ public sealed class SchemaStore(IDbConnectionFactory connections)
         }
     }
 
-    /// <summary>Charge toutes les collections.</summary>
+    /// <summary>Loads every collection.</summary>
     public async Task<IReadOnlyList<CollectionDefinition>> LoadAllAsync(
         CancellationToken cancellationToken = default)
     {
@@ -86,7 +86,7 @@ public sealed class SchemaStore(IDbConnectionFactory connections)
         return [.. rows.Select(Deserialize)];
     }
 
-    /// <summary>Enregistre une collection, en création comme en modification.</summary>
+    /// <summary>Saves a collection, on both creation and modification.</summary>
     public async Task SaveAsync(
         CollectionDefinition collection,
         DbConnection? existing = null,
@@ -105,11 +105,10 @@ public sealed class SchemaStore(IDbConnectionFactory connections)
             var definition = Serialize(collection);
             var updatedAt = Timestamp.Normalize(collection.Updated);
 
-            // Mise à jour puis insertion si rien n'a bougé, plutôt qu'un « INSERT … ON CONFLICT » :
-            // la clause d'upsert relève du dialecte, et la règle R1 lui interdit d'apparaître ici.
-            // Les appels qui portent une transaction — c'est le cas de CollectionRegistry — rendent
-            // la séquence atomique ; les autres écrivent une définition à la fois, sur action
-            // d'administration.
+            // Update then insert if nothing moved, rather than an "INSERT ... ON CONFLICT": the
+            // upsert clause is dialect-specific, and rule R1 forbids it from appearing here. Calls
+            // that carry a transaction — CollectionRegistry's do — make the sequence atomic; the
+            // others write one definition at a time, on an administration action.
             var updated = await connection.ExecuteAsync(new CommandDefinition(
                     $"""
                      UPDATE {dialect.QuoteIdentifier(CollectionsTable)}
@@ -155,7 +154,7 @@ public sealed class SchemaStore(IDbConnectionFactory connections)
         }
     }
 
-    /// <summary>Supprime une définition de collection.</summary>
+    /// <summary>Deletes a collection definition.</summary>
     public async Task DeleteAsync(
         RecordId id,
         DbConnection? existing = null,
@@ -185,12 +184,12 @@ public sealed class SchemaStore(IDbConnectionFactory connections)
         }
     }
 
-    /// <summary>Sérialise une définition pour le stockage et pour les instantanés de migration.</summary>
+    /// <summary>Serializes a definition for storage and for migration snapshots.</summary>
     public static string Serialize(CollectionDefinition collection) =>
         JsonSerializer.Serialize(collection, SchemaJson.Options);
 
-    /// <summary>Relit une définition.</summary>
+    /// <summary>Reads back a definition.</summary>
     public static CollectionDefinition Deserialize(string json) =>
         JsonSerializer.Deserialize<CollectionDefinition>(json, SchemaJson.Options)
-        ?? throw new InvalidOperationException("Définition de collection illisible.");
+        ?? throw new InvalidOperationException("Unreadable collection definition.");
 }
