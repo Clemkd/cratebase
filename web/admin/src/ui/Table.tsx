@@ -5,10 +5,10 @@ import { cn } from './utils'
 export type SortDirection = 'asc' | 'desc' | null
 
 /**
- * Tableau de données.
+ * Data table.
  *
- * Le défilement horizontal appartient au tableau, jamais à la page : une grille large doit pouvoir
- * s'étendre sans que la mise en page entière se mette à glisser sous le doigt.
+ * Horizontal scrolling belongs to the table, never to the page: a wide grid must be able to
+ * expand without the entire layout sliding under the finger.
  */
 export function Table({
   children,
@@ -19,7 +19,7 @@ export function Table({
   children: ReactNode
   className?: string
   caption?: string
-  /** Sans cadre : le tableau est déjà posé dans une carte qui porte la bordure. */
+  /** Without a frame: the table is already placed inside a card that carries the border. */
   bare?: boolean
 }) {
   return (
@@ -87,7 +87,7 @@ export function Td({ className, children, ...props }: TdHTMLAttributes<HTMLTable
   )
 }
 
-/** En-tête cliquable. Le cycle est croissant → décroissant → aucun tri. */
+/** Clickable header. The cycle is ascending → descending → no sort. */
 export function SortableTh({
   label,
   direction,

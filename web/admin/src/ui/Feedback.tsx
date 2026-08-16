@@ -16,13 +16,13 @@ export function Spinner({ size = 16, label }: { size?: number; label?: string })
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
         <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
       </svg>
-      <span className="sr-only">{label ?? 'Chargement en cours'}</span>
+      <span className="sr-only">{label ?? 'Loading'}</span>
     </span>
   )
 }
 
-/** Attente d'un écran entier, quand rien de la forme du résultat n'est encore connu. */
-export function LoadingBlock({ label = 'Chargement…' }: { label?: string }) {
+/** Wait state for a whole screen, when nothing about the result's shape is known yet. */
+export function LoadingBlock({ label = 'Loading…' }: { label?: string }) {
   return (
     <div className="flex items-center justify-center gap-2 py-16 text-sm text-ink-muted">
       <Spinner />
@@ -40,7 +40,7 @@ export function Skeleton({ className }: { className?: string }) {
   )
 }
 
-/** Squelette de tableau, pour occuper la place exacte du contenu attendu. */
+/** Table skeleton, occupying the exact space of the expected content. */
 export function TableSkeleton({ columns, rows = 6 }: { columns: number; rows?: number }) {
   return (
     <div className="divide-y divide-border-subtle rounded-[var(--radius-card)] border border-border-subtle">
@@ -106,7 +106,7 @@ export function ErrorBlock({
             className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-danger underline-offset-4 hover:underline"
           >
             <RotateCw size={12} aria-hidden="true" />
-            Réessayer
+            Retry
           </button>
         )}
       </div>

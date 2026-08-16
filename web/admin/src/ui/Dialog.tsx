@@ -6,11 +6,11 @@ import { cn } from './utils'
 export type DialogSide = 'center' | 'right'
 
 /**
- * Modale accessible.
+ * Accessible modal.
  *
- * Bâtie sur `<dialog>` natif : le piège de focus, la restauration du focus à la fermeture, la
- * touche Échap et le calque supérieur sont fournis par le navigateur. Les réimplémenter en React
- * revient à réécrire — moins bien — ce que la plateforme fait déjà correctement.
+ * Built on the native `<dialog>`: focus trapping, focus restoration on close, the Escape key, and
+ * the top layer are all provided by the browser. Reimplementing them in React amounts to
+ * rewriting — worse — what the platform already does correctly.
  */
 export function Dialog({
   open,
@@ -50,8 +50,8 @@ export function Dialog({
       ref={ref}
       aria-labelledby={titleId}
       onCancel={(event) => {
-        // La fermeture reste pilotée par le parent : sans cela, l'état React et l'état du DOM
-        // divergent dès la première pression sur Échap.
+        // Closing stays driven by the parent: without this, React state and DOM state diverge
+        // on the first press of Escape.
         event.preventDefault()
         onClose()
       }}
@@ -73,8 +73,8 @@ export function Dialog({
             : 'h-full border-y-0 border-r-0 shadow-popover',
         )}
       >
-        {/* Ni `header` ni `footer` ici : à l'intérieur d'une modale, ils s'annoncent comme des
-            repères « banner » et « contentinfo », ce qui ajoute de faux repères de page. */}
+        {/* Neither `header` nor `footer` here: inside a modal, they announce themselves as
+            "banner" and "contentinfo" landmarks, which adds false page landmarks. */}
         <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
           <div className="min-w-0">
             <h2 id={titleId} className="text-sm font-semibold text-ink">
@@ -83,7 +83,7 @@ export function Dialog({
             {description && <div className="mt-0.5 text-xs text-ink-muted">{description}</div>}
           </div>
 
-          <Button variant="ghost" size="icon" aria-label="Fermer" onClick={onClose}>
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose}>
             <X size={16} aria-hidden="true" />
           </Button>
         </div>
@@ -101,16 +101,16 @@ export function Dialog({
 }
 
 /**
- * Confirmation d'une action destructrice.
+ * Confirmation of a destructive action.
  *
- * Le focus part sur l'annulation, jamais sur la confirmation : ces dialogues gardent une action
- * irréversible, et une entrée frappée par réflexe ne doit pas l'exécuter.
+ * Focus starts on cancel, never on confirm: these dialogs guard an irreversible action, and an
+ * Enter pressed by reflex must not trigger it.
  */
 export function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = 'Confirmer',
+  confirmLabel = 'Confirm',
   confirmIcon,
   busy = false,
   onConfirm,
@@ -121,11 +121,10 @@ export function ConfirmDialog({
   message: ReactNode
   confirmLabel?: string
   /**
-   * Icône du bouton de confirmation.
+   * Icon for the confirm button.
    *
-   * Fournie par l'appelant plutôt que fixée ici : ces dialogues confirment aussi bien une
-   * suppression qu'un abandon de saisie, et une corbeille posée sur les deux finirait par ne plus
-   * signifier « destruction ».
+   * Provided by the caller rather than fixed here: these dialogs confirm both a deletion and an
+   * abandoned edit, and a trash icon on both would end up no longer meaning "destruction".
    */
   confirmIcon?: ReactNode
   busy?: boolean
@@ -147,7 +146,7 @@ export function ConfirmDialog({
             disabled={busy}
             autoFocus
           >
-            Annuler
+            Cancel
           </Button>
           <Button variant="danger" icon={confirmIcon} onClick={onConfirm} loading={busy}>
             {confirmLabel}

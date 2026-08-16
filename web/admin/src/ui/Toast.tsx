@@ -33,7 +33,7 @@ const TONES: Record<ToastTone, { icon: typeof Info; border: string; accent: stri
   error: { icon: AlertTriangle, border: 'border-danger/40', accent: 'text-danger' },
 }
 
-/** Les échecs demandent une lecture, pas un coup d'œil : ils restent visibles plus longtemps. */
+/** Failures call for reading, not a glance: they stay visible longer. */
 const LIFETIME_MS: Record<ToastTone, number> = { info: 4000, success: 4000, error: 8000 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -64,8 +64,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={api}>
       {children}
 
-      {/* Une seule région vivante pour toute l'application : plusieurs régions concurrentes se
-          coupent la parole chez les lecteurs d'écran. */}
+      {/* A single live region for the whole application: multiple competing regions talk over
+          each other for screen readers. */}
       <div
         aria-live="polite"
         aria-atomic="false"
@@ -88,7 +88,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <p className="min-w-0 flex-1 whitespace-pre-line text-ink">{toast.message}</p>
               <button
                 type="button"
-                aria-label="Fermer la notification"
+                aria-label="Dismiss notification"
                 onClick={() => dismiss(toast.id)}
                 className="-mr-1 shrink-0 rounded p-0.5 text-ink-faint hover:text-ink"
               >
@@ -106,7 +106,7 @@ export function useToast(): ToastApi {
   const api = useContext(ToastContext)
 
   if (!api) {
-    throw new Error('useToast doit être utilisé dans un ToastProvider.')
+    throw new Error('useToast must be used within a ToastProvider.')
   }
 
   return api

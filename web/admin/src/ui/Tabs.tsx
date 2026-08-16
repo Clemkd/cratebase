@@ -7,15 +7,15 @@ export interface TabDefinition<T extends string> {
   badge?: ReactNode
 }
 
-const tabId = (name: string, id: string) => `onglet-${name}-${id}`
-const panelId = (name: string, id: string) => `panneau-${name}-${id}`
+const tabId = (name: string, id: string) => `tab-${name}-${id}`
+const panelId = (name: string, id: string) => `panel-${name}-${id}`
 
 /**
- * Onglets conformes au motif ARIA : navigation par flèches, `aria-controls` vers le panneau,
- * un seul onglet dans l'ordre de tabulation.
+ * Tabs conforming to the ARIA pattern: arrow-key navigation, `aria-controls` pointing to the
+ * panel, only one tab in the tab order.
  *
- * `name` doit être unique dans la page : il relie chaque onglet à son `TabPanel`, qui est rendu
- * ailleurs dans l'arbre et ne peut donc pas hériter d'un identifiant interne.
+ * `name` must be unique in the page: it links each tab to its `TabPanel`, which is rendered
+ * elsewhere in the tree and therefore can't inherit an internal identifier.
  */
 export function Tabs<T extends string>({
   name,
@@ -52,12 +52,12 @@ export function Tabs<T extends string>({
       role="tablist"
       aria-label={label}
       className={cn(
-        // `overflow-y-hidden` explicitement : dès qu'un axe cesse d'être `visible`, l'autre passe
-        // à `auto` par défaut, et la barre d'onglets se retrouve avec un ascenseur vertical pour
-        // quelques pixels d'anneau de focus. Le contenu des onglets, lui, défile normalement.
+        // `overflow-y-hidden` explicitly: as soon as one axis stops being `visible`, the other
+        // defaults to `auto`, and the tab bar ends up with a vertical scrollbar for a few pixels
+        // of focus ring. The tabs' content, meanwhile, scrolls normally.
         //
-        // `pb-px` compense le `-mb-px` des onglets : sans ce pixel de marge intérieure, le trait de
-        // l'onglet actif déborde de la boîte de remplissage et se fait rogner par le masquage.
+        // `pb-px` compensates for the tabs' `-mb-px`: without this pixel of inner margin, the
+        // active tab's underline overflows the fill box and gets clipped by the masking.
         'flex items-center gap-1 overflow-x-auto overflow-y-hidden pb-px border-b border-border-subtle',
         className,
       )}
@@ -83,9 +83,9 @@ export function Tabs<T extends string>({
           onClick={() => onChange(tab.id)}
           className={cn(
             '-mb-px inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors',
-            // Anneau de focus tracé à l'intérieur du bouton : la barre masquant son débordement
-            // vertical, un anneau posé au-dehors serait rogné — et l'onglet parcouru au clavier
-            // deviendrait invisible.
+            // Focus ring drawn inside the button: since the bar hides its vertical overflow, a
+            // ring placed outside would be clipped — and the tab reached by keyboard would
+            // become invisible.
             'focus-visible:-outline-offset-2',
             tab.id === active
               ? 'border-brand text-ink'
@@ -120,9 +120,9 @@ export function TabPanel<T extends string>({
       id={panelId(name, id)}
       role="tabpanel"
       aria-labelledby={tabId(name, id)}
-      // Le panneau est atteignable au clavier — c'est là que le motif ARIA envoie l'utilisateur
-      // après les onglets. Son anneau de focus reste donc visible : le supprimer ferait disparaître
-      // le curseur au moment précis où il entre dans le contenu.
+      // The panel is reachable by keyboard — that's where the ARIA pattern sends the user after
+      // the tabs. Its focus ring therefore stays visible: removing it would make the cursor
+      // disappear at the exact moment it enters the content.
       tabIndex={0}
       className={cn('rounded-[var(--radius-control)] outline-offset-4', className)}
     >

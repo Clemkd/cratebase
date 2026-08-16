@@ -1,23 +1,23 @@
 import { twMerge } from 'tailwind-merge'
 
 /**
- * Fusionne des classes conditionnelles en résolvant les conflits Tailwind.
+ * Merges conditional classes while resolving Tailwind conflicts.
  *
- * La simple concaténation ne suffit pas : deux utilitaires de la même famille — `size-9` posé par
- * une primitive et `size-6` passé par l'appelant — cohabitent dans l'attribut, et c'est l'ordre de
- * la feuille de style, non celui de l'écriture, qui tranche. Autrement dit, une surcharge locale
- * perdrait au hasard des noms. `twMerge` fait gagner la dernière classe citée, toujours.
+ * Simple concatenation isn't enough: two utilities from the same family — `size-9` set by a
+ * primitive and `size-6` passed by the caller — coexist in the attribute, and it's the
+ * stylesheet's order, not the order they're written in, that decides. In other words, a local
+ * override would lose at the whim of class names. `twMerge` always makes the last class cited win.
  */
 export function cn(...parts: (string | false | null | undefined)[]): string {
   return twMerge(parts.filter(Boolean).join(' '))
 }
 
 /**
- * Classes communes à tous les contrôles de saisie.
+ * Classes shared by every input control.
  *
- * L'anneau de focus n'est pas neutralisé ici : la bordure qui vire à la couleur de marque signale
- * le champ actif à la souris, mais elle ne suffit pas au clavier — c'est l'anneau global posé par
- * `:focus-visible` qui doit rester visible.
+ * The focus ring isn't neutralized here: the border that turns to the brand color signals the
+ * active field to a mouse user, but it isn't enough for keyboard use — it's the global ring set
+ * by `:focus-visible` that must remain visible.
  */
 export const controlClasses = cn(
   'w-full rounded-[var(--radius-control)] border border-border-strong bg-surface px-3 text-sm text-ink',

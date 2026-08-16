@@ -15,19 +15,19 @@ export interface SelectOption<T extends string> {
   value: T
   label: ReactNode
   /**
-   * Icône de l'option, affichée dans la liste et reprise par le déclencheur une fois l'option
-   * retenue.
+   * Icon for the option, shown in the list and echoed by the trigger once the option is
+   * selected.
    *
-   * Portée par sa propre propriété plutôt que glissée dans `label` : le libellé sert aussi de nom
-   * accessible et de texte de recherche au clavier, et une icône y ajouterait un nœud que ni l'un
-   * ni l'autre ne sait lire. Le glyphe reste donc décoratif — c'est le libellé qui informe.
+   * Carried by its own property rather than slipped into `label`: the label also serves as the
+   * accessible name and the keyboard typeahead text, and an icon there would add a node that
+   * neither can read. The glyph therefore stays decorative — it's the label that informs.
    */
   icon?: ReactNode
   /**
-   * Texte de l'option, pour la saisie au vol et le nom accessible.
+   * Text of the option, for typeahead and the accessible name.
    *
-   * Obligatoire dès que `label` n'est pas une chaîne : sans lui, on ne saurait ni annoncer
-   * l'option ni la retrouver au clavier.
+   * Required as soon as `label` isn't a string: without it, there's no way to announce the
+   * option or find it by keyboard.
    */
   text?: string
   hint?: ReactNode
@@ -41,17 +41,17 @@ const SIZES: Record<SelectMenuSize, string> = {
   md: 'h-10 text-sm',
 }
 
-/** Espace laissé entre la bulle et le bord de la fenêtre. */
+/** Space left between the flyout and the edge of the window. */
 const MARGIN = 8
-/** Hauteur en deçà de laquelle la bulle bascule au-dessus du déclencheur plutôt qu'en dessous. */
+/** Height below which the flyout flips above the trigger instead of below. */
 const MIN_SPACE = 180
 
 interface Anchor {
   left: number
   width: number
-  /** Renseigné quand la bulle s'ouvre vers le bas. */
+  /** Set when the flyout opens downward. */
   top?: number
-  /** Renseigné quand elle s'ouvre vers le haut, mesuré depuis le bas de la fenêtre. */
+  /** Set when it opens upward, measured from the bottom of the window. */
   bottom?: number
   maxHeight: number
 }
@@ -63,11 +63,11 @@ function optionText<T extends string>(option: SelectOption<T>): string {
 }
 
 /**
- * Ancrage d'une bulle sur son déclencheur, et conditions de fermeture.
+ * Anchoring of a flyout to its trigger, and closing conditions.
  *
- * Partagé par la liste simple et la liste à choix multiples : ce sont les mêmes coordonnées, les
- * mêmes bascules haut/bas et les mêmes pièges de défilement. Deux copies auraient divergé au
- * premier correctif appliqué à une seule.
+ * Shared by the single-select and multi-select lists: they use the same coordinates, the same
+ * up/down flips, and the same scroll traps. Two copies would have diverged the first time a fix
+ * was applied to only one.
  */
 function useMenuAnchor(
   trigger: RefObject<HTMLButtonElement | null>,
@@ -85,8 +85,8 @@ function useMenuAnchor(
 
     const below = globalThis.innerHeight - rect.bottom - MARGIN
     const above = rect.top - MARGIN
-    // On ouvre vers le bas tant qu'il y reste de quoi lire quelques options ; sinon on bascule du
-    // côté le plus large.
+    // Opens downward as long as there's enough room to read a few options; otherwise it flips to
+    // whichever side is larger.
     const downward = below >= MIN_SPACE || below >= above
 
     const width = Math.max(rect.width, 200)
@@ -102,19 +102,19 @@ function useMenuAnchor(
     })
   }, [trigger])
 
-  // Un défilement ou un redimensionnement rend la position mémorisée fausse : la bulle se
-  // retrouverait détachée de son déclencheur. La capture est nécessaire — le défilement se produit
-  // dans un conteneur interne (tableau, panneau), pas sur la fenêtre.
+  // A scroll or a resize makes the memoized position stale: the flyout would end up detached
+  // from its trigger. Capture is necessary — the scroll happens in an inner container (table,
+  // panel), not on the window.
   useEffect(() => {
     if (!open) return
 
     const onScroll = (event: Event) => {
       const target = event.target
 
-      // Le défilement de la bulle elle-même ne la décroche de rien : elle est posée en `fixed`, ses
-      // coordonnées restent vraies. La fermer ici rendrait toute liste plus haute que son cadre
-      // impossible à parcourir — à la molette comme aux flèches, puisque `scrollIntoView` défile
-      // lui aussi.
+      // The flyout's own scrolling doesn't detach it from anything: it's placed `fixed`, its
+      // coordinates stay true. Closing it here would make any list taller than its frame
+      // impossible to scroll through — with the wheel as with the arrows, since `scrollIntoView`
+      // also scrolls.
       if (target instanceof Node && menu.current?.contains(target)) return
 
       close()
@@ -129,8 +129,8 @@ function useMenuAnchor(
     }
   }, [open, close, menu])
 
-  // Clic extérieur. `pointerdown` et non `click` : la fermeture doit précéder l'activation de ce
-  // qu'on vient de viser, sinon le premier clic hors de la bulle ne fait que la refermer.
+  // Outside click. `pointerdown` rather than `click`: closing must precede the activation of
+  // whatever was just targeted, otherwise the first click outside the flyout would only close it.
   useEffect(() => {
     if (!open) return
 
@@ -150,30 +150,29 @@ function useMenuAnchor(
   return { anchor, open, close, place }
 }
 
-/** Style commun aux deux bulles. */
+/** Style shared by both flyouts. */
 const MENU_CLASSES =
-  // `overscroll-contain` : arrivé en bout de liste, le défilement se propagerait au conteneur en
-  // dessous, qui bougerait sous la bulle et la ferait fermer.
+  // `overscroll-contain`: reaching the end of the list, scrolling would propagate to the
+  // container below, which would move under the flyout and close it.
   'fixed z-50 overflow-y-auto overscroll-contain rounded-[var(--radius-card)] ' +
   'border border-border-subtle bg-surface p-2 shadow-popover'
 
 /**
- * Liste de sélection à bulle.
+ * Flyout select list.
  *
- * Remplace `<select>`, qui est dessiné par le système et non par la page : sa liste déroulée reste
- * blanche sur fond blanc en thème sombre, et aucune règle CSS ne la corrige.
+ * Replaces `<select>`, which is drawn by the system rather than the page: its dropdown stays
+ * white on white in dark theme, and no CSS rule fixes it.
  *
- * La bulle est positionnée en `fixed`, aux coordonnées mesurées du déclencheur, et **non** en
- * `absolute` : plusieurs de ces listes vivent dans des tableaux à `overflow-x-auto` ou dans une
- * barre d'onglets à débordement masqué, qui rogneraient une bulle posée dans leur flux. Elle n'est
- * pas non plus téléportée dans `document.body` — certaines s'ouvrent depuis un `<dialog>`, dont le
- * calque supérieur recouvrirait alors la bulle.
+ * The flyout is positioned `fixed`, at the trigger's measured coordinates, and **not**
+ * `absolute`: several of these lists live inside tables with `overflow-x-auto` or a tab bar with
+ * hidden overflow, which would clip a flyout placed in their flow. It also isn't teleported into
+ * `document.body` — some open from a `<dialog>`, whose top layer would then cover the flyout.
  *
- * Les coordonnées mesurées deviennent fausses dès que la page défile ou change de taille : la bulle
- * se ferme dans ces deux cas, plutôt que de rester accrochée au vide.
+ * The measured coordinates go stale as soon as the page scrolls or resizes: the flyout closes in
+ * both cases, rather than staying anchored to empty space.
  */
 export interface SelectMenuProps<T extends string> {
-  /** Chaîne vide : aucune option retenue, le substitut s'affiche. */
+  /** Empty string: no option selected, the placeholder shows. */
   value: T | ''
   options: SelectOption<T>[]
   onChange: (value: T) => void
@@ -192,7 +191,7 @@ export function SelectMenu<T extends string>({
   value,
   options,
   onChange,
-  placeholder = '— choisir —',
+  placeholder = '— choose —',
   disabled = false,
   size = 'md',
   className,
@@ -233,8 +232,8 @@ export function SelectMenu<T extends string>({
     place()
   }
 
-  // L'option parcourue est amenée dans la vue : sans cela, la navigation aux flèches sort du cadre
-  // visible dès que la liste défile.
+  // The traversed option is scrolled into view: without this, arrow-key navigation exits the
+  // visible frame as soon as the list scrolls.
   useEffect(() => {
     if (!open) return
 
@@ -248,7 +247,7 @@ export function SelectMenu<T extends string>({
 
     let next = active
 
-    // On saute les options désactivées, sans jamais boucler indéfiniment.
+    // Disabled options are skipped, without ever looping indefinitely.
     for (let attempt = 0; attempt < options.length; attempt += 1) {
       next = (next + offset + options.length) % options.length
 
@@ -274,7 +273,7 @@ export function SelectMenu<T extends string>({
     closeAndFocus()
   }
 
-  /** Saisie au vol : les lettres frappées coup sur coup composent un préfixe à rechercher. */
+  /** Typeahead: letters typed in quick succession compose a prefix to search for. */
   const typeahead = (key: string) => {
     const now = Date.now()
 
@@ -291,7 +290,7 @@ export function SelectMenu<T extends string>({
     if (!option) return
 
     setActive(found)
-    // Fermée, la liste change de valeur à la frappe, comme le ferait un `select` natif.
+    // Closed, the list changes value as you type, just as a native `select` would.
     if (!open) onChange(option.value)
   }
 
@@ -340,8 +339,8 @@ export function SelectMenu<T extends string>({
       case 'Escape':
         if (!open) return
         event.preventDefault()
-        // Le focus revient au déclencheur : sans cela il retombe en tête de document, et la
-        // navigation au clavier repart du haut de la page.
+        // Focus returns to the trigger: without this it falls back to the top of the document,
+        // and keyboard navigation restarts from the top of the page.
         closeAndFocus()
         return
 
@@ -357,10 +356,9 @@ export function SelectMenu<T extends string>({
     }
   }
 
-  // Pas d'enveloppe autour des deux : la bulle étant en `fixed`, elle n'a besoin d'aucun ancêtre
-  // positionné, et un conteneur intermédiaire imposerait sa propre largeur au déclencheur — ce qui
-  // empêcherait les appels compacts (« + contrainte », « + champ ») de se dimensionner sur leur
-  // contenu.
+  // No wrapper around the two: since the flyout is `fixed`, it needs no positioned ancestor, and
+  // an intermediate container would impose its own width on the trigger — which would prevent
+  // compact calls ("+ constraint", "+ field") from sizing themselves to their content.
   return (
     <>
       <button
@@ -407,8 +405,8 @@ export function SelectMenu<T extends string>({
           role="listbox"
           id={listId}
           aria-label={ariaLabel}
-          // Le clic sur une option ne doit pas retirer le focus du déclencheur : c'est lui qui porte
-          // `aria-activedescendant`, donc lui qui doit rester l'élément actif.
+          // A click on an option must not remove focus from the trigger: it's the trigger that
+          // carries `aria-activedescendant`, so it's the trigger that must remain the active element.
           onMouseDown={(event) => event.preventDefault()}
           style={{
             left: anchor.left,
@@ -419,7 +417,7 @@ export function SelectMenu<T extends string>({
           className={cn(MENU_CLASSES, menuClassName)}
         >
           {options.length === 0 && (
-            <p className="px-2 py-1.5 text-xs text-ink-faint">Aucune option disponible.</p>
+            <p className="px-2 py-1.5 text-xs text-ink-faint">No option available.</p>
           )}
 
           <ul className="space-y-0.5">
@@ -468,11 +466,11 @@ export function SelectMenu<T extends string>({
 }
 
 export interface MultiSelectMenuProps<T extends string> {
-  /** Ensemble retenu. Vide : aucune restriction — c'est au substitut de le dire. */
+  /** Retained set. Empty: no restriction — that's for the placeholder to say. */
   values: T[]
   options: SelectOption<T>[]
   onChange: (values: T[]) => void
-  /** Affiché quand rien n'est retenu. « Tous », et non « — choisir — ». */
+  /** Shown when nothing is selected. "All", not "— choose —". */
   placeholder?: ReactNode
   disabled?: boolean
   size?: SelectMenuSize
@@ -482,18 +480,18 @@ export interface MultiSelectMenuProps<T extends string> {
 }
 
 /**
- * Liste à choix multiples.
+ * Multi-select list.
  *
- * Deux différences de comportement avec la liste simple, et elles suffisent à en justifier
- * l'existence séparée : la bulle <b>reste ouverte</b> après un choix — on vient y cocher plusieurs
- * lignes, la refermer à chaque clic tripleraient les gestes —, et un ensemble vide ne signifie pas
- * « rien » mais « tout », puisqu'un filtre qui n'exclut rien ne filtre pas.
+ * Two behavioral differences from the single-select list, and they're enough to justify its
+ * separate existence: the flyout <b>stays open</b> after a choice — you come here to check off
+ * several rows, closing it on every click would triple the gestures —, and an empty set doesn't
+ * mean "nothing" but "everything", since a filter that excludes nothing doesn't filter.
  */
 export function MultiSelectMenu<T extends string>({
   values,
   options,
   onChange,
-  placeholder = 'Tous',
+  placeholder = 'All',
   disabled = false,
   size = 'md',
   className,
@@ -604,8 +602,8 @@ export function MultiSelectMenu<T extends string>({
                 <span className="flex shrink-0 items-center">{retained[0].icon}</span>
               )}
               <span className="truncate">{retained[0]?.label}</span>
-              {/* Le compte des autres plutôt que leur énumération : dans un en-tête de colonne,
-                  trois libellés à la suite débordent avant d'être lus. */}
+              {/* The count of the rest rather than listing them: in a column header, three
+                  labels in a row overflow before they're read. */}
               {retained.length > 1 && (
                 <span className="shrink-0 text-ink-muted">+{retained.length - 1}</span>
               )}
@@ -655,8 +653,8 @@ export function MultiSelectMenu<T extends string>({
                       isSelected ? 'font-medium text-brand' : 'text-ink',
                     )}
                   >
-                    {/* Une case et non une coche : dans une liste à choix multiples, un signe qui
-                        n'existe que coché ne dit pas qu'on peut en cocher plusieurs. */}
+                    {/* A checkbox rather than a checkmark: in a multi-select list, a sign that
+                        only exists checked doesn't convey that several can be checked. */}
                     <span
                       aria-hidden="true"
                       className={cn(

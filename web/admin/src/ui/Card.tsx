@@ -1,7 +1,7 @@
 import type { HTMLAttributes, ReactNode } from 'react'
 import { cn } from './utils'
 
-/** Surface élevée. Sans en-tête, elle ne contient que ce que l'appelant y met. */
+/** Elevated surface. Without a header, it contains only what the caller puts in it. */
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
@@ -14,7 +14,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   )
 }
 
-/** En-tête de carte : titre, sous-titre, actions alignées à droite. */
+/** Card header: title, subtitle, actions aligned to the right. */
 export function CardHeader({
   title,
   description,
@@ -27,8 +27,8 @@ export function CardHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
       <div className="min-w-0">
-        {/* Pas de titre vide : un `h2` sans texte ajoute un repère de structure qui ne mène nulle
-            part chez un lecteur d'écran. */}
+        {/* No empty title: an `h2` with no text adds a structural landmark that leads nowhere
+            for a screen reader. */}
         {title && <h2 className="truncate text-sm font-semibold text-ink">{title}</h2>}
         {description && <p className="mt-0.5 text-xs text-ink-muted">{description}</p>}
       </div>
@@ -38,10 +38,10 @@ export function CardHeader({
 }
 
 /**
- * Carte titrée : le duo `Card` + `CardHeader`, avec le rembourrage du corps.
+ * Titled card: the `Card` + `CardHeader` duo, with body padding.
  *
- * La plupart des sections de la console ont un titre et un corps ; les composer à la main à chaque
- * fois laisserait dériver les espacements d'un écran à l'autre.
+ * Most sections of the console have a title and a body; composing them by hand every time would
+ * let the spacing drift from one screen to another.
  */
 export function Panel({
   title,

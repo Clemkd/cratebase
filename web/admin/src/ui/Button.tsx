@@ -24,17 +24,17 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
   size?: ButtonSize
   loading?: boolean
-  /** Icône placée avant le libellé. Remplacée par l'indicateur d'attente pendant le chargement. */
+  /** Icon placed before the label. Replaced by the loading indicator while loading. */
   icon?: ReactNode
-  /** Depuis React 19, `ref` est une prop ordinaire : plus besoin de `forwardRef`. */
+  /** Since React 19, `ref` is an ordinary prop: no more need for `forwardRef`. */
   ref?: Ref<HTMLButtonElement>
 }
 
 /**
- * Bouton.
+ * Button.
  *
- * `type="button"` par défaut, surchargeable : la console place des boutons d'action à l'intérieur
- * de formulaires, et le défaut HTML — « submit » — y déclencherait l'envoi au moindre clic.
+ * `type="button"` by default, overridable: the console places action buttons inside forms, and
+ * the HTML default — "submit" — would trigger submission on the slightest click.
  */
 export function Button({
   variant = 'secondary',

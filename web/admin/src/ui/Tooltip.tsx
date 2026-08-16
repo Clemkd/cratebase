@@ -2,14 +2,14 @@ import { useId, useState, type ReactNode } from 'react'
 import { cn } from './utils'
 
 /**
- * Infobulle au survol et au clavier.
+ * Tooltip on hover and keyboard focus.
  *
- * Elle reste dans le DOM en permanence : `hidden` ou `display: none` la retirerait de l'arbre
- * d'accessibilité, donc `aria-describedby` ne désignerait plus rien pour un lecteur d'écran.
+ * It stays in the DOM permanently: `hidden` or `display: none` would remove it from the
+ * accessibility tree, so `aria-describedby` would no longer point to anything for a screen reader.
  *
- * Au repos elle est repliée à la manière d'un `sr-only` plutôt que rendue transparente : une bulle
- * transparente occupe sa taille réelle, et celles des boutons collés au bord droit — barre du haut,
- * colonne d'actions d'un tableau — élargissaient le document de quelques dizaines de pixels.
+ * At rest it's collapsed the way `sr-only` does, rather than made transparent: a transparent
+ * bubble still occupies its real size, and those of buttons hugging the right edge — top bar,
+ * a table's actions column — widened the document by a few dozen pixels.
  */
 export function Tooltip({
   content,

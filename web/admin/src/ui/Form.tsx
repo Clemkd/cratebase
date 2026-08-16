@@ -19,11 +19,11 @@ interface FieldContextValue {
 const FieldContext = createContext<FieldContextValue | null>(null)
 
 /**
- * Attributs à poser sur le contrôle d'un `Field`.
+ * Attributes to place on a `Field`'s control.
  *
- * Passer par un contexte plutôt que par des props évite d'avoir à recopier `id`,
- * `aria-invalid` et `aria-describedby` sur chaque appel — c'est exactement ce qu'on oublie,
- * et l'oubli ne se voit qu'au lecteur d'écran.
+ * Going through a context rather than props avoids having to copy `id`, `aria-invalid`, and
+ * `aria-describedby` into every call — it's exactly what gets forgotten, and the omission only
+ * shows up with a screen reader.
  */
 function useFieldAttributes<
   P extends {
@@ -77,7 +77,7 @@ export function Field({
         >
           {label}
           {required && (
-            <span className="text-danger" aria-label="obligatoire">
+            <span className="text-danger" aria-label="required">
               *
             </span>
           )}
@@ -116,11 +116,11 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
 }
 
 /**
- * Liste de sélection d'un `Field`.
+ * Select list for a `Field`.
  *
- * Simple relais vers `SelectMenu` : il n'existe que pour brancher `id`, `aria-invalid` et
- * `aria-describedby` fournis par le `Field` englobant, que `SelectMenu` — utilisable hors
- * formulaire — n'a aucun moyen de deviner.
+ * A simple relay to `SelectMenu`: it exists only to wire up `id`, `aria-invalid`, and
+ * `aria-describedby` supplied by the enclosing `Field`, which `SelectMenu` — usable outside a
+ * form — has no way to guess.
  */
 export function Select<T extends string>(props: SelectMenuProps<T>) {
   const attributes = useFieldAttributes({
@@ -168,7 +168,7 @@ export function Checkbox({
   )
 }
 
-/** Choix unique parmi quelques options, rendu en segments. Plus lisible qu'un `select` court. */
+/** Single choice among a few options, rendered as segments. More readable than a short `select`. */
 export function SegmentedControl<T extends string>({
   value,
   options,
@@ -180,14 +180,14 @@ export function SegmentedControl<T extends string>({
   options: {
     value: T
     label: ReactNode
-    /** Infobulle native. N'est plus le nom accessible : voir `srLabel`. */
+    /** Native tooltip. No longer the accessible name: see `srLabel`. */
     title?: string
     /**
-     * Nom accessible du segment.
+     * Accessible name of the segment.
      *
-     * À ne renseigner que pour un segment sans texte visible. En présence d'un libellé lisible,
-     * un `aria-label` le remplacerait pour un lecteur d'écran : la commande vocale « clique sur
-     * Verrouillée » cesserait alors de trouver le bouton qui porte pourtant ce mot.
+     * Only set it for a segment with no visible text. If a readable label is present, an
+     * `aria-label` would replace it for a screen reader: the voice command "click Locked" would
+     * then stop finding the button that carries that very word.
      */
     srLabel?: string
   }[]
@@ -210,7 +210,7 @@ export function SegmentedControl<T extends string>({
           type="button"
           role="radio"
           aria-checked={option.value === value}
-          // Les segments peuvent n'être qu'une icône : l'appelant fournit alors leur nom accessible.
+          // Segments can be just an icon: the caller then supplies their accessible name.
           aria-label={option.srLabel}
           title={option.title}
           onClick={() => onChange(option.value)}

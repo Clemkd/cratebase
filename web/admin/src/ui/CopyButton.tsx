@@ -3,20 +3,20 @@ import { Check, Copy } from 'lucide-react'
 import { Button, type ButtonProps } from './Button'
 import { copyToClipboard } from '../lib/clipboard'
 
-// `value` est écarté de ButtonProps avant d'être redéfini : l'attribut HTML natif du même nom
-// n'accepte qu'une chaîne, là où ce bouton veut aussi une fonction évaluée au clic.
+// `value` is omitted from ButtonProps before being redefined: the native HTML attribute of the
+// same name only accepts a string, whereas this button also wants a function evaluated on click.
 interface CopyButtonProps extends Omit<ButtonProps, 'onClick' | 'children' | 'value' | 'icon'> {
-  /** Texte à copier, ou fonction évaluée au clic pour refléter l'état du moment. */
+  /** Text to copy, or a function evaluated on click to reflect the current state. */
   value: string | (() => string)
-  /** Libellé affiché ; absent, le bouton se réduit à son icône. */
+  /** Displayed label; if absent, the button shrinks to its icon. */
   label?: string
 }
 
 /**
- * Bouton de copie avec confirmation visuelle.
+ * Copy button with visual confirmation.
  *
- * La confirmation est indispensable ici : la copie ne produit aucun effet visible dans la page, et
- * l'utilisateur qui doute reclique ou recopie l'identifiant à la main.
+ * The confirmation is essential here: the copy produces no visible effect on the page, and a
+ * doubtful user would click again or retype the identifier by hand.
  */
 export function CopyButton({
   value,
@@ -39,8 +39,8 @@ export function CopyButton({
     <Button
       variant={variant}
       size={size}
-      aria-label={label ? undefined : 'Copier'}
-      title={label ? undefined : 'Copier'}
+      aria-label={label ? undefined : 'Copy'}
+      title={label ? undefined : 'Copy'}
       onClick={() => {
         void copyToClipboard(typeof value === 'function' ? value() : value).then(setCopied)
       }}
@@ -51,7 +51,7 @@ export function CopyButton({
       ) : (
         <Copy size={14} aria-hidden="true" />
       )}
-      {label && <span>{copied ? 'Copié' : label}</span>}
+      {label && <span>{copied ? 'Copied' : label}</span>}
     </Button>
   )
 }

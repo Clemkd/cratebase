@@ -20,9 +20,9 @@ export function Badge({
   children,
 }: {
   tone?: BadgeTone
-  /** Chasse fixe : identifiants, permissions, noms de colonnes. */
+  /** Monospace: identifiers, permissions, column names. */
   mono?: boolean
-  /** Pastille de couleur, pour un état binaire que la seule teinte ne suffirait pas à porter. */
+  /** Color dot, for a binary state that the tone alone wouldn't be enough to carry. */
   dot?: boolean
   title?: string
   className?: string
@@ -39,10 +39,10 @@ export function Badge({
       )}
     >
       {dot && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />}
-      {/* Les icônes de lucide sont des <svg>, que le préambule de Tailwind passe en
-          `display: block` : posées devant un texte, elles le renvoient à la ligne et le badge
-          occupe deux lignes. Elles sont remises en ligne ici, une fois — le corriger à l'appel
-          laisserait le prochain badge muni d'une icône reproduire le défaut. */}
+      {/* Lucide icons are <svg> elements, which Tailwind's preamble sets to `display: block`:
+          placed in front of text, they push it to a new line and the badge takes up two lines.
+          They're set back inline here, once — fixing it at the call site would leave the next
+          icon-bearing badge reproducing the same defect. */}
       <span className="truncate [&>svg]:me-1 [&>svg]:inline [&>svg]:align-[-0.115em]">
         {children}
       </span>

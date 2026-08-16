@@ -4,14 +4,14 @@ import { Card } from './Card'
 import { cn } from './utils'
 
 /**
- * Section dépliable.
+ * Collapsible section.
  *
- * Sert à poser plusieurs volets d'un même formulaire sur une seule page plutôt que derrière un
- * second niveau d'onglets : l'état de saisie reste unique, et un avertissement affiché dans une
- * section reste visible pendant qu'on travaille dans une autre.
+ * Used to lay out several panels of a single form on one page rather than behind a second level
+ * of tabs: the input state stays unified, and a warning shown in one section remains visible
+ * while working in another.
  *
- * L'ouverture appartient à l'appelant : c'est souvent le contenu qui décide — une section qui porte
- * une alerte doit s'ouvrir d'elle-même.
+ * Openness belongs to the caller: it's often the content that decides — a section carrying an
+ * alert should open itself.
  */
 export function Disclosure({
   title,
@@ -26,7 +26,7 @@ export function Disclosure({
   title: ReactNode
   description?: ReactNode
   badge?: ReactNode
-  /** Actions propres à la section, rendues hors du bouton pour rester atteignables au clavier. */
+  /** Section-specific actions, rendered outside the button to stay reachable by keyboard. */
   actions?: ReactNode
   open: boolean
   onToggle: () => void
@@ -43,15 +43,15 @@ export function Disclosure({
           open && 'border-b border-border-subtle bg-surface-sunken',
         )}
       >
-        {/* Le bouton est enveloppé d'un titre : c'est ce qui fait de la section une étape dans la
-            table des matières d'un lecteur d'écran, et non un bouton perdu dans le flux. */}
+        {/* The button is wrapped in a heading: it's what makes the section a step in a screen
+            reader's table of contents, rather than a button lost in the flow. */}
         <h2 className="min-w-0 flex-1">
           <button
             type="button"
             onClick={onToggle}
             aria-expanded={open}
-            // Sans `aria-controls`, un lecteur d'écran annonce un bouton « développé » sans jamais
-            // dire ce qu'il développe.
+            // Without `aria-controls`, a screen reader announces an "expanded" button without
+            // ever saying what it expands.
             aria-controls={panelId}
             className="flex w-full items-center gap-2.5 px-5 py-4 text-left"
           >
