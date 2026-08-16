@@ -39,7 +39,7 @@ function directionOf(sort: string, name: string): SortDirection {
   return null
 }
 
-/** Cycle croissant → décroissant → tri par défaut, comme dans la plupart des consoles. */
+/** Cycle ascending → descending → default sort, as in most consoles. */
 function nextSort(sort: string, name: string): string {
   if (sort === name) return `-${name}`
   if (sort === `-${name}`) return ''
@@ -48,11 +48,11 @@ function nextSort(sort: string, name: string): string {
 }
 
 /**
- * Navigateur d'enregistrements.
+ * Records browser.
  *
- * Trois blocs distincts, dans l'ordre où on s'en sert : ce qui restreint la liste, la liste, ce qui
- * la parcourt. Les actions qui *créent* ou *rechargent* ne filtrent rien : elles vivent hors du
- * formulaire de filtre, qui ne contient plus que le filtre lui-même et sa validation.
+ * Three distinct blocks, in the order they're used: what restricts the list, the list, what
+ * paginates it. Actions that *create* or *reload* filter nothing: they live outside the filter
+ * form, which now contains nothing but the filter itself and its submission.
  */
 export function RecordsBrowser({
   collection,
@@ -62,17 +62,17 @@ export function RecordsBrowser({
   collection: Collection
   collections: Collection[]
   /**
-   * Enregistrement désigné par l'adresse. Il devient un filtre ordinaire, visible dans la barre et
-   * effaçable comme un autre — plutôt qu'une sélection cachée qui laisserait croire que la
-   * collection ne contient qu'une ligne.
+   * Record designated by the address. It becomes an ordinary filter, visible in the bar and
+   * clearable like any other — rather than a hidden selection that would suggest the collection
+   * contains only one row.
    */
   focus?: string
 }) {
   const toast = useToast()
 
-  // La valeur vient de l'adresse, donc de l'extérieur : elle est échappée avant d'entrer dans une
-  // chaîne du langage de filtre. Un identifiant réel n'a ni apostrophe ni contre-oblique, mais
-  // c'est précisément l'hypothèse qu'un lien forgé cherche à démentir.
+  // The value comes from the address, so from the outside: it's escaped before entering a
+  // string in the filter language. A real identifier has neither an apostrophe nor a backslash,
+  // but that's precisely the assumption a forged link tries to defeat.
   const focusFilter = focus
     ? `id = '${focus.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`
     : ''
@@ -92,15 +92,15 @@ export function RecordsBrowser({
   const query = useMemo(() => ({ page, perPage, filter, sort }), [page, perPage, filter, sort])
   const { result, loading, error, reload } = useRecords(collection.name, query)
 
-  // La console consomme son propre temps réel : une écriture venue d'ailleurs — un autre onglet,
-  // un client, un travailleur de fond — remet la liste à jour sans qu'on ait à recharger. C'est
-  // aussi la seule preuve qui vaille que le flux fonctionne pour les autres.
+  // The console consumes its own realtime stream: a write from elsewhere — another tab, a
+  // client, a background worker — refreshes the list without needing a reload. It's also the
+  // only proof worth having that the stream works for everyone else.
   useRealtime([collection.name], () => void reload())
 
 
-  // Changer de collection remet la barre d'outils à zéro : un filtre écrit pour une autre table
-  // désigne des champs qui n'existent pas ici, donc produirait une erreur 400 déroutante. Un
-  // enregistrement désigné par l'adresse prend la place de ce filtre vide.
+  // Switching collections resets the toolbar: a filter written for another table targets fields
+  // that don't exist here, and would therefore produce a confusing 400 error. A record
+  // designated by the address takes the place of that empty filter.
   useEffect(() => {
     setDraftFilter(focusFilter)
     setFilter(focusFilter)
@@ -136,10 +136,10 @@ export function RecordsBrowser({
     setConfirming(false)
     setSelection([])
 
-    if (failures[0]) toast.error(`Suppression partielle : ${failures[0]}`)
+    if (failures[0]) toast.error(`Partial deletion: ${failures[0]}`)
     else
       toast.success(
-        `${selection.length} ${plural(selection.length, 'enregistrement supprimé', 'enregistrements supprimés')}.`,
+        `${selection.length} ${plural(selection.length, 'record deleted', 'records deleted')}.`,
       )
 
     await reload()
@@ -148,8 +148,8 @@ export function RecordsBrowser({
   return (
     <div className="space-y-4">
       <Card className="flex flex-wrap items-center gap-2 px-4 py-3">
-        {/* Le formulaire ne contient que le filtre : y laisser « Nouvel enregistrement » plaçait
-            une action de création dans un envoi de recherche, deux gestes sans rapport. */}
+        {/* The form contains only the filter: leaving "New record" in it would place a create
+            action inside a search submission, two unrelated gestures. */}
         <form onSubmit={apply} className="flex min-w-64 flex-1 items-center gap-2">
           <div className="relative min-w-48 flex-1">
             <Search
@@ -160,15 +160,15 @@ export function RecordsBrowser({
             <Input
               value={draftFilter}
               spellCheck={false}
-              aria-label="Expression de filtre"
-              placeholder="Filtre — ex. : online = true && views > 10"
+              aria-label="Filter expression"
+              placeholder="Filter — e.g. online = true && views > 10"
               className="h-9 pr-9 pl-9 font-mono text-xs"
               onChange={(event) => setDraftFilter(event.target.value)}
             />
             {draftFilter !== '' && (
               <button
                 type="button"
-                aria-label="Effacer le filtre"
+                aria-label="Clear filter"
                 onClick={() => {
                   setDraftFilter('')
                   setFilter('')
@@ -188,15 +188,15 @@ export function RecordsBrowser({
             icon={<Filter size={14} aria-hidden="true" />}
             disabled={draftFilter === filter}
           >
-            Appliquer
+            Apply
           </Button>
 
-          <Tooltip content="Aide sur la syntaxe des filtres">
+          <Tooltip content="Help on filter syntax">
             <Button
               variant="ghost"
               size="icon"
               className="size-8"
-              aria-label="Aide sur la syntaxe des filtres"
+              aria-label="Help on filter syntax"
               onClick={() => setHelpOpen(true)}
             >
               <CircleHelp size={16} aria-hidden="true" />
@@ -205,12 +205,12 @@ export function RecordsBrowser({
         </form>
 
         <div className="ml-auto flex items-center gap-2">
-          <Tooltip content="Recharger">
+          <Tooltip content="Reload">
             <Button
               variant="ghost"
               size="icon"
               className="size-8"
-              aria-label="Recharger la liste"
+              aria-label="Reload list"
               onClick={() => void reload()}
             >
               <RotateCw size={16} aria-hidden="true" />
@@ -223,7 +223,7 @@ export function RecordsBrowser({
             icon={<Plus size={15} aria-hidden="true" />}
             onClick={() => setEditing({ record: null })}
           >
-            Nouvel enregistrement
+            New record
           </Button>
         </div>
       </Card>
@@ -232,11 +232,11 @@ export function RecordsBrowser({
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-brand/30 bg-brand-subtle px-4 py-3">
           <p className="text-sm text-ink">
             {selection.length}{' '}
-            {plural(selection.length, 'ligne sélectionnée', 'lignes sélectionnées')}
+            {plural(selection.length, 'row selected', 'rows selected')}
           </p>
           <div className="flex gap-2">
             <Button size="sm" onClick={() => setSelection([])}>
-              Désélectionner
+              Deselect
             </Button>
             <Button
               size="sm"
@@ -244,7 +244,7 @@ export function RecordsBrowser({
               icon={<Trash2 size={14} aria-hidden="true" />}
               onClick={() => setConfirming(true)}
             >
-              Supprimer
+              Delete
             </Button>
           </div>
         </div>
@@ -257,11 +257,11 @@ export function RecordsBrowser({
       {!loading && !error && items.length === 0 && (
         <EmptyState
           icon={<Database size={28} aria-hidden="true" />}
-          title="Aucun enregistrement"
+          title="No records"
           description={
             filter
-              ? 'Aucune ligne ne satisfait ce filtre. Vérifiez la syntaxe et les noms de champs.'
-              : 'Cette collection est vide.'
+              ? 'No row satisfies this filter. Check the syntax and field names.'
+              : 'This collection is empty.'
           }
           action={
             <Button
@@ -269,24 +269,24 @@ export function RecordsBrowser({
               icon={<Plus size={15} aria-hidden="true" />}
               onClick={() => setEditing({ record: null })}
             >
-              Créer le premier enregistrement
+              Create the first record
             </Button>
           }
         />
       )}
 
       {items.length > 0 && (
-        // Table et pagination dans une même carte : la pagination appartient au tableau, la poser
-        // dessous en ligne flottante en faisait un élément de page sans attache.
+        // Table and pagination in the same card: pagination belongs to the table, placing it
+        // below as a floating row would make it a page element with no anchor.
         <Card className="overflow-hidden">
-          <Table bare caption={`Enregistrements de la collection ${collection.name}`}>
+          <Table bare caption={`Records in the ${collection.name} collection`}>
             <THead>
               <tr>
                 <Th className="w-10">
                   <input
                     type="checkbox"
                     checked={allSelected}
-                    aria-label="Tout sélectionner sur cette page"
+                    aria-label="Select all on this page"
                     className="size-4 cursor-pointer rounded border-border-strong accent-brand"
                     onChange={(event) => setSelection(event.target.checked ? ids : [])}
                   />
@@ -321,7 +321,7 @@ export function RecordsBrowser({
                       <input
                         type="checkbox"
                         checked={selected}
-                        aria-label={`Sélectionner ${id}`}
+                        aria-label={`Select ${id}`}
                         className="size-4 cursor-pointer rounded border-border-strong accent-brand"
                         onChange={(event) =>
                           setSelection((current) =>
@@ -350,7 +350,7 @@ export function RecordsBrowser({
                         variant="ghost"
                         size="icon"
                         className="size-8 hover:text-danger"
-                        aria-label={`Supprimer ${id}`}
+                        aria-label={`Delete ${id}`}
                         onClick={() => {
                           setSelection([id])
                           setConfirming(true)
@@ -370,7 +370,7 @@ export function RecordsBrowser({
               <div className="flex items-center gap-2">
                 <span className="tabular-nums">
                   {formatCount(result.totalItems)}{' '}
-                  {plural(result.totalItems, 'enregistrement', 'enregistrements')}
+                  {plural(result.totalItems, 'record', 'records')}
                 </span>
                 <Badge>
                   page {result.page} / {Math.max(result.totalPages, 1)}
@@ -379,13 +379,13 @@ export function RecordsBrowser({
 
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
-                  {/* Un `label` enveloppant ne nommerait rien : le déclencheur est un bouton, que
-                      seul `aria-label` sait désigner. */}
-                  <span aria-hidden="true">Par page</span>
+                  {/* A wrapping `label` would name nothing: the trigger is a button, which only
+                      `aria-label` can designate. */}
+                  <span aria-hidden="true">Per page</span>
                   <SelectMenu<string>
                     value={String(perPage)}
                     size="sm"
-                    aria-label="Enregistrements par page"
+                    aria-label="Records per page"
                     className="w-auto"
                     options={PER_PAGE_CHOICES.map((choice) => ({
                       value: String(choice),
@@ -403,14 +403,14 @@ export function RecordsBrowser({
                   disabled={result.page <= 1}
                   onClick={() => setPage(result.page - 1)}
                 >
-                  Précédent
+                  Previous
                 </Button>
                 <Button
                   size="sm"
                   disabled={result.page >= result.totalPages}
                   onClick={() => setPage(result.page + 1)}
                 >
-                  Suivant
+                  Next
                 </Button>
               </div>
             </div>
@@ -446,9 +446,9 @@ export function RecordsBrowser({
       <ConfirmDialog
         open={confirming}
         busy={deleting}
-        title={`Supprimer ${selection.length} ${plural(selection.length, 'enregistrement', 'enregistrements')} ?`}
-        message="La suppression est définitive. Les relations en cascade emporteront les lignes qui dépendent de celles-ci."
-        confirmLabel="Supprimer définitivement"
+        title={`Delete ${selection.length} ${plural(selection.length, 'record', 'records')}?`}
+        message="The deletion is permanent. Cascading relations will take with them the rows that depend on these."
+        confirmLabel="Delete permanently"
         confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         onConfirm={() => void removeSelected()}
         onClose={() => setConfirming(false)}
