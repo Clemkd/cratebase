@@ -7,21 +7,21 @@ using Microsoft.AspNetCore.Http;
 
 namespace Cratebase.Server;
 
-/// <summary>Fichiers importés au cours d'une écriture, pour pouvoir les défaire.</summary>
+/// <summary>Files imported during a write, so they can be undone.</summary>
 public sealed class UploadedFiles
 {
     private readonly List<string> _keys = [];
 
-    /// <summary>Enregistre une clé écrite.</summary>
+    /// <summary>Records a written key.</summary>
     public void Track(string key) => _keys.Add(key);
 
     /// <summary>
-    /// Supprime les objets écrits.
+    /// Deletes the written objects.
     /// </summary>
     /// <remarks>
-    /// Appelé quand l'écriture en base échoue après l'import. Sans ce rattrapage, une règle de
-    /// création qui refuse laisserait les octets sur le disque sans aucune ligne pour les
-    /// désigner : on les facture, on les sauvegarde, et plus rien ne sait qu'ils existent.
+    /// Called when the database write fails after the import. Without this rollback, a create rule
+    /// that refuses would leave the bytes on disk with no row to name them: they're billed for,
+    /// backed up, and nothing knows they exist anymore.
     /// </remarks>
     public async Task RollbackAsync(IObjectStore store, CancellationToken cancellationToken)
     {
@@ -35,8 +35,8 @@ public sealed class UploadedFiles
             }
             catch (IOException)
             {
-                // Un échec de nettoyage ne doit pas masquer l'erreur d'origine, qui est la vraie
-                // information à remonter à l'appelant.
+                // A cleanup failure must not mask the original error, which is the real information
+                // to surface to the caller.
             }
         }
 
@@ -45,11 +45,11 @@ public sealed class UploadedFiles
 }
 
 /// <summary>
-/// Lecture d'un corps de requête, en JSON ou en multipart.
+/// Reading a request body, in JSON or multipart.
 /// </summary>
 public static class FileUploads
 {
-    /// <summary>Le corps est-il un formulaire multipart ?</summary>
+    /// <summary>Is the body a multipart form?</summary>
     public static bool IsMultipart(HttpRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -59,7 +59,7 @@ public static class FileUploads
     }
 
     /// <summary>
-    /// Lit un corps multipart : champs ordinaires, puis fichiers importés dans le magasin.
+    /// Reads a multipart body: ordinary fields, then files imported into the store.
     /// </summary>
     public static async Task<(RecordData Data, UploadedFiles Files)> ReadMultipartAsync(
         HttpRequest request,
@@ -79,7 +79,7 @@ public static class FileUploads
 
         foreach (var entry in form)
         {
-            // Les champs de fichier arrivent par form.Files ; ici on ne traite que le reste.
+            // File fields arrive through form.Files; here we only handle the rest.
             var name = entry.Key;
             var field = collection.Field(TrimModifier(name));
 
@@ -135,7 +135,7 @@ public static class FileUploads
             if (kept.Count > field.MaxSelect)
             {
                 throw CratebaseValidationException.ForField(
-                    field.Name, $"Ce champ n'admet pas plus de {field.MaxSelect} fichiers.");
+                    field.Name, $"This field does not allow more than {field.MaxSelect} files.");
             }
 
             data[field.Name] = field.Multiple ? kept : kept.FirstOrDefault() ?? string.Empty;
@@ -151,7 +151,7 @@ public static class FileUploads
         if (file.Length > limit)
         {
             throw CratebaseValidationException.ForField(
-                field.Name, $"Le fichier dépasse la taille autorisée ({limit} octets).");
+                field.Name, $"The file exceeds the allowed size ({limit} bytes).");
         }
 
         if (field.Options.MimeTypes.Count == 0)
@@ -159,8 +159,9 @@ public static class FileUploads
             return;
         }
 
-        // On se fie au type déclaré ET à l'extension : le premier est fourni par le client, donc
-        // falsifiable, mais le refuser seul sur l'extension bloquerait des envois légitimes.
+        // We trust both the declared type AND the extension: the former comes from the client, so
+        // it's forgeable, but rejecting based on the extension alone would block legitimate
+        // uploads.
         var declared = file.ContentType ?? string.Empty;
         var guessed = ObjectKey.ContentTypeOf(file.FileName);
 
@@ -168,7 +169,7 @@ public static class FileUploads
             && !field.Options.MimeTypes.Contains(guessed, StringComparer.OrdinalIgnoreCase))
         {
             throw CratebaseValidationException.ForField(
-                field.Name, $"Type de fichier non autorisé : « {declared} ».");
+                field.Name, $"File type not allowed: \"{declared}\".");
         }
     }
 
@@ -193,7 +194,7 @@ public static class FileUploads
         _ => raw,
     };
 
-    /// <summary>Lit un corps JSON.</summary>
+    /// <summary>Reads a JSON body.</summary>
     public static RecordData ReadJson(JsonElement body)
     {
         var data = new RecordData();

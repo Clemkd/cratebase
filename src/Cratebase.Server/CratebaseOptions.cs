@@ -8,51 +8,51 @@ using Cratebase.Storage.S3;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Configuration de Cratebase.
+/// Cratebase configuration.
 /// </summary>
 /// <remarks>
-/// Le choix du moteur se fait ici, et <b>nulle part ailleurs</b>. Passer de SQLite à PostgreSQL est
-/// un changement de deux lignes dans cette configuration : c'est l'engagement du §1 du document de
-/// conception, et il ne tient que parce qu'aucune autre partie du code ne nomme un moteur.
+/// The engine choice is made here, and <b>nowhere else</b>. Switching from SQLite to PostgreSQL is
+/// a two-line change in this configuration: that's the commitment made in §1 of the design
+/// document, and it only holds because no other part of the code names an engine.
 /// </remarks>
 public sealed class CratebaseOptions
 {
-    /// <summary>Chaîne de connexion du moteur retenu.</summary>
+    /// <summary>Connection string of the chosen engine.</summary>
     public string ConnectionString { get; private set; } =
         "Data Source=./data/cratebase.db";
 
-    /// <summary>Dialecte retenu.</summary>
+    /// <summary>Chosen dialect.</summary>
     public ISqlDialect Dialect { get; private set; } = SqliteDialect.Instance;
 
-    /// <summary>Générateur de DDL retenu.</summary>
+    /// <summary>Chosen DDL generator.</summary>
     public ISchemaDdl Ddl { get; private set; } = SqliteDialect.Instance;
 
-    /// <summary>Racine des données : base, fichiers, sauvegardes.</summary>
+    /// <summary>Data root: database, files, backups.</summary>
     public string DataDirectory { get; set; } = "./data";
 
-    /// <summary>Préfixe des endpoints de l'API.</summary>
+    /// <summary>Prefix of the API endpoints.</summary>
     public string ApiPrefix { get; set; } = "/api";
 
     /// <summary>
-    /// Le lot transactionnel <c>POST /api/batch</c> est-il ouvert ?
+    /// Is the transactional batch endpoint <c>POST /api/batch</c> open?
     /// </summary>
     /// <remarks>
-    /// Fermé par défaut, comme chez PocketBase : un lot permet d'amplifier une requête en centaines
-    /// d'écritures, donc il ne s'ouvre que si l'application en a l'usage.
+    /// Closed by default, like PocketBase: a batch lets a single request amplify into hundreds of
+    /// writes, so it only opens if the application has a use for it.
     /// </remarks>
     public bool EnableBatch { get; set; }
 
     /// <summary>
-    /// Les requêtes de l'API sont-elles journalisées ?
+    /// Are API requests logged?
     /// </summary>
     /// <remarks>
-    /// Ouvert par défaut : un backend sans journal ne se diagnostique pas. Ce drapeau est un
-    /// interrupteur d'hôte — il retire le middleware et le service d'entretien du pipeline —, à ne
-    /// pas confondre avec le réglage <c>logs.enabled</c>, que la console modifie à chaud.
+    /// Open by default: a backend with no log can't be diagnosed. This flag is a host switch — it
+    /// removes the middleware and the maintenance service from the pipeline — not to be confused
+    /// with the <c>logs.enabled</c> setting, which the console changes live.
     /// </remarks>
     public bool EnableRequestLog { get; set; } = true;
 
-    /// <summary>Utilise SQLite. Défaut.</summary>
+    /// <summary>Uses SQLite. Default.</summary>
     public CratebaseOptions UseSqlite(string connectionString)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
@@ -64,7 +64,7 @@ public sealed class CratebaseOptions
         return this;
     }
 
-    /// <summary>Utilise PostgreSQL.</summary>
+    /// <summary>Uses PostgreSQL.</summary>
     public CratebaseOptions UsePostgres(string connectionString)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
@@ -76,27 +76,27 @@ public sealed class CratebaseOptions
         return this;
     }
 
-    /// <summary>Fabrique du magasin d'objets retenu.</summary>
+    /// <summary>Chosen object store factory.</summary>
     public Func<IObjectStore> ObjectStoreFactory { get; private set; } = () =>
         new LocalObjectStore("./data/storage");
 
     /// <summary>
-    /// Fournisseurs d'identité externes activés, indexés par nom technique.
+    /// External identity providers enabled, indexed by technical name.
     /// </summary>
     /// <remarks>
-    /// Configurés au démarrage plutôt que stockés en base : un secret client n'a rien à faire dans
-    /// une table que la console peut lire, ni dans une sauvegarde.
+    /// Configured at startup rather than stored in the database: a client secret has no business
+    /// being in a table the console can read, nor in a backup.
     /// </remarks>
     public Dictionary<string, OAuth2Provider> OAuth2Providers { get; } =
         new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Active un fournisseur externe à partir de son préréglage.</summary>
+    /// <summary>Enables an external provider from its preset.</summary>
     public CratebaseOptions AddOAuth2(string name, string clientId, string clientSecret)
     {
         if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
         {
-            // Silencieux plutôt que fatal : une configuration partielle est le cas normal en
-            // développement, où les identifiants ne sont pas renseignés.
+            // Silent rather than fatal: a partial configuration is the normal case in development,
+            // where credentials aren't set.
             return this;
         }
 
@@ -106,28 +106,28 @@ public sealed class CratebaseOptions
     }
 
     /// <summary>
-    /// Ce que la console peut dire du magasin de fichiers, sans jamais pouvoir en dire trop.
+    /// What the console can say about the file store, without ever being able to say too much.
     /// </summary>
     /// <remarks>
-    /// Un descriptif figé au démarrage, distinct de la fabrique : l'écran d'exploitation doit
-    /// pouvoir nommer le seau et son point de terminaison — c'est ce qu'on vérifie quand les
-    /// fichiers ne s'affichent plus — sans qu'aucun chemin ne mène à la clé secrète. Elle n'est donc
-    /// pas recopiée ici : seule sa <b>présence</b> l'est.
+    /// A description frozen at startup, distinct from the factory: the operations screen must be
+    /// able to name the bucket and its endpoint — that's what one checks when files stop showing
+    /// up — with no path leading to the secret key. It is therefore not copied here: only its
+    /// <b>presence</b> is.
     /// </remarks>
     public StorageDescription StorageDescription { get; private set; } =
         new() { Kind = "local", Directory = "./data/storage" };
 
     /// <summary>
-    /// Capacité déclarée du volume de la base, en octets. Zéro : inconnue.
+    /// Declared capacity of the database volume, in bytes. Zero: unknown.
     /// </summary>
     /// <remarks>
-    /// Sans objet sur SQLite, dont le fichier occupe le disque de l'hôte — celui-ci se mesure. Sur
-    /// PostgreSQL en revanche, aucune requête portable ne rend l'espace restant, et une instance
-    /// gérée n'en expose souvent aucun : la capacité vient donc de l'exploitant ou de nulle part.
+    /// Meaningless on SQLite, whose file occupies the host's disk — which can be measured. On
+    /// PostgreSQL, however, no portable query returns remaining space, and a managed instance often
+    /// exposes none: capacity therefore comes from the operator, or from nowhere.
     /// </remarks>
     public long DatabaseCapacityBytes { get; set; }
 
-    /// <summary>Stocke les fichiers sur le disque local. Défaut.</summary>
+    /// <summary>Stores files on local disk. Default.</summary>
     public CratebaseOptions UseLocalFiles(string directory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
@@ -138,7 +138,7 @@ public sealed class CratebaseOptions
         return this;
     }
 
-    /// <summary>Stocke les fichiers sur un service compatible S3 : MinIO, Garage, R2, B2, AWS.</summary>
+    /// <summary>Stores files on an S3-compatible service: MinIO, Garage, R2, B2, AWS.</summary>
     public CratebaseOptions UseS3(S3StorageOptions storage)
     {
         ArgumentNullException.ThrowIfNull(storage);
@@ -161,12 +161,12 @@ public sealed class CratebaseOptions
     }
 
     /// <summary>
-    /// Réduit une clé d'accès à ses quatre derniers caractères.
+    /// Reduces an access key to its last four characters.
     /// </summary>
     /// <remarks>
-    /// Assez pour reconnaître laquelle des trois clés d'un trousseau est en service, trop peu pour
-    /// s'en servir. Une clé d'accès n'est pas un secret, mais l'afficher entière la ferait entrer
-    /// dans les captures d'écran et dans le journal des requêtes.
+    /// Enough to recognize which of a keyring's three keys is in service, too little to use it. An
+    /// access key isn't a secret, but showing it in full would let it end up in screenshots and in
+    /// the request log.
     /// </remarks>
     private static string Hint(string? accessKey) =>
         string.IsNullOrWhiteSpace(accessKey)
@@ -174,36 +174,36 @@ public sealed class CratebaseOptions
             : accessKey.Length <= 4 ? new string('•', accessKey.Length) : $"••••{accessKey[^4..]}";
 }
 
-/// <summary>Description du magasin de fichiers, telle que la console la reçoit.</summary>
+/// <summary>Description of the file store, as the console receives it.</summary>
 public sealed record StorageDescription
 {
-    /// <summary><c>local</c> ou <c>s3</c>.</summary>
+    /// <summary><c>local</c> or <c>s3</c>.</summary>
     public required string Kind { get; init; }
 
-    /// <summary>Répertoire racine, pour le disque local.</summary>
+    /// <summary>Root directory, for local disk.</summary>
     public string Directory { get; init; } = string.Empty;
 
-    /// <summary>Capacité déclarée du magasin, en octets. Zéro : inconnue.</summary>
+    /// <summary>Declared store capacity, in bytes. Zero: unknown.</summary>
     public long CapacityBytes { get; init; }
 
-    /// <summary>Nom du seau, pour S3.</summary>
+    /// <summary>Bucket name, for S3.</summary>
     public string Bucket { get; init; } = string.Empty;
 
-    /// <summary>Point de terminaison vu par l'API.</summary>
+    /// <summary>Endpoint as seen by the API.</summary>
     public string Endpoint { get; init; } = string.Empty;
 
-    /// <summary>Point de terminaison vu par le navigateur, s'il diffère.</summary>
+    /// <summary>Endpoint as seen by the browser, if different.</summary>
     public string PublicEndpoint { get; init; } = string.Empty;
 
-    /// <summary>Région déclarée.</summary>
+    /// <summary>Declared region.</summary>
     public string Region { get; init; } = string.Empty;
 
-    /// <summary>Style de chemin plutôt que de sous-domaine.</summary>
+    /// <summary>Path style rather than subdomain style.</summary>
     public bool ForcePathStyle { get; init; }
 
-    /// <summary>Quatre derniers caractères de la clé d'accès.</summary>
+    /// <summary>Last four characters of the access key.</summary>
     public string AccessKeyHint { get; init; } = string.Empty;
 
-    /// <summary>La clé secrète est-elle renseignée ? Sa valeur ne sort jamais du processus.</summary>
+    /// <summary>Is the secret key set? Its value never leaves the process.</summary>
     public bool HasSecretKey { get; init; }
 }

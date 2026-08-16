@@ -6,30 +6,30 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Cratebase.Server;
 
-/// <summary>Corps d'une demande d'authentification.</summary>
-/// <param name="Identity">Adresse de courriel.</param>
-/// <param name="Password">Mot de passe.</param>
+/// <summary>Body of an authentication request.</summary>
+/// <param name="Identity">Email address.</param>
+/// <param name="Password">Password.</param>
 public sealed record AuthWithPasswordRequest(string Identity, string Password);
 
-/// <summary>Corps d'une attribution de droits.</summary>
-/// <param name="Roles">Rôles à poser.</param>
-/// <param name="Permissions">Dérogations individuelles à poser.</param>
+/// <summary>Body of a rights grant.</summary>
+/// <param name="Roles">Roles to set.</param>
+/// <param name="Permissions">Individual overrides to set.</param>
 public sealed record GrantRequest(IReadOnlyList<string> Roles, IReadOnlyList<string> Permissions);
 
-/// <summary>Corps d'un second facteur.</summary>
-/// <param name="MfaId">Identifiant du défi rendu par le premier facteur.</param>
-/// <param name="Code">Code à usage unique.</param>
+/// <summary>Body of a second factor.</summary>
+/// <param name="MfaId">Identifier of the challenge returned by the first factor.</param>
+/// <param name="Code">One-time code.</param>
 public sealed record AuthWithOtpRequest(string MfaId, string Code);
 
-/// <summary>Corps d'un code de double authentification.</summary>
-/// <param name="Code">Code à usage unique.</param>
+/// <summary>Body of a two-factor code.</summary>
+/// <param name="Code">One-time code.</param>
 public sealed record MfaCodeRequest(string Code);
 
-/// <summary>Corps d'une connexion par fournisseur externe.</summary>
-/// <param name="Provider">Nom technique du fournisseur.</param>
-/// <param name="Code">Code d'autorisation reçu du fournisseur.</param>
-/// <param name="CodeVerifier">Vérificateur PKCE, si le flot en utilise un.</param>
-/// <param name="RedirectUrl">URL de redirection, qui doit correspondre à celle de l'autorisation.</param>
+/// <summary>Body of a sign-in through an external provider.</summary>
+/// <param name="Provider">Technical name of the provider.</param>
+/// <param name="Code">Authorization code received from the provider.</param>
+/// <param name="CodeVerifier">PKCE verifier, if the flow uses one.</param>
+/// <param name="RedirectUrl">Redirect URL, which must match the one used for authorization.</param>
 public sealed record AuthWithOAuth2Request(
     string Provider,
     string Code,
@@ -37,11 +37,11 @@ public sealed record AuthWithOAuth2Request(
     string RedirectUrl);
 
 /// <summary>
-/// Endpoints d'authentification.
+/// Authentication endpoints.
 /// </summary>
 public static class AuthEndpoints
 {
-    /// <summary>Publie les routes d'authentification.</summary>
+    /// <summary>Publishes the authentication routes.</summary>
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -60,9 +60,8 @@ public static class AuthEndpoints
                 .AuthenticateAsync(collection, request.Identity, request.Password, cancellationToken)
                 .ConfigureAwait(false);
 
-            // Second facteur exigé : 401 et un identifiant de défi, sémantique de PocketBase. Le
-            // 401 est important — un 200 laisserait croire à un client naïf que la session est
-            // ouverte.
+            // Second factor required: 401 and a challenge identifier, PocketBase's own semantics.
+            // The 401 matters — a 200 would let a naive client believe the session is open.
             return result.MfaId is { } challenge
                 ? Results.Json(new { mfaId = challenge }, statusCode: 401)
                 : Results.Ok(new { token = result.Token, record = result.Record });
@@ -94,8 +93,8 @@ public static class AuthEndpoints
                 password = true,
                 oauth2 = options.OAuth2Providers.Values
                     .Where(provider => provider.Enabled)
-                    // ⚠️ Ni le secret client, ni rien qui en dérive. Cet endpoint est public par
-                    // nature : l'écran de connexion doit savoir quels boutons afficher.
+                    // ⚠️ No client secret, and nothing derived from one. This endpoint is public by
+                    // nature: the sign-in screen needs to know which buttons to show.
                     .Select(provider => new
                     {
                         name = provider.Name,
@@ -119,7 +118,7 @@ public static class AuthEndpoints
             if (!options.OAuth2Providers.TryGetValue(request.Provider, out var provider))
             {
                 throw new CratebaseBadRequestException(
-                    $"Le fournisseur « {request.Provider} » n'est pas configuré.");
+                    $"Provider \"{request.Provider}\" is not configured.");
             }
 
             var result = await oauth2
@@ -184,8 +183,8 @@ public static class AuthEndpoints
                 throw new CratebaseUnauthenticatedException();
             }
 
-            // Un code valide est exigé pour désactiver : sans cela, un jeton volé suffirait à
-            // retirer le second facteur, ce qui annule tout l'intérêt du dispositif.
+            // A valid code is required to disable: without it, a stolen token would be enough to
+            // remove the second factor, which defeats the whole point of the mechanism.
             await mfa.ConfirmAsync(collection, id, request.Code, cancellationToken).ConfigureAwait(false);
             await mfa.DisableAsync(collection, id, cancellationToken).ConfigureAwait(false);
 
@@ -208,8 +207,8 @@ public static class AuthEndpoints
             var record = await auth.LoadAsync(collection, id, cancellationToken).ConfigureAwait(false)
                 ?? throw new CratebaseUnauthenticatedException();
 
-            // Rotation : l'ancien jeton est révoqué, un nouveau est émis. Un jeton renouvelable à
-            // l'infini sans rotation ne se distingue pas d'un jeton permanent.
+            // Rotation: the old token is revoked, a new one is issued. A token renewable forever
+            // with no rotation is indistinguishable from a permanent token.
             var previous = BearerToken(http);
 
             if (previous is not null)
@@ -229,8 +228,8 @@ public static class AuthEndpoints
             AuthTokenStore tokens,
             CancellationToken cancellationToken) =>
         {
-            // Déconnexion réelle : le jeton disparaît de la base. C'est ce que les jetons opaques
-            // achètent, et qu'un JWT auto-signé ne peut pas offrir.
+            // Actual sign-out: the token disappears from the database. That's what opaque tokens
+            // buy, and a self-signed JWT can't offer.
             if (BearerToken(http) is { } token)
             {
                 await tokens.RevokeAsync(token, cancellationToken).ConfigureAwait(false);
@@ -239,9 +238,9 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
-        // Attribution des droits : réservée au super-admin, et hors de l'API des
-        // enregistrements. Passer par un PATCH ordinaire permettrait à un compte de s'accorder ses
-        // propres permissions dès que la règle de modification est un peu large.
+        // Rights assignment: reserved for the superuser, and outside the records API. Going
+        // through an ordinary PATCH would let an account grant itself its own permissions as soon
+        // as the update rule is even slightly permissive.
         group.MapPost("/records/{id}/grants", async (
             string collection,
             string id,
@@ -282,8 +281,8 @@ public static class AuthEndpoints
             return null;
         }
 
-        // PocketBase accepte le jeton nu ; on accepte les deux formes pour rester compatible avec
-        // les clients écrits contre lui.
+        // PocketBase accepts the bare token; we accept both forms to stay compatible with clients
+        // written against it.
         return header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
             ? header[7..].Trim()
             : header.Trim();

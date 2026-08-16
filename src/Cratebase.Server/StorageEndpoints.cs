@@ -17,72 +17,72 @@ using Microsoft.AspNetCore.Routing;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Un objet du magasin, replacé dans le modèle de collections.
+/// A store object, placed back into the collections model.
 /// </summary>
 /// <remarks>
-/// Le magasin ne connaît que des clés ; c'est la disposition <c>{collection}/{enregistrement}/…</c>
-/// qui leur rend un sens. Le faire ici et non dans <c>Cratebase.Storage</c> est délibéré : le
-/// magasin doit rester ignorant du modèle, sans quoi la promesse « le reste du moteur ne connaît que
-/// des clés » se retournerait.
+/// The store only knows keys; it's the <c>{collection}/{record}/…</c> layout that gives them
+/// meaning. Doing this here rather than in <c>Cratebase.Storage</c> is deliberate: the store must
+/// stay ignorant of the model, otherwise the promise "the rest of the engine only knows keys" would
+/// turn against itself.
 /// </remarks>
 public sealed record StoredObject
 {
-    /// <summary>Clé complète.</summary>
+    /// <summary>Full key.</summary>
     public required string Key { get; init; }
 
-    /// <summary>Collection déduite de la clé, ou chaîne vide si la clé sort du modèle.</summary>
+    /// <summary>Collection inferred from the key, or an empty string if the key falls outside the model.</summary>
     public string Collection { get; init; } = string.Empty;
 
-    /// <summary>Enregistrement déduit de la clé.</summary>
+    /// <summary>Record inferred from the key.</summary>
     public string RecordId { get; init; } = string.Empty;
 
-    /// <summary>Nom du fichier, ou du fichier source pour une vignette.</summary>
+    /// <summary>File name, or the source file's name for a thumbnail.</summary>
     public string FileName { get; init; } = string.Empty;
 
-    /// <summary>Taille en octets.</summary>
+    /// <summary>Size in bytes.</summary>
     public long Size { get; init; }
 
-    /// <summary>Type MIME déduit de l'extension.</summary>
+    /// <summary>MIME type inferred from the extension.</summary>
     public string ContentType { get; init; } = string.Empty;
 
-    /// <summary>Vignette dérivée d'une image, donc régénérable.</summary>
+    /// <summary>Thumbnail derived from an image, hence regenerable.</summary>
     public bool IsThumb { get; init; }
 
-    /// <summary>Aucun enregistrement ne référence ce fichier.</summary>
+    /// <summary>No record references this file.</summary>
     public bool Orphan { get; init; }
 }
 
 /// <summary>
-/// Exploitation du magasin de fichiers.
+/// Operating the file store.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ces routes décrivent et inventorient ; elles ne configurent rien. Le magasin — disque local ou
-/// S3, seau, point de terminaison, identifiants — est décidé par la configuration de l'hôte, et le
-/// reste : une console qui écrirait une clé secrète en base la ferait entrer dans toutes les
-/// sauvegardes de cette base. La console peut donc <b>lire</b> la configuration en vigueur et
-/// l'<b>éprouver</b>, ce qui est ce dont on a besoin quand les fichiers cessent de s'afficher.
+/// These routes describe and inventory; they configure nothing. The store — local disk or S3,
+/// bucket, endpoint, credentials — is decided by host configuration, and stays there: a console
+/// that wrote a secret key to the database would let it into every backup of that database. The
+/// console can therefore <b>read</b> the configuration in effect and <b>test</b> it, which is what's
+/// needed when files stop showing up.
 /// </para>
 /// <para>
-/// Réservé au super-admin : l'inventaire nomme les fichiers de tous les enregistrements, y
-/// compris ceux que les règles d'accès protégeraient un par un.
+/// Reserved for the superuser: the inventory names the files of every record, including ones access
+/// rules would protect individually.
 /// </para>
 /// </remarks>
 public static class StorageEndpoints
 {
-    /// <summary>Préfixe des objets de diagnostic, exclus de l'inventaire et des archives.</summary>
+    /// <summary>Prefix of diagnostic objects, excluded from the inventory and from archives.</summary>
     public const string DiagnosticsPrefix = "_diagnostics";
 
-    /// <summary>Segment qui marque un répertoire de vignettes.</summary>
+    /// <summary>Segment that marks a thumbnail directory.</summary>
     private const string ThumbMarker = "thumbs_";
 
-    /// <summary>Taille de page maximale de l'inventaire.</summary>
+    /// <summary>Maximum inventory page size.</summary>
     private const int MaxPerPage = 500;
 
-    /// <summary>Durée de vie de l'URL signée éprouvée par le test de connexion.</summary>
+    /// <summary>Lifetime of the presigned URL used by the connection test.</summary>
     private static readonly TimeSpan ProbeLifetime = TimeSpan.FromMinutes(2);
 
-    /// <summary>Publie les routes du magasin de fichiers.</summary>
+    /// <summary>Publishes the file store routes.</summary>
     public static IEndpointRouteBuilder MapStorageEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -129,8 +129,8 @@ public static class StorageEndpoints
                 forcePathStyle = description.ForcePathStyle,
                 accessKeyHint = description.AccessKeyHint,
                 hasSecretKey = description.HasSecretKey,
-                // Le disque local n'a pas d'URL propre : l'API sert l'octet elle-même. C'est ce qui
-                // décide si le test de connexion a une URL signée à éprouver.
+                // Local disk has no URL of its own: the API serves the bytes itself. That's what
+                // decides whether the connection test has a presigned URL to exercise.
                 presignedUrls = description.Kind == "s3",
                 objects = new { files, thumbs, fileBytes, thumbBytes },
             });
@@ -153,8 +153,8 @@ public static class StorageEndpoints
             var kind = http.Request.Query["kind"].ToString();
             var orphansOnly = http.Request.Query["orphans"] == "1";
 
-            // Le préfixe est passé au magasin quand il existe : sur S3, filtrer côté serveur au lieu
-            // de rapatrier tout le seau change l'ordre de grandeur de l'inventaire.
+            // The prefix is passed to the store when it exists: on S3, filtering server-side
+            // instead of pulling the whole bucket changes the order of magnitude of the inventory.
             var prefix = string.IsNullOrWhiteSpace(collection) ? string.Empty : collection + "/";
 
             var all = new List<StoredObject>();
@@ -177,9 +177,9 @@ public static class StorageEndpoints
                 all.Add(described);
             }
 
-            // L'appartenance est résolue sur l'inventaire entier et non sur la page affichée : le
-            // filtre « orphelins seulement » doit pouvoir écarter des lignes avant de paginer, sinon
-            // la première page en montrerait trois et la deuxième aucune.
+            // Ownership is resolved over the whole inventory, not over the displayed page: the
+            // "orphans only" filter must be able to discard rows before pagination, otherwise the
+            // first page could show three and the second none.
             var resolved = await MarkOrphansAsync(all, registry, records, user, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -201,8 +201,8 @@ public static class StorageEndpoints
             });
         });
 
-        // Le corps est déclaré explicitement : une méthode DELETE n'admet pas de corps inféré, et
-        // l'application refuse de démarrer si on le laisse deviner.
+        // The body is declared explicitly: a DELETE method doesn't get an inferred body, and the
+        // application refuses to start if left to guess it.
         group.MapDelete("/objects", async (
             [FromBody] DeleteObjectsRequest request,
             IObjectStore store,
@@ -230,18 +230,18 @@ public static class StorageEndpoints
             var resolved = await MarkOrphansAsync(wanted, registry, records, user, cancellationToken)
                 .ConfigureAwait(false);
 
-            // Un fichier encore référencé ne se supprime pas d'ici. L'enlever laisserait
-            // l'enregistrement pointer vers rien : la console montrerait une image cassée, et rien
-            // dans la base ne dirait qui l'a retirée ni quand. Le retrait passe par l'édition de
-            // l'enregistrement, qui met la référence à jour en même temps.
+            // A file still referenced isn't deleted from here. Removing it would leave the record
+            // pointing at nothing: the console would show a broken image, and nothing in the
+            // database would say who removed it or when. Removal goes through editing the record,
+            // which updates the reference at the same time.
             var referenced = resolved.Where(entry => !entry.Orphan && !entry.IsThumb).ToList();
 
             if (referenced.Count > 0)
             {
                 throw new CratebaseConflictException(
-                    $"{referenced.Count} objet(s) sont encore référencés par un enregistrement, "
-                    + $"à commencer par « {referenced[0].Key} ». Retirez le fichier depuis "
-                    + "l'enregistrement : la référence sera mise à jour en même temps.");
+                    $"{referenced.Count} object(s) are still referenced by a record, "
+                    + $"starting with \"{referenced[0].Key}\". Remove the file from "
+                    + "the record: the reference will be updated at the same time.");
             }
 
             foreach (var entry in resolved)
@@ -277,10 +277,10 @@ public static class StorageEndpoints
             ICurrentUser user,
             CancellationToken cancellationToken) =>
         {
-            // Un téléchargement est une navigation, qui ne porte pas d'en-tête `Authorization` :
-            // le jeton passe donc par l'URL, comme pour les fichiers protégés, et vit deux minutes.
-            // Le journal masque déjà le paramètre `token`, sinon la précaution serait annulée par
-            // la ligne qui l'enregistre.
+            // A download is a navigation, which carries no `Authorization` header: the token
+            // therefore travels through the URL, as for protected files, and lives two minutes.
+            // The log already masks the `token` parameter, otherwise the precaution would be undone
+            // by the very line that records it.
             CollectionEndpoints.RequireSuperuser(
                 await ResolveCallerAsync(http, tokens, auth, user, cancellationToken)
                     .ConfigureAwait(false));
@@ -291,50 +291,50 @@ public static class StorageEndpoints
 
             var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmm", CultureInfo.InvariantCulture);
 
-            // `ZipArchive` écrit en synchrone — il n'existe pas d'API d'archive asynchrone dans la
-            // bibliothèque standard — et Kestrel refuse par défaut les écritures synchrones sur le
-            // corps de réponse. L'autorisation est posée ici, sur cette requête seule : la lever
-            // globalement exposerait toutes les routes au blocage de fil qu'elle rend possible.
-            // Le coût réel est un fil retenu pendant le téléchargement ; l'alternative — bâtir
-            // l'archive en fichier temporaire d'abord — doublerait l'espace disque et retarderait
-            // le premier octet de toute la durée de la copie.
+            // `ZipArchive` writes synchronously — there's no asynchronous archive API in the
+            // standard library — and Kestrel refuses synchronous writes on the response body by
+            // default. The permission is set here, on this one request: lifting it globally would
+            // expose every route to the thread blocking it enables. The real cost is one thread
+            // held for the duration of the download; the alternative — building the archive to a
+            // temporary file first — would double disk usage and delay the first byte by the whole
+            // copy's duration.
             http.Features.Get<IHttpBodyControlFeature>()!.AllowSynchronousIO = true;
 
-            // En flux, jamais en mémoire : une archive se compte en gigaoctets, et la construire
-            // d'abord ferait tomber le processus bien avant de servir le premier octet.
+            // Streamed, never buffered in memory: an archive is measured in gigabytes, and building
+            // it first would crash the process long before serving the first byte.
             return Results.Stream(
                 stream => WriteArchiveAsync(stream, store, prefix, withThumbs, cancellationToken),
                 "application/zip",
-                fileDownloadName: $"fichiers-{stamp}.zip");
+                fileDownloadName: $"files-{stamp}.zip");
         });
 
         return endpoints;
     }
 
-    /// <summary>Clés à supprimer.</summary>
+    /// <summary>Keys to delete.</summary>
     public sealed record DeleteObjectsRequest
     {
-        /// <summary>Clés complètes.</summary>
+        /// <summary>Full keys.</summary>
         public IReadOnlyList<string>? Keys { get; init; }
     }
 
-    /// <summary>Une étape du test de connexion.</summary>
+    /// <summary>One step of the connection test.</summary>
     public sealed record ProbeStep
     {
-        /// <summary>Ce que l'étape éprouve.</summary>
+        /// <summary>What the step tests.</summary>
         public required string Name { get; init; }
 
-        /// <summary><c>ok</c>, <c>skipped</c> ou <c>failed</c>.</summary>
+        /// <summary><c>ok</c>, <c>skipped</c>, or <c>failed</c>.</summary>
         public required string State { get; init; }
 
-        /// <summary>Précision lisible, ou message d'erreur.</summary>
+        /// <summary>Human-readable detail, or error message.</summary>
         public string Detail { get; init; } = string.Empty;
 
-        /// <summary>Durée de l'étape, en millisecondes.</summary>
+        /// <summary>Step duration, in milliseconds.</summary>
         public double Milliseconds { get; init; }
     }
 
-    /// <summary>Une clé désigne-t-elle une vignette ?</summary>
+    /// <summary>Does a key designate a thumbnail?</summary>
     private static bool IsThumbKey(string key)
     {
         var segments = key.Split('/');
@@ -343,12 +343,12 @@ public static class StorageEndpoints
             && segments[2].StartsWith(ThumbMarker, StringComparison.Ordinal);
     }
 
-    /// <summary>Replace une clé dans le modèle de collections.</summary>
+    /// <summary>Places a key back into the collections model.</summary>
     private static StoredObject Describe(ObjectInfo info)
     {
         var segments = info.Key.Split('/');
 
-        // Vignette : {collection}/{enregistrement}/thumbs_{source}/{taille}.png
+        // Thumbnail: {collection}/{record}/thumbs_{source}/{size}.png
         if (segments.Length == 4 && segments[2].StartsWith(ThumbMarker, StringComparison.Ordinal))
         {
             return new StoredObject
@@ -363,7 +363,7 @@ public static class StorageEndpoints
             };
         }
 
-        // Fichier : {collection}/{enregistrement}/{fichier}
+        // File: {collection}/{record}/{file}
         if (segments.Length == 3)
         {
             return new StoredObject
@@ -377,9 +377,9 @@ public static class StorageEndpoints
             };
         }
 
-        // Hors modèle : déposé à la main, ou vestige d'une disposition antérieure. Il est montré
-        // tel quel plutôt que masqué — c'est précisément ce qu'on cherche quand un seau grossit
-        // sans raison.
+        // Outside the model: dropped in by hand, or a leftover from an earlier layout. It's shown
+        // as-is rather than hidden — that's exactly what one looks for when a bucket grows for no
+        // reason.
         return new StoredObject
         {
             Key = info.Key,
@@ -391,14 +391,14 @@ public static class StorageEndpoints
     }
 
     /// <summary>
-    /// Marque les objets que plus aucun enregistrement ne référence.
+    /// Marks the objects no record references anymore.
     /// </summary>
     /// <remarks>
-    /// Une requête par collection, jamais une par objet : les identifiants concernés sont réunis en
-    /// un seul filtre. Un objet dont la collection a disparu, dont l'enregistrement n'existe plus,
-    /// ou dont le nom n'apparaît dans aucun champ fichier de cet enregistrement est orphelin. Les
-    /// vignettes suivent le sort de leur source : elles se régénèrent, donc les garder après la
-    /// disparition de l'image n'a aucun sens.
+    /// One query per collection, never one per object: the identifiers involved are gathered into a
+    /// single filter. An object whose collection has disappeared, whose record no longer exists, or
+    /// whose name doesn't appear in any file field of that record is orphaned. Thumbnails follow
+    /// their source's fate: they regenerate, so keeping them after the image disappears makes no
+    /// sense.
     /// </remarks>
     private static async Task<List<StoredObject>> MarkOrphansAsync(
         List<StoredObject> objects,
@@ -424,7 +424,7 @@ public static class StorageEndpoints
             ids.Add(entry.RecordId);
         }
 
-        // Clé « collection/enregistrement » → noms de fichiers réellement référencés.
+        // "collection/record" key → file names actually referenced.
         var referenced = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
         foreach (var (name, ids) in wanted)
@@ -493,13 +493,12 @@ public static class StorageEndpoints
         return result;
     }
 
-    /// <summary>Éprouve le magasin de bout en bout, écriture comprise.</summary>
+    /// <summary>Exercises the store end to end, including a write.</summary>
     /// <remarks>
-    /// Un test qui se contenterait de lister validerait un magasin en lecture seule ou un seau dont
-    /// les droits d'écriture manquent. Chaque étape mesure une capacité distincte, et l'URL signée
-    /// est éprouvée <b>en la suivant réellement</b> : c'est le seul moyen de détecter un
-    /// <c>PublicEndpoint</c> erroné, qui laisse l'API parfaitement saine et rend tous les liens
-    /// invalides côté navigateur.
+    /// A test that only listed would validate a read-only store, or a bucket missing write
+    /// permissions. Each step measures a distinct capability, and the presigned URL is tested
+    /// <b>by actually following it</b>: that's the only way to detect a wrong <c>PublicEndpoint</c>,
+    /// which leaves the API perfectly healthy while making every link invalid on the browser side.
     /// </remarks>
     private static async Task<List<ProbeStep>> ProbeAsync(
         IObjectStore store,
@@ -547,7 +546,7 @@ public static class StorageEndpoints
 
         try
         {
-            if (!await RunAsync("Préparation du magasin", async () =>
+            if (!await RunAsync("Preparing the store", async () =>
             {
                 await store.EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
                 return store.Name;
@@ -556,23 +555,23 @@ public static class StorageEndpoints
                 return steps;
             }
 
-            if (!await RunAsync("Écriture d'un objet témoin", async () =>
+            if (!await RunAsync("Writing a probe object", async () =>
             {
                 await using var buffer = new MemoryStream(payload, writable: false);
 
                 await store.PutAsync(key, buffer, "text/plain", cancellationToken).ConfigureAwait(false);
                 written = true;
 
-                return $"{payload.Length} octets";
+                return $"{payload.Length} bytes";
             }).ConfigureAwait(false))
             {
                 return steps;
             }
 
-            await RunAsync("Relecture", async () =>
+            await RunAsync("Reading it back", async () =>
             {
                 await using var stream = await store.OpenReadAsync(key, cancellationToken).ConfigureAwait(false)
-                    ?? throw new InvalidOperationException("L'objet vient d'être écrit mais reste introuvable.");
+                    ?? throw new InvalidOperationException("The object was just written but is still not found.");
 
                 using var buffer = new MemoryStream();
 
@@ -580,30 +579,30 @@ public static class StorageEndpoints
 
                 if (!buffer.ToArray().AsSpan().SequenceEqual(payload))
                 {
-                    throw new InvalidOperationException("Les octets relus diffèrent de ceux écrits.");
+                    throw new InvalidOperationException("The bytes read back differ from the ones written.");
                 }
 
-                return "octets identiques";
+                return "identical bytes";
             }).ConfigureAwait(false);
 
-            await RunAsync("Description", async () =>
+            await RunAsync("Describing it", async () =>
             {
                 var info = await store.StatAsync(key, cancellationToken).ConfigureAwait(false)
-                    ?? throw new InvalidOperationException("L'objet n'est pas décrit par le magasin.");
+                    ?? throw new InvalidOperationException("The object is not described by the store.");
 
                 return info.Length == payload.Length
-                    ? $"{info.Length} octets"
+                    ? $"{info.Length} bytes"
                     : throw new InvalidOperationException(
-                        $"Taille annoncée {info.Length}, attendue {payload.Length}.");
+                        $"Reported size {info.Length}, expected {payload.Length}.");
             }).ConfigureAwait(false);
 
-            await RunAsync("URL signée suivie par le navigateur", async () =>
+            await RunAsync("Presigned URL followed by a browser", async () =>
             {
                 var url = await store.PresignedGetAsync(key, ProbeLifetime, cancellationToken)
                     .ConfigureAwait(false);
 
-                // Le disque local n'en produit pas : l'API sert l'octet elle-même, et il n'y a rien
-                // à éprouver ici. L'étape est déclarée sans objet plutôt que réussie.
+                // Local disk doesn't produce one: the API serves the bytes itself, and there's
+                // nothing to test here. The step is reported as not applicable rather than passed.
                 if (url is null) return string.Empty;
 
                 using var client = httpClients.CreateClient();
@@ -615,9 +614,9 @@ public static class StorageEndpoints
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new InvalidOperationException(
-                        $"{(int)response.StatusCode} sur {url.GetLeftPart(UriPartial.Path)} — "
-                        + "vérifiez Cratebase:S3:PublicEndpoint, l'hôte signé doit être celui que "
-                        + "le navigateur appelle.");
+                        $"{(int)response.StatusCode} on {url.GetLeftPart(UriPartial.Path)} — "
+                        + "check Cratebase:S3:PublicEndpoint, the signed host must be the one "
+                        + "the browser calls.");
                 }
 
                 var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken)
@@ -625,17 +624,17 @@ public static class StorageEndpoints
 
                 return bytes.AsSpan().SequenceEqual(payload)
                     ? url.Host
-                    : throw new InvalidOperationException("L'URL signée sert des octets différents.");
+                    : throw new InvalidOperationException("The presigned URL serves different bytes.");
             }).ConfigureAwait(false);
         }
         finally
         {
-            // Le nettoyage est dans un `finally` pour que l'objet témoin ne survive pas à une
-            // annulation. Son contrôle vit dans une fonction locale et non ici : une exception levée
-            // depuis une clause `finally` masquerait celle qui a provoqué la sortie.
+            // Cleanup lives in a `finally` so the probe object doesn't outlive a cancellation. Its
+            // logic sits in a local function rather than here: an exception raised from a `finally`
+            // clause would mask the one that caused the exit.
             if (written)
             {
-                await RunAsync("Suppression de l'objet témoin", RemoveProbeAsync).ConfigureAwait(false);
+                await RunAsync("Deleting the probe object", RemoveProbeAsync).ConfigureAwait(false);
             }
         }
 
@@ -648,12 +647,12 @@ public static class StorageEndpoints
             var info = await store.StatAsync(key, cancellationToken).ConfigureAwait(false);
 
             return info is null
-                ? "supprimé"
-                : throw new InvalidOperationException("L'objet témoin subsiste après suppression.");
+                ? "deleted"
+                : throw new InvalidOperationException("The probe object still exists after deletion.");
         }
     }
 
-    /// <summary>Écrit l'archive des fichiers, en flux.</summary>
+    /// <summary>Writes the files archive, streamed.</summary>
     private static async Task WriteArchiveAsync(
         Stream output,
         IObjectStore store,
@@ -667,14 +666,14 @@ public static class StorageEndpoints
         {
             if (info.Key.StartsWith(DiagnosticsPrefix, StringComparison.Ordinal)) continue;
 
-            // Les vignettes sont exclues par défaut : elles se régénèrent à la demande, donc les
-            // archiver revient à archiver un cache, et à en doubler le volume.
+            // Thumbnails are excluded by default: they regenerate on demand, so archiving them
+            // amounts to archiving a cache, and doubling the archive's size.
             if (!withThumbs && IsThumbKey(info.Key)) continue;
 
             var source = await store.OpenReadAsync(info.Key, cancellationToken).ConfigureAwait(false);
 
-            // Disparu entre l'inventaire et la lecture : l'archive continue plutôt que d'échouer au
-            // bout d'une heure de copie sur un fichier que quelqu'un vient de supprimer.
+            // Disappeared between the inventory and the read: the archive carries on rather than
+            // failing after an hour of copying, over a file someone just deleted.
             if (source is null) continue;
 
             await using (source.ConfigureAwait(false))
@@ -689,13 +688,13 @@ public static class StorageEndpoints
     }
 
     /// <summary>
-    /// Contexte des lectures d'appartenance.
+    /// Context for ownership reads.
     /// </summary>
     /// <remarks>
-    /// L'appelant lui-même, et non un principal interne fabriqué pour l'occasion : ces routes ont
-    /// déjà exigé le super-admin, qui contourne les règles d'accès. Un fichier ne doit pas
-    /// devenir orphelin parce qu'une règle de consultation masque son enregistrement — et une
-    /// identité privilégiée créée ici serait un second chemin d'élévation à surveiller.
+    /// The caller itself, not an internal principal fabricated for the occasion: these routes have
+    /// already required the superuser, who bypasses access rules. A file must not become orphaned
+    /// because a view rule hides its record — and a privileged identity created here would be a
+    /// second elevation path to watch.
     /// </remarks>
     private static FilterRequestContext ContextOf(ICurrentUser user) => new()
     {
@@ -705,7 +704,7 @@ public static class StorageEndpoints
     };
 
     /// <summary>
-    /// Appelant d'un téléchargement : l'en-tête s'il y en a un, sinon le jeton de l'URL.
+    /// Caller of a download: the header if there is one, otherwise the URL token.
     /// </summary>
     private static async Task<ICurrentUser> ResolveCallerAsync(
         HttpContext http,
@@ -730,7 +729,7 @@ public static class StorageEndpoints
         return record is null ? AnonymousUser.Instance : new ArchiveCaller(record);
     }
 
-    /// <summary>Appelant reconstitué depuis un jeton d'URL.</summary>
+    /// <summary>Caller reconstructed from a URL token.</summary>
     private sealed class ArchiveCaller(AuthenticatedRecord record) : ICurrentUser
     {
         public bool IsAuthenticated => true;
@@ -752,7 +751,7 @@ public static class StorageEndpoints
 
     private static string AsText(object? value) => value?.ToString() ?? string.Empty;
 
-    /// <summary>Noms de fichiers portés par un champ, qu'il soit simple ou multivalué.</summary>
+    /// <summary>File names carried by a field, whether single or multi-valued.</summary>
     private static IEnumerable<string> AsNames(object? value)
     {
         switch (value)

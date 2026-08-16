@@ -7,18 +7,18 @@ using Microsoft.AspNetCore.Http;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Journalise les requêtes servies par l'API.
+/// Logs the requests served by the API.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Posé <b>autour</b> des endpoints et non dedans : une requête refusée par une règle d'accès, ou
-/// interrompue par une exception, doit laisser une trace autant qu'une requête servie — c'est même
-/// la seule qui intéresse un administrateur. D'où la capture de l'exception, sa journalisation,
-/// puis sa relance intacte vers le gestionnaire qui la traduira.
+/// Placed <b>around</b> the endpoints, not inside them: a request refused by an access rule, or
+/// interrupted by an exception, must leave a trace just as much as a served request — it's even
+/// the only one an administrator cares about. Hence capturing the exception, logging it, then
+/// rethrowing it intact to the handler that will translate it.
 /// </para>
 /// <para>
-/// Seules les requêtes de l'API sont retenues. Les fichiers statiques de la console — une centaine
-/// par chargement — ne disent rien du fonctionnement du moteur et noieraient le journal.
+/// Only API requests are retained. The console's static files — a hundred or so per page load —
+/// say nothing about how the engine is behaving and would drown the log.
 /// </para>
 /// </remarks>
 public sealed class CratebaseRequestLogMiddleware(
@@ -27,16 +27,16 @@ public sealed class CratebaseRequestLogMiddleware(
     SettingsStore settings,
     CratebaseOptions options)
 {
-    /// <summary>Longueur maximale conservée pour une URL ou un en-tête.</summary>
+    /// <summary>Maximum length kept for a URL or a header.</summary>
     private const int MaxTextLength = 1024;
 
     /// <summary>
-    /// Paramètres dont la valeur est masquée dans le journal.
+    /// Parameters whose value is masked in the log.
     /// </summary>
     /// <remarks>
-    /// Le jeton de fichier circule dans l'URL — c'est assumé, sa durée de vie est de deux minutes.
-    /// L'écrire tel quel dans une table que la console affiche prolongerait sa fenêtre
-    /// d'exploitation de toute la durée de rétention du journal.
+    /// The file token travels in the URL — accepted, since its lifetime is two minutes. Writing it
+    /// as-is into a table the console displays would extend its exploitation window by the log's
+    /// entire retention period.
     /// </remarks>
     private static readonly string[] SensitiveParameters =
         ["token", "password", "secret", "code", "codeVerifier", "identity"];
@@ -51,7 +51,7 @@ public sealed class CratebaseRequestLogMiddleware(
     private readonly CratebaseOptions _options = options
         ?? throw new ArgumentNullException(nameof(options));
 
-    /// <summary>Traite la requête.</summary>
+    /// <summary>Processes the request.</summary>
     public async Task InvokeAsync(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -91,9 +91,9 @@ public sealed class CratebaseRequestLogMiddleware(
             return false;
         }
 
-        // Consulter le journal ne doit pas le remplir : sans cette exception, chaque
-        // rafraîchissement de l'écran ajouterait une ligne en tête de la page qu'on est en train
-        // de lire, et la pagination glisserait sous les yeux de l'administrateur.
+        // Viewing the log must not fill it: without this exception, every screen refresh would add
+        // a line at the top of the page currently being read, and pagination would slide out from
+        // under the administrator.
         return !(HttpMethods.IsGet(context.Request.Method) &&
                  path.StartsWithSegments($"{_options.ApiPrefix}/logs"));
     }
@@ -144,10 +144,10 @@ public sealed class CratebaseRequestLogMiddleware(
             AuthCollection = caller?.Collection ?? string.Empty,
             AuthId = caller?.Id.ToString() ?? string.Empty,
 
-            // L'adresse d'origine est celle de la connexion, jamais celle annoncée par un en-tête :
-            // « X-Forwarded-For » est déclaratif, donc falsifiable. Derrière un répartiteur, c'est
-            // à l'hôte d'installer UseForwardedHeaders, qui réécrit l'adresse de connexion après
-            // avoir vérifié le mandataire.
+            // The origin address is the connection's own, never one announced by a header:
+            // "X-Forwarded-For" is declarative, hence forgeable. Behind a load balancer, it's up to
+            // the host to install UseForwardedHeaders, which rewrites the connection address after
+            // verifying the proxy.
             Ip = logging.LogIp ? context.Connection.RemoteIpAddress?.ToString() ?? string.Empty : string.Empty,
             UserAgent = Truncate(context.Request.Headers.UserAgent.ToString()),
             Referer = Truncate(context.Request.Headers.Referer.ToString()),

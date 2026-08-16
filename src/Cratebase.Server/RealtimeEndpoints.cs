@@ -10,39 +10,39 @@ using Microsoft.Extensions.Logging;
 
 namespace Cratebase.Server;
 
-/// <summary>Sujets suivis par un client, tels qu'il les déclare.</summary>
+/// <summary>Topics followed by a client, as it declares them.</summary>
 public sealed record SubscriptionRequest
 {
-    /// <summary>Identifiant remis à la connexion.</summary>
+    /// <summary>Identifier handed out at connection.</summary>
     public string? ClientId { get; init; }
 
-    /// <summary>Sujets : <c>collection</c> ou <c>collection/identifiant</c>.</summary>
+    /// <summary>Topics: <c>collection</c> or <c>collection/id</c>.</summary>
     public IReadOnlyList<string>? Subscriptions { get; init; }
 }
 
 /// <summary>
-/// Temps réel : un flux d'évènements par client, filtré par les règles d'accès.
+/// Realtime: one event stream per client, filtered by the access rules.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Deux routes, comme chez PocketBase : <c>GET /api/realtime</c> ouvre le flux et rend un
-/// identifiant de client, <c>POST /api/realtime</c> déclare ce que ce client suit. La séparation
-/// n'est pas une coquetterie : un navigateur ne peut pas poser d'en-tête sur une source
-/// d'évènements, donc l'abonnement — qui, lui, porte le jeton — doit être une requête distincte.
+/// Two routes, like PocketBase: <c>GET /api/realtime</c> opens the stream and returns a client
+/// identifier, <c>POST /api/realtime</c> declares what that client follows. The split isn't a
+/// stylistic choice: a browser can't set a header on an event source, so the subscription — which
+/// does carry the token — must be a separate request.
 /// </para>
 /// <para>
-/// <b>SSE et non WebSocket.</b> Le besoin est unidirectionnel : le serveur pousse, le client
-/// écoute. SSE passe les mandataires et les répartiteurs sans négociation, se reconnecte tout seul,
-/// et tient sur du HTTP ordinaire. Un WebSocket apporterait un canal montant dont rien ici ne se
-/// sert, contre une pile de plus à exploiter.
+/// <b>SSE, not WebSocket.</b> The need is one-directional: the server pushes, the client listens.
+/// SSE passes through proxies and load balancers with no negotiation, reconnects on its own, and
+/// runs over ordinary HTTP. A WebSocket would bring an upstream channel nothing here uses, against
+/// one more stack to operate.
 /// </para>
 /// </remarks>
 public static class RealtimeEndpoints
 {
-    /// <summary>Intervalle des commentaires de maintien, en secondes.</summary>
+    /// <summary>Interval between keep-alive comments, in seconds.</summary>
     private const int HeartbeatSeconds = 25;
 
-    /// <summary>Publie les routes du temps réel.</summary>
+    /// <summary>Publishes the realtime routes.</summary>
     public static IEndpointRouteBuilder MapRealtimeEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -59,22 +59,22 @@ public static class RealtimeEndpoints
             if (!settings.Current.Realtime.Enabled)
             {
                 throw new CratebaseBadRequestException(
-                    "Le temps réel est désactivé sur cette instance.");
+                    "Realtime is disabled on this instance.");
             }
 
             if (hub.Count >= settings.Current.Realtime.MaxClients)
             {
                 throw new CratebaseConflictException(
-                    $"Trop de flux ouverts ({hub.Count}). Fermez-en un ou relevez la limite dans "
-                    + "Administration → Paramètres.");
+                    $"Too many open streams ({hub.Count}). Close one or raise the limit in "
+                    + "Administration → Settings.");
             }
 
             var client = hub.Connect(user);
 
             http.Response.Headers.ContentType = "text/event-stream";
             http.Response.Headers.CacheControl = "no-cache";
-            // Sans cet en-tête, un mandataire qui tamponne la réponse retient les évènements
-            // jusqu'à ce que son tampon soit plein : le flux fonctionne et n'arrive jamais.
+            // Without this header, a proxy that buffers the response holds events until its buffer
+            // is full: the stream works and never arrives.
             http.Response.Headers["X-Accel-Buffering"] = "no";
 
             await WriteFrameAsync(http, "connect", $"{{\"clientId\":\"{client.Id}\"}}", cancellationToken)
@@ -82,9 +82,9 @@ public static class RealtimeEndpoints
 
             try
             {
-                // Le maintien n'est pas une politesse : sans trafic, un mandataire ferme une
-                // connexion inactive au bout d'une minute, et le client passe son temps à se
-                // reconnecter sans jamais comprendre pourquoi.
+                // The keep-alive isn't a courtesy: with no traffic, a proxy closes an idle
+                // connection after about a minute, and the client spends its time reconnecting
+                // without ever understanding why.
                 using var heartbeat = new PeriodicTimer(TimeSpan.FromSeconds(HeartbeatSeconds));
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken, http.RequestAborted);
@@ -101,7 +101,7 @@ public static class RealtimeEndpoints
             }
             catch (OperationCanceledException)
             {
-                // Départ du client : c'est la fin normale d'un flux, pas une anomalie.
+                // Client left: this is the normal end of a stream, not an anomaly.
             }
             finally
             {
@@ -118,12 +118,12 @@ public static class RealtimeEndpoints
 
             if (string.IsNullOrWhiteSpace(request.ClientId))
             {
-                throw new CratebaseBadRequestException("Identifiant de client manquant.");
+                throw new CratebaseBadRequestException("Missing client identifier.");
             }
 
             if (!hub.Subscribe(request.ClientId, request.Subscriptions ?? [], user))
             {
-                throw new CratebaseNotFoundException("Ce flux n'est plus ouvert.");
+                throw new CratebaseNotFoundException("This stream is no longer open.");
             }
 
             return Results.NoContent();
@@ -132,10 +132,10 @@ public static class RealtimeEndpoints
         return endpoints;
     }
 
-    /// <summary>Met un évènement en trame SSE.</summary>
+    /// <summary>Wraps an event into an SSE frame.</summary>
     /// <remarks>
-    /// Le nom d'évènement porte le sujet suivi : le client s'abonne à <c>posts</c> et écoute
-    /// <c>posts</c>, sans avoir à démultiplexer lui-même un flux unique.
+    /// The event name carries the followed topic: the client subscribes to <c>posts</c> and listens
+    /// for <c>posts</c>, without having to demultiplex a single stream itself.
     /// </remarks>
     internal static string Frame(string name, string data) =>
         $"event: {name}\ndata: {data}\n\n";
@@ -159,26 +159,25 @@ public static class RealtimeEndpoints
         {
             while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
             {
-                // Un commentaire SSE : le client l'ignore, le mandataire y voit du trafic.
+                // An SSE comment: the client ignores it, the proxy sees traffic.
                 await http.Response.WriteAsync(":\n\n", cancellationToken).ConfigureAwait(false);
                 await http.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
         {
-            // Flux fermé.
+            // Stream closed.
         }
     }
 }
 
 /// <summary>
-/// Achemine les évènements du transport vers les abonnés.
+/// Routes events from the transport to subscribers.
 /// </summary>
 /// <remarks>
-/// Un seul lecteur pour tout le processus, et non un par flux : c'est lui qui applique les règles
-/// d'accès une fois par appelant distinct, là où N lecteurs les appliqueraient N fois. Il vit dans
-/// l'hôte et non dans <c>Cratebase.Realtime</c> parce qu'il consulte les réglages, qui appartiennent
-/// à l'exploitation.
+/// A single reader for the whole process, not one per stream: it's what applies the access rules
+/// once per distinct caller, where N readers would apply them N times. It lives in the host rather
+/// than in <c>Cratebase.Realtime</c> because it reads settings, which belong to operations.
 /// </remarks>
 public sealed partial class RealtimeDispatcher(
     IRealtimeTransport transport,
@@ -193,9 +192,9 @@ public sealed partial class RealtimeDispatcher(
     {
         await foreach (var notification in transport.ReadAsync(stoppingToken).ConfigureAwait(false))
         {
-            // Le réglage est lu à chaque évènement, pas au démarrage : le fermer depuis la console
-            // doit interrompre la diffusion sans redémarrage, et les flux déjà ouverts se taisent
-            // alors au lieu d'être coupés.
+            // The setting is read on every event, not at startup: turning it off from the console
+            // must interrupt broadcasting without a restart, and streams already open then go quiet
+            // instead of being cut.
             if (!settings.Current.Realtime.Enabled) continue;
 
             try
@@ -224,6 +223,6 @@ public sealed partial class RealtimeDispatcher(
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Diffusion temps réel interrompue pour la collection {Collection}.")]
+        Message = "Realtime broadcast interrupted for collection {Collection}.")]
     private static partial void Failed(ILogger logger, string collection, Exception error);
 }

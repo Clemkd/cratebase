@@ -6,16 +6,16 @@ using Microsoft.AspNetCore.Http;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Résout l'appelant depuis le jeton porté par la requête.
+/// Resolves the caller from the token carried by the request.
 /// </summary>
 /// <remarks>
-/// L'enregistrement complet est chargé, et pas seulement un identifiant : le langage de filtre
-/// expose <c>@request.auth.*</c>, qui doit pouvoir atteindre n'importe quel champ de la collection
-/// d'auth — y compris un champ ajouté après coup par l'utilisateur de la librairie.
+/// The full record is loaded, not just an identifier: the filter language exposes
+/// <c>@request.auth.*</c>, which must be able to reach any field of the auth collection —
+/// including a field the library's user added afterward.
 /// </remarks>
 public sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
 {
-    /// <summary>Clé sous laquelle le middleware dépose l'enregistrement résolu.</summary>
+    /// <summary>Key under which the middleware stores the resolved record.</summary>
     public const string ContextKey = "cratebase.auth";
 
     private readonly IHttpContextAccessor _accessor = accessor
@@ -47,13 +47,13 @@ public sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUse
 }
 
 /// <summary>
-/// Résout le jeton d'authentification et dépose l'appelant dans le contexte de la requête.
+/// Resolves the authentication token and stores the caller in the request context.
 /// </summary>
 public sealed class CratebaseAuthMiddleware(RequestDelegate next)
 {
     private readonly RequestDelegate _next = next ?? throw new ArgumentNullException(nameof(next));
 
-    /// <summary>Traite la requête.</summary>
+    /// <summary>Processes the request.</summary>
     public async Task InvokeAsync(HttpContext context, AuthTokenStore tokens, AuthService auth)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -66,9 +66,9 @@ public sealed class CratebaseAuthMiddleware(RequestDelegate next)
 
             if (resolved is not null)
             {
-                // Les droits sont relus à chaque requête depuis la base : un rôle retiré prend
-                // effet immédiatement. C'est le coût d'une lecture indexée, contre un décalage
-                // pouvant durer toute la vie d'un jeton.
+                // Permissions are re-read from the database on every request: a revoked role takes
+                // effect immediately. That's the cost of one indexed read, against a drift that
+                // could otherwise last a token's whole lifetime.
                 var record = await auth
                     .LoadAsync(resolved.Collection, resolved.RecordId, context.RequestAborted)
                     .ConfigureAwait(false);
@@ -79,9 +79,9 @@ public sealed class CratebaseAuthMiddleware(RequestDelegate next)
                 }
             }
 
-            // Un jeton invalide ne provoque pas d'erreur ici : la requête continue en anonyme, et
-            // c'est l'endpoint qui décide. Refuser d'emblée casserait les routes publiques appelées
-            // avec un jeton périmé encore présent dans un client.
+            // An invalid token doesn't cause an error here: the request continues anonymously, and
+            // it's the endpoint that decides. Refusing outright would break public routes called
+            // with an expired token still sitting in a client.
         }
 
         await _next(context).ConfigureAwait(false);
@@ -89,11 +89,11 @@ public sealed class CratebaseAuthMiddleware(RequestDelegate next)
 }
 
 /// <summary>
-/// Construit le contexte d'évaluation des règles depuis la requête HTTP.
+/// Builds the rule-evaluation context from the HTTP request.
 /// </summary>
 public static class RequestContextFactory
 {
-    /// <summary>Construit le contexte d'une requête.</summary>
+    /// <summary>Builds a request's context.</summary>
     public static FilterRequestContext Create(
         HttpContext http,
         ICurrentUser user,
@@ -106,9 +106,9 @@ public static class RequestContextFactory
 
         foreach (var header in http.Request.Headers)
         {
-            // Normalisation identique à celle de PocketBase : minuscules, tirets en soulignés.
-            // « X-Forwarded-For » devient « x_forwarded_for », donc atteignable en
-            // « @request.headers.x_forwarded_for ».
+            // Same normalization as PocketBase: lowercase, hyphens turned into underscores.
+            // "X-Forwarded-For" becomes "x_forwarded_for", reachable as
+            // "@request.headers.x_forwarded_for".
             headers[header.Key.ToLowerInvariant().Replace('-', '_')] = header.Value.ToString();
         }
 

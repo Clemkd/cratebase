@@ -8,19 +8,19 @@ using Microsoft.AspNetCore.Routing;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Endpoints de consultation du journal.
+/// Log viewing endpoints.
 /// </summary>
 /// <remarks>
-/// Réservés au super-admin : le journal porte les chemins appelés, les identifiants des
-/// appelants et, selon les réglages, leur adresse. C'est la table la plus sensible de l'instance
-/// après celle des comptes.
+/// Reserved for the superuser: the log carries the called paths, callers' identifiers and,
+/// depending on settings, their address. It's the most sensitive table in the instance after the
+/// accounts table.
 /// </remarks>
 public static class LogEndpoints
 {
-    /// <summary>Fenêtre par défaut de l'histogramme, en heures.</summary>
+    /// <summary>Default histogram window, in hours.</summary>
     private const int DefaultStatsWindowHours = 24;
 
-    /// <summary>Publie <c>/logs</c>.</summary>
+    /// <summary>Publishes <c>/logs</c>.</summary>
     public static IEndpointRouteBuilder MapLogEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -35,9 +35,9 @@ public static class LogEndpoints
         {
             CollectionEndpoints.RequireSuperuser(user);
 
-            // Le tampon est vidé avant la lecture : sans cela, l'erreur qu'on vient de provoquer
-            // n'apparaîtrait qu'au prochain passage du service de fond, et l'écran donnerait
-            // l'impression de l'avoir perdue.
+            // The buffer is flushed before reading: without this, the error just triggered wouldn't
+            // appear until the next pass of the background service, and the screen would look like
+            // it lost it.
             await logs.FlushAsync(cancellationToken).ConfigureAwait(false);
 
             var query = ReadQuery(http);
@@ -48,10 +48,10 @@ public static class LogEndpoints
                 return Results.Ok(page);
             }
 
-            // ⚠️ L'histogramme est calculé ici, dans la même requête que la page, et non par un
-            // second appel : deux appels vident le tampon chacun de leur côté, donc le second voit
-            // des entrées que le premier n'avait pas. Le graphique annonçait alors dix-neuf entrées
-            // au-dessus d'un tableau qui en comptait dix-sept — un écran qui se contredit lui-même.
+            // ⚠️ The histogram is computed here, in the same request as the page, not through a
+            // second call: two calls would each flush the buffer independently, so the second would
+            // see entries the first didn't. The chart would then announce nineteen entries above a
+            // table that counted seventeen — a screen contradicting itself.
             var granularity = ReadGranularity(http, query);
             var buckets = await logs.StatsAsync(query, granularity, cancellationToken)
                 .ConfigureAwait(false);
@@ -96,13 +96,13 @@ public static class LogEndpoints
 
             if (!RecordId.TryParse(id, out var recordId))
             {
-                throw new CratebaseNotFoundException("Entrée de journal introuvable.");
+                throw new CratebaseNotFoundException("Log entry not found.");
             }
 
             await logs.FlushAsync(cancellationToken).ConfigureAwait(false);
 
             var entry = await logs.GetAsync(recordId, cancellationToken).ConfigureAwait(false)
-                ?? throw new CratebaseNotFoundException("Entrée de journal introuvable.");
+                ?? throw new CratebaseNotFoundException("Log entry not found.");
 
             return Results.Ok(entry);
         });
@@ -116,9 +116,9 @@ public static class LogEndpoints
 
             var deleted = await logs.ClearAsync(cancellationToken).ConfigureAwait(false);
 
-            // La purge se journalise elle-même : un journal qui peut être vidé sans laisser de
-            // trace de son vidage ne prouve plus rien.
-            logs.Record(LogSeverity.Warning, $"Journal vidé : {deleted} entrées supprimées.");
+            // The purge logs itself: a log that can be cleared without leaving a trace of its own
+            // clearing proves nothing anymore.
+            logs.Record(LogSeverity.Warning, $"Log cleared: {deleted} entries deleted.");
 
             return Results.Ok(new { deleted });
         });
@@ -126,7 +126,7 @@ public static class LogEndpoints
         return endpoints;
     }
 
-    /// <summary>Met l'histogramme en forme pour le client.</summary>
+    /// <summary>Formats the histogram for the client.</summary>
     private static object Describe(
         LogQuery query,
         LogGranularity granularity,
@@ -137,8 +137,8 @@ public static class LogEndpoints
         to = query.To,
         items = buckets.Select(bucket => new
         {
-            // La tranche est rendue en instant complet : le client n'a pas à savoir que le
-            // regroupement se fait sur un préfixe de texte.
+            // The slice is returned as a full instant: the client doesn't need to know that
+            // grouping is done on a text prefix.
             bucket = Timestamp.Normalize(LogBuckets.ToInstant(bucket.Bucket)),
             level = bucket.Level,
             count = bucket.Count,
@@ -159,12 +159,11 @@ public static class LogEndpoints
     };
 
     /// <summary>
-    /// Granularité de l'histogramme.
+    /// Histogram granularity.
     /// </summary>
     /// <remarks>
-    /// Déduite de la fenêtre quand le client ne la précise pas : au-delà de deux jours, un point
-    /// par heure produit des centaines de barres illisibles ; en deçà, un point par jour en produit
-    /// une seule.
+    /// Inferred from the window when the client doesn't specify it: beyond two days, one point per
+    /// hour produces hundreds of unreadable bars; below that, one point per day produces just one.
     /// </remarks>
     private static LogGranularity ReadGranularity(HttpContext http, LogQuery query)
     {
@@ -183,12 +182,12 @@ public static class LogEndpoints
     }
 
     /// <summary>
-    /// Niveaux demandés : <c>?level=Warning,Error</c>, ou <c>?level=</c> répété.
+    /// Requested levels: <c>?level=Warning,Error</c>, or a repeated <c>?level=</c>.
     /// </summary>
     /// <remarks>
-    /// Un nom inconnu est ignoré plutôt que rejeté. Le paramètre vient d'une barre d'adresse qu'on
-    /// bricole, et rendre une erreur 400 sur une faute de frappe transformerait une consultation en
-    /// panne apparente ; ne rien retenir de fautif suffit.
+    /// An unknown name is ignored rather than rejected. The parameter comes from an address bar
+    /// someone is tinkering with, and returning a 400 error on a typo would turn a query into an
+    /// apparent outage; discarding the invalid value is enough.
     /// </remarks>
     private static IReadOnlyList<LogSeverity> ReadLevels(HttpContext http) =>
     [

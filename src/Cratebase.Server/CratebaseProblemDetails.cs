@@ -7,11 +7,11 @@ using Microsoft.Extensions.Logging;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Traduit les exceptions métier en réponses <c>ProblemDetails</c>.
+/// Translates business exceptions into <c>ProblemDetails</c> responses.
 /// </summary>
 /// <remarks>
-/// Le statut est porté par l'exception elle-même : la traduction n'a rien à deviner, et une
-/// nouvelle exception métier ne peut pas être oubliée ici.
+/// The status is carried by the exception itself: the translation has nothing to guess, and a new
+/// business exception can't be forgotten here.
 /// </remarks>
 public sealed partial class CratebaseExceptionHandler(ILogger<CratebaseExceptionHandler> logger)
     : IExceptionHandler
@@ -19,7 +19,7 @@ public sealed partial class CratebaseExceptionHandler(ILogger<CratebaseException
     [LoggerMessage(
         EventId = 1,
         Level = LogLevel.Information,
-        Message = "Accès refusé sur {Path} : {Reason}")]
+        Message = "Access denied on {Path}: {Reason}")]
     private static partial void LogAccessDenied(ILogger logger, string path, string reason);
 
     private readonly ILogger<CratebaseExceptionHandler> _logger = logger
@@ -53,8 +53,8 @@ public sealed partial class CratebaseExceptionHandler(ILogger<CratebaseException
             problem.Extensions["errors"] = validation.Errors;
         }
 
-        // Un refus d'accès est journalisé, pas une erreur d'entrée : le premier peut signaler une
-        // tentative, le second est le fonctionnement normal d'une API publique.
+        // An access refusal is logged, an input error isn't: the former can signal an attempt, the
+        // latter is the normal operation of a public API.
         if (business.StatusCode is 401 or 403)
         {
             LogAccessDenied(_logger, path, business.Message);
@@ -69,11 +69,11 @@ public sealed partial class CratebaseExceptionHandler(ILogger<CratebaseException
 
     private static string TitleFor(int status) => status switch
     {
-        400 => "Requête invalide",
-        401 => "Authentification requise",
-        403 => "Droit insuffisant",
-        404 => "Ressource introuvable",
-        409 => "Conflit",
-        _ => "Erreur",
+        400 => "Invalid request",
+        401 => "Authentication required",
+        403 => "Insufficient permission",
+        404 => "Resource not found",
+        409 => "Conflict",
+        _ => "Error",
     };
 }

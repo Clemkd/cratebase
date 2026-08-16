@@ -15,24 +15,24 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Points d'entrée de Cratebase en tant que librairie.
+/// Entry points of Cratebase as a library.
 /// </summary>
 /// <remarks>
 /// <para>
-/// C'est l'équivalent .NET du mode « framework » de PocketBase : une application ASP.NET Core
-/// existante ajoute Cratebase, garde ses propres endpoints, son propre pipeline, et partage le
-/// même appelant et la même base.
+/// This is the .NET equivalent of PocketBase's "framework" mode: an existing ASP.NET Core
+/// application adds Cratebase, keeps its own endpoints and its own pipeline, and shares the same
+/// caller and the same database.
 /// </para>
 /// <code>
 /// builder.AddCratebase(o => o.UseSqlite("Data Source=./data/cratebase.db"));
 /// var app = builder.Build();
 /// app.MapCratebase();
-/// app.MapGet("/api/rapport", ...);   // vos endpoints, même ICurrentUser
+/// app.MapGet("/api/report", ...);   // your endpoints, same ICurrentUser
 /// </code>
 /// </remarks>
 public static class CratebaseExtensions
 {
-    /// <summary>Enregistre les services de Cratebase.</summary>
+    /// <summary>Registers Cratebase's services.</summary>
     public static IServiceCollection AddCratebase(
         this IServiceCollection services,
         Action<CratebaseOptions>? configure = null)
@@ -64,8 +64,8 @@ public static class CratebaseExtensions
             client.Timeout = TimeSpan.FromSeconds(15));
         services.AddSingleton<IRecordMutationHook, AuthRecordHook>();
 
-        // Le temps réel s'enregistre comme n'importe quel crochet d'après-écriture : c'est la
-        // preuve que le point d'extension suffit, et non une faveur faite à un module interne.
+        // Realtime registers like any other after-write hook: proof that the extension point is
+        // sufficient, not a favor granted to an internal module.
         services.TryAddSingleton<IRealtimeTransport>(_ => new InMemoryRealtimeTransport());
         services.AddSingleton<RealtimeHub>();
         services.AddSingleton<IRecordMutationHook, RealtimeRecordHook>();
@@ -83,9 +83,9 @@ public static class CratebaseExtensions
             services.AddHostedService<LogMaintenanceService>();
         }
 
-        // Les énumérations circulent en chaînes, jamais en entiers : un numéro d'énumération se
-        // décale dès qu'on insère une valeur au milieu, et le contrat d'API bascule alors en
-        // silence. Même politique que pour les instantanés de schéma (SchemaJson).
+        // Enums travel as strings, never as integers: an enum number shifts as soon as a value is
+        // inserted in the middle, and the API contract then breaks silently. Same policy as for
+        // schema snapshots (SchemaJson).
         services.ConfigureHttpJsonOptions(json =>
         {
             json.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -98,7 +98,7 @@ public static class CratebaseExtensions
         return services;
     }
 
-    /// <summary>Enregistre les services de Cratebase sur un constructeur d'application web.</summary>
+    /// <summary>Registers Cratebase's services on a web application builder.</summary>
     public static WebApplicationBuilder AddCratebase(
         this WebApplicationBuilder builder,
         Action<CratebaseOptions>? configure = null)
@@ -111,11 +111,11 @@ public static class CratebaseExtensions
     }
 
     /// <summary>
-    /// Prépare la base : tables système créées, collections chargées en cache.
+    /// Prepares the database: system tables created, collections cached.
     /// </summary>
     /// <remarks>
-    /// Appelé automatiquement par <see cref="MapCratebase"/>, mais exposé pour les hôtes qui
-    /// préfèrent le faire eux-mêmes — un travailleur de fond, par exemple, n'a pas d'endpoints.
+    /// Called automatically by <see cref="MapCratebase"/>, but exposed for hosts that prefer to do
+    /// it themselves — a background worker, for instance, has no endpoints.
     /// </remarks>
     public static async Task InitializeCratebaseAsync(
         this IServiceProvider services,
@@ -133,8 +133,8 @@ public static class CratebaseExtensions
         var store = services.GetRequiredService<SchemaStore>();
         await store.EnsureSystemTablesAsync(cancellationToken).ConfigureAwait(false);
 
-        // Résolu ici, et pas au premier appel de l'écran d'administration : la durée de
-        // fonctionnement affichée doit se compter depuis le démarrage réel.
+        // Resolved here, not on the administration screen's first call: the displayed uptime must
+        // be counted from the actual startup.
         services.GetRequiredService<InstanceDescriptor>();
 
         await services.GetRequiredService<LogStore>()
@@ -158,20 +158,19 @@ public static class CratebaseExtensions
 
         await SystemCollections.EnsureAsync(registry, cancellationToken).ConfigureAwait(false);
 
-        // Après la création des collections système, jamais avant : elles doivent exister pour être
-        // réalignées comme les autres.
+        // After system collections are created, never before: they must exist to be realigned like
+        // the others.
         await registry.ReconcileSystemFieldsAsync(cancellationToken).ConfigureAwait(false);
 
         await tokens.PurgeExpiredAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Branche la résolution du jeton d'authentification.
+    /// Wires up authentication token resolution.
     /// </summary>
     /// <remarks>
-    /// À appeler <b>avant</b> <see cref="MapCratebase"/> dans le pipeline : sans elle, toute
-    /// requête est anonyme et les collections verrouillées deviennent inaccessibles, y compris au
-    /// super-admin.
+    /// Call <b>before</b> <see cref="MapCratebase"/> in the pipeline: without it, every request is
+    /// anonymous and locked collections become unreachable, even to the superuser.
     /// </remarks>
     public static IApplicationBuilder UseCratebaseAuthentication(this IApplicationBuilder app)
     {
@@ -181,13 +180,13 @@ public static class CratebaseExtensions
     }
 
     /// <summary>
-    /// Branche la journalisation des requêtes de l'API.
+    /// Wires up logging of the API's requests.
     /// </summary>
     /// <remarks>
-    /// À placer <b>après</b> <see cref="UseCratebaseAuthentication"/> : c'est elle qui dépose
-    /// l'appelant dans le contexte, et une entrée de journal sans auteur ne dit pas grand-chose.
-    /// Reste sans effet si <see cref="CratebaseOptions.EnableRequestLog"/> est fermé, pour qu'un
-    /// hôte qui journalise déjà par ses propres moyens n'ait rien à retirer de son pipeline.
+    /// Place <b>after</b> <see cref="UseCratebaseAuthentication"/>: that's what stores the caller in
+    /// the context, and a log entry with no author doesn't say much. Has no effect if
+    /// <see cref="CratebaseOptions.EnableRequestLog"/> is off, so a host that already logs by its
+    /// own means has nothing to remove from its pipeline.
     /// </remarks>
     public static IApplicationBuilder UseCratebaseRequestLog(this IApplicationBuilder app)
     {
@@ -198,7 +197,7 @@ public static class CratebaseExtensions
         return options.EnableRequestLog ? app.UseMiddleware<CratebaseRequestLogMiddleware>() : app;
     }
 
-    /// <summary>Publie les endpoints de Cratebase.</summary>
+    /// <summary>Publishes Cratebase's endpoints.</summary>
     public static IEndpointRouteBuilder MapCratebase(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);

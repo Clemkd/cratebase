@@ -5,18 +5,17 @@ using Microsoft.Extensions.Logging;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Vide le tampon du journal et applique la rétention.
+/// Flushes the log buffer and applies retention.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Un service de fond plutôt qu'une tâche planifiée : la fréquence utile — quelques secondes — est
-/// hors de portée d'un ordonnanceur, et un travailleur externe supposerait un composant de plus à
-/// déployer, ce que la promesse « un seul conteneur » exclut.
+/// A background service rather than a scheduled task: the useful frequency — a few seconds — is
+/// out of reach for a scheduler, and an external worker would assume one more component to deploy,
+/// which the "single container" promise rules out.
 /// </para>
 /// <para>
-/// Aucune panne d'écriture ne doit arrêter la boucle : une base momentanément verrouillée ferait
-/// sinon cesser toute journalisation jusqu'au prochain redémarrage, et c'est précisément pendant un
-/// incident qu'on a besoin du journal.
+/// No write failure should stop the loop: a momentarily locked database would otherwise halt all
+/// logging until the next restart, and it's precisely during an incident that the log is needed.
 /// </para>
 /// </remarks>
 public sealed partial class LogMaintenanceService(
@@ -26,13 +25,13 @@ public sealed partial class LogMaintenanceService(
 {
     private static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(3);
 
-    /// <summary>Nombre de passages entre deux purges : une heure.</summary>
+    /// <summary>Number of ticks between two purges: one hour.</summary>
     private const int TicksBetweenPurges = 1_200;
 
     [LoggerMessage(
         EventId = 1,
         Level = LogLevel.Warning,
-        Message = "Entretien du journal impossible : {Reason}")]
+        Message = "Log maintenance failed: {Reason}")]
     private static partial void LogMaintenanceFailed(ILogger logger, string reason);
 
     private readonly LogStore _logs = logs ?? throw new ArgumentNullException(nameof(logs));
@@ -46,9 +45,9 @@ public sealed partial class LogMaintenanceService(
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Une purge dès le démarrage : une instance arrêtée plusieurs jours reprend avec un journal
-        // déjà hors rétention, et attendre une heure pour l'apurer afficherait à l'administrateur
-        // des entrées que les réglages disent supprimées.
+        // A purge right at startup: an instance stopped for several days resumes with a log
+        // already past retention, and waiting an hour to clean it up would show the administrator
+        // entries the settings say are deleted.
         await SafelyAsync(() => _logs.PurgeAsync(_settings.Current.Logs.RetentionDays, stoppingToken))
             .ConfigureAwait(false);
 
@@ -74,7 +73,7 @@ public sealed partial class LogMaintenanceService(
         }
         catch (OperationCanceledException)
         {
-            // Arrêt demandé : le dernier lot part dans StopAsync.
+            // Shutdown requested: the last batch is flushed in StopAsync.
         }
     }
 
@@ -83,8 +82,8 @@ public sealed partial class LogMaintenanceService(
     {
         await base.StopAsync(cancellationToken).ConfigureAwait(false);
 
-        // Sans ce dernier passage, les quelques secondes de requêtes précédant l'arrêt seraient
-        // perdues — dont, potentiellement, celles qui expliquent pourquoi on a redémarré.
+        // Without this last pass, the few seconds of requests preceding shutdown would be lost —
+        // potentially including the ones that explain why a restart was needed.
         await SafelyAsync(() => _logs.FlushAsync(cancellationToken)).ConfigureAwait(false);
     }
 

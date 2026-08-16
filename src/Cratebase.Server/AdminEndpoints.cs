@@ -14,52 +14,52 @@ using Microsoft.AspNetCore.Routing;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Identité de l'instance en cours d'exécution.
+/// Identity of the running instance.
 /// </summary>
 /// <remarks>
-/// Instancié une fois, au démarrage : la durée de fonctionnement se compte depuis l'initialisation
-/// de Cratebase, pas depuis le premier appel à l'écran d'administration.
+/// Instantiated once, at startup: uptime is counted from Cratebase's initialization, not from the
+/// first call to the administration screen.
 /// </remarks>
 public sealed class InstanceDescriptor(IClock clock)
 {
-    /// <summary>Instant d'initialisation.</summary>
+    /// <summary>Initialization instant.</summary>
     public DateTimeOffset StartedAt { get; } = (clock ?? throw new ArgumentNullException(nameof(clock))).UtcNow;
 
-    /// <summary>Version du produit.</summary>
+    /// <summary>Product version.</summary>
     public string Version { get; } =
         typeof(InstanceDescriptor).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             .Split('+')[0]
-        ?? "inconnue";
+        ?? "unknown";
 
-    /// <summary>Version d'exécution.</summary>
+    /// <summary>Runtime version.</summary>
     public string Runtime { get; } = RuntimeInformation.FrameworkDescription;
 }
 
 /// <summary>
-/// Réglages soumis par la console.
+/// Settings submitted by the console.
 /// </summary>
 /// <remarks>
-/// Toutes les propriétés sont facultatives, et une propriété absente laisse la valeur en place.
-/// Accepter directement <see cref="AppSettings"/> aurait fait d'un PATCH partiel un remplacement
-/// intégral : un client qui n'envoie que le nom remettrait la rétention et la collecte d'adresse à
-/// leurs valeurs par défaut, sans le moindre message.
+/// Every property is optional, and an absent property leaves the value in place. Accepting
+/// <see cref="AppSettings"/> directly would have turned a partial PATCH into a full replacement: a
+/// client that only sends the name would reset retention and address collection to their defaults,
+/// with no warning at all.
 /// </remarks>
 public sealed record SettingsRequest
 {
-    /// <summary>Nom de l'instance.</summary>
+    /// <summary>Instance name.</summary>
     public string? AppName { get; init; }
 
-    /// <summary>URL publique.</summary>
+    /// <summary>Public URL.</summary>
     public string? AppUrl { get; init; }
 
-    /// <summary>Réglages du journal.</summary>
+    /// <summary>Log settings.</summary>
     public LogSettingsRequest? Logs { get; init; }
 
-    /// <summary>Réglages du temps réel.</summary>
+    /// <summary>Realtime settings.</summary>
     public RealtimeSettingsRequest? Realtime { get; init; }
 
-    /// <summary>Applique les valeurs fournies aux réglages en vigueur.</summary>
+    /// <summary>Applies the supplied values to the current settings.</summary>
     public AppSettings Apply(AppSettings current)
     {
         ArgumentNullException.ThrowIfNull(current);
@@ -74,45 +74,45 @@ public sealed record SettingsRequest
     }
 }
 
-/// <summary>Réglages du temps réel soumis par la console.</summary>
+/// <summary>Realtime settings submitted by the console.</summary>
 public sealed record RealtimeSettingsRequest
 {
-    /// <summary>Le temps réel est-il ouvert ?</summary>
+    /// <summary>Is realtime open?</summary>
     public bool? Enabled { get; init; }
 
-    /// <summary>Flux simultanés admis.</summary>
+    /// <summary>Simultaneous streams admitted.</summary>
     public int? MaxClients { get; init; }
 
-    /// <summary>Applique les valeurs fournies aux réglages en vigueur.</summary>
+    /// <summary>Applies the supplied values to the current settings.</summary>
     public RealtimeSettings Apply(RealtimeSettings current)
     {
         ArgumentNullException.ThrowIfNull(current);
 
         return new RealtimeSettings
         {
-            // `?? current` et non `?? défaut` : c'est ce qui distingue « absent » de « false ».
+            // `?? current`, not `?? default`: that's what distinguishes "absent" from "false".
             Enabled = Enabled ?? current.Enabled,
             MaxClients = MaxClients ?? current.MaxClients,
         };
     }
 }
 
-/// <summary>Réglages du journal soumis par la console.</summary>
+/// <summary>Log settings submitted by the console.</summary>
 public sealed record LogSettingsRequest
 {
-    /// <summary>Journalisation des requêtes.</summary>
+    /// <summary>Request logging.</summary>
     public bool? Enabled { get; init; }
 
-    /// <summary>Rétention, en jours.</summary>
+    /// <summary>Retention, in days.</summary>
     public int? RetentionDays { get; init; }
 
-    /// <summary>Gravité minimale écrite.</summary>
+    /// <summary>Minimum severity written.</summary>
     public LogSeverity? MinLevel { get; init; }
 
-    /// <summary>Collecte de l'adresse d'origine.</summary>
+    /// <summary>Collection of the origin address.</summary>
     public bool? LogIp { get; init; }
 
-    /// <summary>Applique les valeurs fournies.</summary>
+    /// <summary>Applies the supplied values.</summary>
     public LogSettings Apply(LogSettings current)
     {
         ArgumentNullException.ThrowIfNull(current);
@@ -128,11 +128,11 @@ public sealed record LogSettingsRequest
 }
 
 /// <summary>
-/// Endpoints d'exploitation : réglages et état de l'instance.
+/// Operations endpoints: settings and instance status.
 /// </summary>
 public static class AdminEndpoints
 {
-    /// <summary>Publie <c>/settings</c> et <c>/instance</c>.</summary>
+    /// <summary>Publishes <c>/settings</c> and <c>/instance</c>.</summary>
     public static IEndpointRouteBuilder MapAdminEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -157,13 +157,13 @@ public static class AdminEndpoints
             var saved = await settings.SaveAsync(request.Apply(settings.Current), cancellationToken)
                 .ConfigureAwait(false);
 
-            // L'auteur est porté par les colonnes d'authentification, et non par les détails
-            // libres : c'est ce que la colonne « Auteur » de l'écran des journaux lit, et une
-            // modification de réglages attribuée à « anonyme » serait un contresens.
+            // The author is carried by the authentication columns, not by the free-form details:
+            // that's what the log screen's "Author" column reads, and a settings change attributed
+            // to "anonymous" would be misleading.
             logs.Record(new LogEntry
             {
                 Level = LogSeverity.Warning,
-                Message = "Réglages de l'instance modifiés.",
+                Message = "Instance settings changed.",
                 AuthCollection = user.CollectionName ?? string.Empty,
                 AuthId = user.Id?.ToString() ?? string.Empty,
             });
@@ -210,15 +210,15 @@ public static class AdminEndpoints
                 {
                     total = await logs.CountAsync(cancellationToken).ConfigureAwait(false),
 
-                    // Les pertes du tampon sont affichées plutôt que tues : un journal incomplet
-                    // qui le dit reste exploitable, un journal incomplet qui se tait ne prouve rien.
+                    // Buffer drops are shown rather than hidden: an incomplete log that says so
+                    // stays usable, an incomplete log that stays silent proves nothing.
                     dropped = logs.Dropped,
                     settings.Current.Logs.Enabled,
                     settings.Current.Logs.RetentionDays,
                 },
 
-                // ⚠️ Ni secret client, ni rien qui en dérive : cette charge dit qu'un fournisseur
-                // est configuré, jamais avec quoi.
+                // ⚠️ No client secret, and nothing derived from one: this payload says a provider is
+                // configured, never with what.
                 providers = options.OAuth2Providers.Values.Select(provider => new
                 {
                     provider.Name,
@@ -264,9 +264,9 @@ public static class AdminEndpoints
                     bytes = await MeasureDatabaseAsync(connections, cancellationToken).ConfigureAwait(false),
                     capacityBytes = options.DatabaseCapacityBytes,
 
-                    // SQLite pose son fichier sur le disque de l'hôte : sa jauge est celle du
-                    // disque, et il n'en faut pas une seconde. Un serveur PostgreSQL, lui, vit
-                    // ailleurs — souvent sur une autre machine.
+                    // SQLite puts its file on the host's disk: its gauge is the disk's, and no
+                    // second one is needed. A PostgreSQL server, on the other hand, lives
+                    // elsewhere — often on another machine.
                     onHostDisk = options.Dialect.Name == "sqlite",
                 },
                 files = new
@@ -284,16 +284,16 @@ public static class AdminEndpoints
     }
 
     /// <summary>
-    /// Capacité du volume qui porte un répertoire.
+    /// Capacity of the volume that carries a directory.
     /// </summary>
     /// <remarks>
-    /// Le volume est déduit du chemin plutôt que codé en dur : sur un conteneur, le répertoire de
-    /// données est presque toujours un montage distinct de la racine, et mesurer la racine
-    /// annoncerait l'espace d'un disque que les données n'occupent pas.
+    /// The volume is inferred from the path rather than hardcoded: in a container, the data
+    /// directory is almost always a mount distinct from the root, and measuring the root would
+    /// report the space of a disk the data doesn't occupy.
     ///
-    /// L'échec est une réponse comme une autre — un chemin réseau, un système de fichiers exotique,
-    /// un droit manquant. Il est rendu tel quel, plutôt que déguisé en zéro : une jauge à zéro se
-    /// lit comme un disque plein.
+    /// A failure is a response like any other — a network path, an exotic file system, a missing
+    /// permission. It's returned as-is rather than disguised as zero: a gauge at zero reads as a
+    /// full disk.
     /// </remarks>
     private static object MeasureHost(string directory)
     {
@@ -324,12 +324,12 @@ public static class AdminEndpoints
     }
 
     /// <summary>
-    /// Taille de la base, mesurée par le moteur lui-même.
+    /// Database size, measured by the engine itself.
     /// </summary>
     /// <remarks>
-    /// La requête vient du dialecte : c'est la seule façon de rendre le même chiffre sur les deux
-    /// moteurs sans que ce fichier n'en nomme aucun. Un échec rend zéro plutôt que de faire tomber
-    /// l'écran entier — la volumétrie est un confort, pas une raison de perdre l'administration.
+    /// The query comes from the dialect: it's the only way to return the same figure on both
+    /// engines without this file naming either. A failure returns zero rather than bringing down
+    /// the whole screen — volumetrics is a convenience, not a reason to lose administration.
     /// </remarks>
     private static async Task<long> MeasureDatabaseAsync(
         IDbConnectionFactory connections,
