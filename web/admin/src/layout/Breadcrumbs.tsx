@@ -4,7 +4,7 @@ import { routeHref, type Route } from '../hooks/useRoute'
 import { cn } from '../ui'
 import { TAB_LABELS, adminLabel } from './navigation'
 
-/** Une étape du fil d'Ariane. Sans `href`, elle situe la page sans y mener. */
+/** A step in the breadcrumb. Without an `href`, it locates the page without leading there. */
 interface Crumb {
   label: string
   href?: string
@@ -12,19 +12,19 @@ interface Crumb {
 }
 
 /**
- * Chemin de la page courante.
+ * Path of the current page.
  *
- * Il suit la colonne de navigation étape pour étape. Une étape de plus — la nature de la
- * collection, par exemple — ferait dire au fil ce que le menu de gauche ne dit pas.
+ * It follows the navigation column step by step. One more step — the collection's kind, for
+ * example — would have the breadcrumb say what the left-hand menu doesn't.
  */
 function trail(route: Route, collection: Collection | null): Crumb[] {
-  if (route.kind === 'new') return [{ label: 'Nouvelle collection' }]
-  if (route.kind === 'logs') return [{ label: 'Journaux' }]
-  if (route.kind === 'files') return [{ label: 'Fichiers' }]
+  if (route.kind === 'new') return [{ label: 'New collection' }]
+  if (route.kind === 'logs') return [{ label: 'Logs' }]
+  if (route.kind === 'files') return [{ label: 'Files' }]
 
   if (route.kind === 'admin') {
     return [
-      { label: 'Administration', href: routeHref({ kind: 'admin', section: 'settings' }) },
+      { label: 'Admin', href: routeHref({ kind: 'admin', section: 'settings' }) },
       { label: adminLabel(route.section) },
     ]
   }
@@ -43,11 +43,11 @@ function trail(route: Route, collection: Collection | null): Crumb[] {
 }
 
 /**
- * Fil d'Ariane de la barre du haut.
+ * Breadcrumb for the top bar.
  *
- * Il s'ouvre sur une icône maison qui ramène à la racine depuis n'importe quel écran : elle y est
- * ainsi à un clic, sans consommer la largeur d'un libellé. Sous `sm`, la place ne permet pas
- * d'afficher le chemin complet : seule la dernière étape reste, ce qui suffit à situer.
+ * It opens with a home icon that leads back to the root from any screen: it's thus one click
+ * away, without consuming the width of a label. Below `sm`, there isn't room to show the full
+ * path: only the last step remains, which is enough to locate.
  */
 export function Breadcrumbs({
   route,
@@ -60,7 +60,7 @@ export function Breadcrumbs({
   const atRoot = crumbs.length === 0
 
   return (
-    <nav aria-label="Fil d'Ariane" className="min-w-0">
+    <nav aria-label="Breadcrumb" className="min-w-0">
       <ol className="flex items-center gap-1 text-sm">
         <li className="flex shrink-0 items-center">
           {atRoot ? (
@@ -69,16 +69,16 @@ export function Breadcrumbs({
               className="grid size-7 place-items-center rounded-[var(--radius-control)] text-ink"
             >
               <Home size={15} aria-hidden="true" />
-              <span className="sr-only">Tableau de bord</span>
+              <span className="sr-only">Dashboard</span>
             </span>
           ) : (
             <a
               href={routeHref({ kind: 'home' })}
-              title="Tableau de bord"
+              title="Dashboard"
               className="grid size-7 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
             >
               <Home size={15} aria-hidden="true" />
-              <span className="sr-only">Tableau de bord</span>
+              <span className="sr-only">Dashboard</span>
             </a>
           )}
         </li>

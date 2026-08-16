@@ -20,10 +20,10 @@ import { Sidebar } from './Sidebar'
 const COLLAPSED_KEY = 'cratebase.sidebar.collapsed'
 
 /**
- * Coquille applicative : colonne de navigation, barre supérieure, zone de contenu.
+ * Application shell: navigation column, top bar, content area.
  *
- * La hauteur est fixée à celle de la fenêtre et c'est le contenu seul qui défile : la colonne et la
- * barre du haut restent alors visibles pendant qu'on parcourt une table de mille lignes.
+ * The height is fixed to the window's, and only the content scrolls: the column and the top bar
+ * then stay visible while scrolling through a table of a thousand rows.
  */
 export function AppShell({
   identity,
@@ -43,7 +43,7 @@ export function AppShell({
   collections: Collection[]
   loading: boolean
   engine: string
-  /** Nom de l'instance, tel qu'il est réglé dans l'administration. */
+  /** Instance name, as set in the admin area. */
   appName: string
   route: Route
   activeCollection: Collection | null
@@ -59,13 +59,13 @@ export function AppShell({
     writeFlag(COLLAPSED_KEY, next)
   }
 
-  // Le tiroir se referme à chaque navigation, sinon il masquerait l'écran atteint.
+  // The drawer closes on every navigation, otherwise it would hide the screen reached.
   useEffect(() => {
     setDrawerOpen(false)
   }, [route])
 
-  // Échap referme le tiroir : c'est le geste attendu d'une surface superposée, et le voile qui la
-  // recouvre n'est atteignable qu'à la souris.
+  // Escape closes the drawer: it's the expected gesture for an overlaid surface, and the veil
+  // covering it can only be reached with the mouse.
   useEffect(() => {
     if (!drawerOpen) return
 
@@ -94,8 +94,8 @@ export function AppShell({
 
   return (
     <div className="flex h-dvh overflow-hidden bg-canvas">
-      {/* La largeur est portée ici et non dans la colonne : c'est elle qui décale le contenu, et
-          l'animer d'un seul endroit évite que le décalage et le repli se désynchronisent. */}
+      {/* The width is carried here rather than in the column: it's what shifts the content, and
+          animating it from a single place keeps the shift and the collapse from going out of sync. */}
       <div
         className={cn(
           'hidden shrink-0 transition-[width] duration-200 lg:block',
@@ -105,13 +105,13 @@ export function AppShell({
         {sidebar(collapsed)}
       </div>
 
-      {/* Le tiroir mobile ignore le mode réduit : il s'ouvre par-dessus le contenu, donc la largeur
-          qu'il occupe n'enlève rien à personne. */}
+      {/* The mobile drawer ignores collapsed mode: it opens over the content, so the width it
+          takes up doesn't cost anyone anything. */}
       {drawerOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            aria-label="Fermer le menu"
+            aria-label="Close menu"
             className="absolute inset-0 bg-black/50"
             onClick={() => setDrawerOpen(false)}
           />
@@ -125,21 +125,21 @@ export function AppShell({
             type="button"
             onClick={() => setDrawerOpen((current) => !current)}
             className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] text-ink-muted hover:bg-surface-sunken hover:text-ink lg:hidden"
-            aria-label={drawerOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={drawerOpen}
           >
             {drawerOpen ? <X size={16} aria-hidden="true" /> : <Menu size={16} aria-hidden="true" />}
           </button>
 
-          {/* La commande de repli est ici plutôt que dans la colonne : réduite à un rail, celle-ci
-              n'a plus la largeur d'un bouton étiqueté, et un bouton qui change de place selon
-              l'état est un bouton qu'on cherche. */}
-          <Tooltip content={collapsed ? 'Déployer le menu' : 'Réduire le menu'}>
+          {/* The collapse control lives here rather than in the column: reduced to a rail, the
+              column no longer has room for a labeled button, and a button that moves depending on
+              state is a button you have to hunt for. */}
+          <Tooltip content={collapsed ? 'Expand menu' : 'Collapse menu'}>
             <button
               type="button"
               onClick={() => collapse(!collapsed)}
               className="hidden size-9 shrink-0 place-items-center rounded-[var(--radius-control)] text-ink-muted hover:bg-surface-sunken hover:text-ink lg:grid"
-              aria-label={collapsed ? 'Déployer le menu' : 'Réduire le menu'}
+              aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
               aria-expanded={!collapsed}
             >
               {collapsed ? (
@@ -186,16 +186,16 @@ function AccountMenu({
         <span className="min-w-0">
           <span className="block truncate text-xs font-medium text-ink">{label}</span>
           <span className="block truncate text-[11px] text-ink-faint">
-            {identity.isSuperuser ? 'super-admin' : identity.collectionName}
+            {identity.isSuperuser ? 'superuser' : identity.collectionName}
           </span>
         </span>
       </span>
 
-      <Tooltip content="Se déconnecter">
+      <Tooltip content="Sign out">
         <Button
           variant="ghost"
           size="icon"
-          aria-label="Se déconnecter"
+          aria-label="Sign out"
           loading={busy}
           onClick={async () => {
             setBusy(true)
@@ -215,29 +215,29 @@ function ThemeToggle() {
 
   return (
     <SegmentedControl<ThemePreference>
-      label="Thème de la console"
+      label="Console theme"
       value={preference}
       onChange={setPreference}
-      // Segments sans texte : leur nom accessible est donné explicitement, sans quoi ils
-      // s'annonceraient « bouton » et rien d'autre.
+      // Segments without text: their accessible name is given explicitly, otherwise they would
+      // announce themselves as "button" and nothing else.
       options={[
         {
           value: 'light',
           label: <Sun size={13} aria-hidden="true" />,
-          title: 'Thème clair',
-          srLabel: 'Thème clair',
+          title: 'Light theme',
+          srLabel: 'Light theme',
         },
         {
           value: 'system',
           label: <Monitor size={13} aria-hidden="true" />,
-          title: 'Thème du système',
-          srLabel: 'Thème du système',
+          title: 'System theme',
+          srLabel: 'System theme',
         },
         {
           value: 'dark',
           label: <Moon size={13} aria-hidden="true" />,
-          title: 'Thème sombre',
-          srLabel: 'Thème sombre',
+          title: 'Dark theme',
+          srLabel: 'Dark theme',
         },
       ]}
     />

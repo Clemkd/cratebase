@@ -17,13 +17,13 @@ const OPEN_KEYS = {
 type MenuId = keyof typeof OPEN_KEYS
 
 /**
- * Nombre de collections à partir duquel un champ de filtre apparaît.
+ * Number of collections above which a filter field appears.
  *
- * En deçà, la liste tient sous les yeux et le champ ne ferait que la raccourcir d'une ligne.
+ * Below that, the list fits within view and the field would only shorten it by one line.
  */
 const SEARCHABLE_FROM = 8
 
-/** Entrée de premier niveau qui mène directement à un écran. */
+/** Top-level entry that leads directly to a screen. */
 function Entry({
   href,
   icon: Icon,
@@ -61,15 +61,15 @@ function Entry({
   return collapsed ? <Tooltip content={label}>{link}</Tooltip> : link
 }
 
-/** Délai de grâce avant fermeture d'une bulle, le temps que le curseur la rejoigne. */
+/** Grace delay before closing a flyout, giving the cursor time to reach it. */
 const FLYOUT_GRACE = 140
 
 /**
- * Ancrage d'une bulle de sous-menu sur le rail réduit.
+ * Anchoring of a submenu flyout on the collapsed rail.
  *
- * La bulle est posée en `fixed` aux coordonnées mesurées du déclencheur : la colonne défile dans
- * son propre cadre, et une bulle posée dans ce flux serait rognée par lui. Un défilement ou un
- * redimensionnement rend les coordonnées fausses, donc la ferme.
+ * The flyout is placed `fixed` at the trigger's measured coordinates: the column scrolls within
+ * its own frame, and a flyout placed in that flow would be clipped by it. A scroll or a resize
+ * makes the coordinates stale, so it closes it.
  */
 function useFlyout(anchor: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
   const [box, setBox] = useState<{ top: number; left: number; maxHeight: number } | null>(null)
@@ -97,8 +97,8 @@ function useFlyout(anchor: React.RefObject<HTMLDivElement | null>, enabled: bool
     })
   }, [anchor])
 
-  // La fermeture est différée : sans ce répit, le trajet du curseur entre l'icône et la bulle —
-  // qui passe par six pixels de vide — refermerait la bulle avant qu'il n'y arrive.
+  // Closing is deferred: without this grace period, the cursor's path from the icon to the
+  // flyout — which crosses six pixels of empty space — would close the flyout before it arrives.
   const leave = useCallback(() => {
     clearTimeout(closing.current)
     closing.current = setTimeout(() => setBox(null), FLYOUT_GRACE)
@@ -126,15 +126,15 @@ function useFlyout(anchor: React.RefObject<HTMLDivElement | null>, enabled: bool
 }
 
 /**
- * Entrée de premier niveau qui déploie un sous-menu.
+ * Top-level entry that expands a submenu.
  *
- * En mode réduit, le sous-menu ne s'ouvre pas dans le rail — quatre rem tronqueraient les noms au
- * troisième caractère — mais dans une bulle posée à sa droite, au survol comme au focus. La colonne
- * réduite reste ainsi une colonne de navigation complète : sans elle, replier la colonne revenait à
- * ne plus pouvoir atteindre que trois destinations sur quinze.
+ * In collapsed mode, the submenu doesn't open in the rail — four rem would truncate names at the
+ * third character — but in a flyout placed to its right, on hover as on focus. The collapsed
+ * column thus remains a full navigation column: without this, collapsing the column would leave
+ * only three destinations reachable out of fifteen.
  *
- * Le clic, lui, redéploie la colonne : c'est le geste de celui qui vient s'installer, quand la
- * bulle est celui de qui passe.
+ * The click, meanwhile, re-expands the column: it's the gesture of someone settling in, whereas
+ * the flyout is for someone just passing through.
  */
 function Menu({
   id,
@@ -170,7 +170,7 @@ function Menu({
       onClick={collapsed ? onExpand : onToggle}
       aria-expanded={collapsed ? undefined : open}
       aria-controls={collapsed || !open ? undefined : panelId}
-      aria-label={collapsed ? `${label} — déployer le menu` : undefined}
+      aria-label={collapsed ? `${label} — expand menu` : undefined}
       data-menu={id}
       className={cn(
         'flex items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-2 text-sm transition-colors',
@@ -201,16 +201,16 @@ function Menu({
       ref={anchor}
       onMouseEnter={collapsed ? openFlyout : undefined}
       onMouseLeave={collapsed ? leave : undefined}
-      // Le focus ouvre la bulle comme le survol : une navigation au clavier n'a pas de curseur à
-      // promener, et lui laisser le seul clic reviendrait à lui imposer le redéploiement.
+      // Focus opens the flyout just like hover: keyboard navigation has no cursor to move
+      // around, and leaving it only the click would force it to re-expand the column.
       onFocus={collapsed ? openFlyout : undefined}
       onBlur={collapsed ? leave : undefined}
     >
       {collapsed && box === null ? <Tooltip content={label}>{button}</Tooltip> : button}
 
       {!collapsed && open && (
-        // Le trait vertical rattache visuellement les enfants à leur menu : sans lui, un sous-menu
-        // ouvert se confond avec le niveau du dessus dès qu'on a fait défiler la colonne.
+        // The vertical rule visually ties the children to their menu: without it, an open
+        // submenu blends into the level above as soon as the column has been scrolled.
         <div id={panelId} className="mt-0.5 ml-4 border-l border-border-subtle pl-2">
           {children}
         </div>
@@ -233,8 +233,8 @@ function Menu({
             )}
           </p>
 
-          {/* Un clic dans la bulle mène quelque part : elle n'a plus lieu d'être ouverte à
-              l'arrivée sur la destination. */}
+          {/* A click in the flyout leads somewhere: it no longer needs to stay open once you've
+              arrived at the destination. */}
           <div onClick={close}>{children}</div>
         </div>
       )}
@@ -243,11 +243,11 @@ function Menu({
 }
 
 /**
- * Création d'une collection, posée comme une collection.
+ * Collection creation, presented as a collection entry.
  *
- * Elle ferme la liste qu'elle alimente, au lieu d'un bouton isolé sous la colonne : c'est là qu'on
- * regarde en constatant que la collection cherchée n'existe pas, et la forme d'une entrée de liste
- * dit mieux que celle d'un bouton ce que l'action va produire.
+ * It closes off the list it feeds, rather than sitting as an isolated button below the column:
+ * that's where you look when you notice the collection you wanted doesn't exist, and the shape
+ * of a list entry says better than a button what the action will produce.
  */
 function CreateCollectionLink({ onCreate }: { onCreate: () => void }) {
   return (
@@ -258,18 +258,18 @@ function CreateCollectionLink({ onCreate }: { onCreate: () => void }) {
         className="flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-ink-muted transition-colors hover:bg-surface-sunken hover:text-brand"
       >
         <Plus size={13} aria-hidden="true" className="shrink-0" />
-        <span className="truncate text-xs">Nouvelle collection</span>
+        <span className="truncate text-xs">New collection</span>
       </button>
     </li>
   )
 }
 
 /**
- * Une collection dans le sous-menu.
+ * A collection in the submenu.
  *
- * Le repère de criticité est posé au bout de la ligne, à une position constante d'une collection à
- * l'autre : c'est ce qui permet de balayer la colonne et de voir d'un coup laquelle réclame de
- * l'attention, sans lire un seul nom.
+ * The severity marker sits at the end of the row, at a constant position from one collection to
+ * the next: that's what lets you scan the column and see at a glance which one needs attention,
+ * without reading a single name.
  */
 function CollectionLink({
   collection,
@@ -302,8 +302,8 @@ function CollectionLink({
           {alert && (
             <Badge tone={alert.tone} title={alert.reason}>
               {alert.count}
-              {/* Le nombre seul ne dit pas de quoi il s'agit à un lecteur d'écran, et la couleur ne
-                  lui dit rien du tout : la raison est donc lue, pas seulement survolée. */}
+              {/* The number alone doesn't tell a screen reader what it's about, and the color
+                  tells it nothing at all: so the reason is read out, not just hinted at visually. */}
               <span className="sr-only"> — {alert.reason}</span>
             </Badge>
           )}
@@ -314,19 +314,19 @@ function CollectionLink({
 }
 
 /**
- * Colonne de navigation.
+ * Navigation column.
  *
- * Trois destinations de premier niveau : les collections, le journal, l'administration. Les
- * collections sont derrière un menu déployable parce qu'elles sont les seules à être en nombre
- * variable — une instance qui en compte quarante ne doit pas repousser « Journaux » hors de l'écran.
+ * Three top-level destinations: collections, logs, admin. Collections sit behind an expandable
+ * menu because they're the only ones present in variable numbers — an instance with forty of
+ * them shouldn't push "Logs" off the screen.
  *
- * Le mode réduit à icônes n'existe que depuis que ce premier niveau existe : tant que la colonne ne
- * contenait que des noms de collections, un rail d'icônes les aurait toutes rendues identiques.
- * C'est aussi pourquoi replier la colonne ne replie pas les collections dans le rail : on y clique
- * pour redéployer, jamais pour choisir à l'aveugle.
+ * The collapsed icon-rail mode only exists since this top level was introduced: as long as the
+ * column held nothing but collection names, an icon rail would have made them all identical.
+ * That's also why collapsing the column doesn't collapse collections into the rail: you click
+ * there to re-expand, never to pick blindly.
  *
- * Les commandes de session — thème, compte, déconnexion — restent dans la barre du haut : elles ne
- * mènent nulle part dans l'application, donc elles n'ont pas leur place dans un menu de destinations.
+ * Session controls — theme, account, sign out — stay in the top bar: they don't lead anywhere in
+ * the application, so they have no place in a menu of destinations.
  */
 export function Sidebar({
   collections,
@@ -349,14 +349,14 @@ export function Sidebar({
   collapsed: boolean
   onSelect: (name: string) => void
   onCreate: () => void
-  /** Déploie la colonne. Appelé quand un menu est cliqué en mode réduit. */
+  /** Expands the column. Called when a menu is clicked in collapsed mode. */
   onExpand: () => void
 }) {
   const sorted = useMemo(() => sortCollections(collections), [collections])
 
-  // Le diagnostic est recalculé quand le catalogue change, pas à chaque rendu : la colonne se
-  // redessine à chaque navigation, et le balayage des index de quarante collections n'a aucune
-  // raison d'être refait pour un changement de page.
+  // The diagnostic is recomputed when the catalog changes, not on every render: the column
+  // redraws on every navigation, and scanning the indexes of forty collections has no reason to
+  // be redone for a mere page change.
   const [filter, setFilter] = useState('')
 
   const visible = useMemo(() => {
@@ -391,8 +391,9 @@ export function Sidebar({
       return { ...current, [id]: next }
     })
 
-  // Déployer la colonne depuis un menu réduit doit ouvrir *ce* menu : sinon le clic déploie une
-  // colonne où la destination demandée reste fermée, et il faut un second clic pour la voir.
+  // Expanding the column from a collapsed menu must open *that* menu: otherwise the click
+  // expands a column where the requested destination stays closed, requiring a second click to
+  // see it.
   const expandInto = (id: MenuId) => {
     setOpen((current) => ({ ...current, [id]: true }))
     writeFlag(OPEN_KEYS[id], true)
@@ -422,20 +423,20 @@ export function Sidebar({
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold tracking-tight text-ink">{appName}</p>
             <p className="truncate text-[11px] text-ink-faint">
-              {engine ? `moteur ${engine}` : 'moteur inconnu'}
+              {engine ? `${engine} engine` : 'unknown engine'}
             </p>
           </div>
         )}
       </div>
 
       <nav
-        aria-label="Navigation principale"
+        aria-label="Main navigation"
         className={cn('scrollbar-none min-h-0 flex-1 space-y-1 overflow-y-auto pt-2', collapsed ? 'px-3' : 'px-2')}
       >
         <Entry
           href={routeHref({ kind: 'home' })}
           icon={DASHBOARD_ICON}
-          label="Tableau de bord"
+          label="Dashboard"
           active={route.kind === 'home'}
           collapsed={collapsed}
         />
@@ -459,8 +460,8 @@ export function Sidebar({
             </div>
           ) : (
             <>
-              {/* Le champ n'apparaît qu'au-delà de ce qu'un œil embrasse d'un coup. En dessous, il
-                  coûterait une ligne pour filtrer une liste déjà entièrement visible. */}
+              {/* The field only appears beyond what an eye can take in at a glance. Below that,
+                  it would cost a line to filter a list that's already fully visible. */}
               {collections.length > SEARCHABLE_FROM && (
                 <div className="relative mb-1">
                   <Search
@@ -471,8 +472,8 @@ export function Sidebar({
                   <Input
                     value={filter}
                     spellCheck={false}
-                    aria-label="Filtrer les collections"
-                    placeholder="Filtrer"
+                    aria-label="Filter collections"
+                    placeholder="Filter"
                     className="h-7 pl-7 font-mono text-xs"
                     onChange={(event) => setFilter(event.target.value)}
                   />
@@ -492,13 +493,13 @@ export function Sidebar({
               </ul>
 
               {visible.length === 0 && (
-                <p className="px-2 py-1.5 text-xs text-ink-faint">Aucune collection de ce nom.</p>
+                <p className="px-2 py-1.5 text-xs text-ink-faint">No collection with that name.</p>
               )}
             </>
           )}
 
-          {/* Hors de la liste : la création n'appartient à aucun groupe — c'est elle qui décidera
-              du sien. */}
+          {/* Outside the list: creation belongs to no group — it's the one that will decide its
+              own. */}
           <ul className={cn(collections.length > 0 && 'mt-1 border-t border-border-subtle pt-1')}>
             <CreateCollectionLink onCreate={onCreate} />
           </ul>
@@ -507,7 +508,7 @@ export function Sidebar({
         <Entry
           href={routeHref({ kind: 'files' })}
           icon={FILES_ICON}
-          label="Fichiers"
+          label="Files"
           active={route.kind === 'files'}
           collapsed={collapsed}
         />
@@ -515,7 +516,7 @@ export function Sidebar({
         <Entry
           href={routeHref({ kind: 'logs' })}
           icon={LOGS_ICON}
-          label="Journaux"
+          label="Logs"
           active={route.kind === 'logs'}
           collapsed={collapsed}
         />
@@ -523,7 +524,7 @@ export function Sidebar({
         <Menu
           id="administration"
           icon={Wrench}
-          label="Administration"
+          label="Admin"
           active={adminSection !== null}
           collapsed={collapsed}
           open={open.administration}

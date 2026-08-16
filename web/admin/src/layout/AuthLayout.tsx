@@ -2,10 +2,10 @@ import type { ReactNode } from 'react'
 import { Boxes } from 'lucide-react'
 
 /**
- * Cadre des écrans hors session.
+ * Frame for out-of-session screens.
  *
- * L'identité du produit et le formulaire tiennent sur une seule surface : les séparer — un logo
- * flottant au-dessus d'une carte — fait deux blocs là où l'utilisateur n'a qu'une chose à faire.
+ * The product identity and the form fit on a single surface: separating them — a logo floating
+ * above a card — makes two blocks where the user only has one thing to do.
  */
 export function AuthLayout({
   title,
@@ -18,7 +18,7 @@ export function AuthLayout({
   description?: string
   children: ReactNode
   footer?: ReactNode
-  /** Commande secondaire posée en haut de l'écran, hors de la carte : bascule de thème. */
+  /** Secondary control placed at the top of the screen, outside the card: theme toggle. */
   aside?: ReactNode
 }) {
   return (

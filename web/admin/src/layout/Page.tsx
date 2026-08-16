@@ -3,19 +3,19 @@ import { createPortal } from 'react-dom'
 import { cn } from '../ui'
 
 /**
- * Emplacement des actions dans l'en-tête de page.
+ * Slot for actions in the page header.
  *
- * Un écran rendu dans `children` peut y déposer ses boutons alors qu'ils s'affichent au-dessus de
- * lui, à côté du titre. Sans ce relais, il faudrait remonter l'état de l'écran jusqu'à l'appelant
- * de `Page` pour que celui-ci puisse en dériver les actions — l'inverse de ce que sert un composant
- * autonome.
+ * A screen rendered in `children` can drop its buttons there even though they display above it,
+ * next to the title. Without this relay, the screen's state would have to be lifted up to
+ * `Page`'s caller so it could derive the actions from it — the opposite of what a self-contained
+ * component is for.
  *
- * Le gain n'est pas cosmétique : une barre d'actions sur sa propre ligne coûte une ligne entière de
- * hauteur utile sur chaque écran, alors que l'en-tête a de la place libre à droite du titre.
+ * The gain isn't cosmetic: an actions bar on its own line costs a full line of usable height on
+ * every screen, whereas the header has free space to the right of the title.
  */
 const PageActionsSlot = createContext<HTMLElement | null>(null)
 
-/** Conteneur de page : largeur, marges et en-tête homogènes sur toute la console. */
+/** Page container: width, margins, and header consistent across the whole console. */
 export function Page({
   title,
   description,
@@ -26,16 +26,16 @@ export function Page({
 }: {
   title: ReactNode
   description?: ReactNode
-  /** Actions de la page. Leur place est ici, pas dans les barres d'outils du contenu. */
+  /** Page actions. Their place is here, not in the content's toolbars. */
   actions?: ReactNode
-  /** Repères de lecture posés sous le titre : nature de la collection, volumétrie, identifiant. */
+  /** Reading cues placed under the title: collection kind, volume, identifier. */
   meta?: ReactNode
   children: ReactNode
-  /** Les écrans en tableau réclament toute la largeur disponible. */
+  /** Table screens claim all the available width. */
   wide?: boolean
 }) {
-  // L'élément est gardé en état, et non dans une ref : une ref ne provoque pas de nouveau rendu,
-  // donc les enfants ne sauraient jamais que la destination existe.
+  // The element is kept in state, not in a ref: a ref doesn't trigger a re-render, so the
+  // children would never know the destination exists.
   const [slot, setSlot] = useState<HTMLElement | null>(null)
 
   return (
@@ -58,10 +58,10 @@ export function Page({
 }
 
 /**
- * Dépose des actions dans l'en-tête de la page englobante.
+ * Drops actions into the enclosing page's header.
  *
- * Sans `Page` au-dessus, ne rend rien plutôt que de lever : un écran doit rester montable seul,
- * dans un test par exemple.
+ * Without a `Page` above, renders nothing rather than throwing: a screen must remain mountable
+ * on its own, in a test for example.
  */
 export function PageActions({ children }: { children: ReactNode }) {
   const slot = useContext(PageActionsSlot)
@@ -69,7 +69,7 @@ export function PageActions({ children }: { children: ReactNode }) {
   return slot ? createPortal(children, slot) : null
 }
 
-/** Grille de tuiles chiffrées. */
+/** Grid of numeric tiles. */
 export function StatGrid({ children }: { children: ReactNode }) {
   return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
 }
@@ -83,10 +83,10 @@ const STAT_TONES = {
 } as const
 
 /**
- * Tuile chiffrée.
+ * Numeric tile.
  *
- * Cliquable, elle devient un vrai bouton et non une `div` munie d'un `onClick` : c'est la seule
- * forme qui reste atteignable à la tabulation et actionnable à la barre d'espace.
+ * Clickable, it becomes a real button rather than a `div` fitted with an `onClick`: it's the
+ * only form that stays reachable by tabbing and actionable with the space bar.
  */
 export function Stat({
   label,
@@ -103,7 +103,7 @@ export function Stat({
   icon?: ReactNode
   tone?: keyof typeof STAT_TONES
   onClick?: () => void
-  /** Nom accessible du bouton, qui doit dire où mène la tuile. */
+  /** Accessible name of the button, which must say where the tile leads. */
   actionLabel?: string
 }) {
   const body = (
@@ -113,16 +113,16 @@ export function Stat({
         {icon && <span className={STAT_TONES[tone]}>{icon}</span>}
       </div>
       <p className={cn('mt-1.5 text-2xl font-semibold tabular-nums', STAT_TONES[tone])}>{value}</p>
-      {/* `break-all` et non `break-words` : les repères posés ici sont souvent des chemins ou des
-          URL, qui ne comportent aucune espace où couper. Sans lui, un répertoire de données déborde
-          de la carte au lieu de passer à la ligne. */}
+      {/* `break-all` rather than `break-words`: the cues placed here are often paths or URLs,
+          which have no spaces to break on. Without it, a data directory overflows the card
+          instead of wrapping. */}
       {hint && <p className="mt-0.5 text-xs break-all text-ink-muted">{hint}</p>}
     </>
   )
 
   const shell = cn(
-    // `min-w-0` : sans lui une tuile de grille refuse de rétrécir sous la largeur de son contenu,
-    // et c'est la grille entière qui déborde plutôt que le texte qui se replie.
+    // `min-w-0`: without it, a grid tile refuses to shrink below its content's width, and it's
+    // the whole grid that overflows rather than the text wrapping.
     'min-w-0 rounded-[var(--radius-card)] border bg-surface px-4 py-3.5 text-left shadow-card',
     tone === 'danger' ? 'border-danger/40' : 'border-border-subtle',
   )
