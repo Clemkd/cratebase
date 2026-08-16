@@ -21,9 +21,9 @@ export function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
       await api.auth.login(identity, password)
       onAuthenticated()
     } catch (failure) {
-      // Le serveur ne distingue pas « compte inconnu » de « mot de passe faux », et l'interface
-      // ne doit pas réintroduire la distinction : elle dirait à un attaquant quelles adresses
-      // existent.
+      // The server doesn't distinguish "unknown account" from "wrong password", and the
+      // interface must not reintroduce the distinction: it would tell an attacker which
+      // addresses exist.
       setError(describeFailure(failure))
     } finally {
       setBusy(false)
@@ -32,15 +32,15 @@ export function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
 
   return (
     <AuthLayout
-      title="Connexion"
-      description="Console d'administration."
-      footer="Réservé aux super-admins. La session expire à la fermeture de l'onglet."
+      title="Sign in"
+      description="Admin console."
+      footer="Reserved for superusers. The session expires when the tab closes."
       aside={
-        <Tooltip content={resolved === 'dark' ? 'Passer en clair' : 'Passer en sombre'}>
+        <Tooltip content={resolved === 'dark' ? 'Switch to light' : 'Switch to dark'}>
           <Button
             variant="ghost"
             size="icon"
-            aria-label={resolved === 'dark' ? 'Passer en thème clair' : 'Passer en thème sombre'}
+            aria-label={resolved === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
             onClick={() => setPreference(resolved === 'dark' ? 'light' : 'dark')}
           >
             {resolved === 'dark' ? (
@@ -59,7 +59,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
       )}
 
       <form onSubmit={submit} noValidate className="space-y-4">
-        <Field label="Adresse de courriel" required>
+        <Field label="Email address" required>
           <Input
             type="email"
             autoComplete="username"
@@ -71,7 +71,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
           />
         </Field>
 
-        <Field label="Mot de passe" required>
+        <Field label="Password" required>
           <Input
             type="password"
             autoComplete="current-password"
@@ -90,7 +90,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
           loading={busy}
           disabled={identity === '' || password === ''}
         >
-          {busy ? 'Connexion…' : 'Se connecter'}
+          {busy ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>
     </AuthLayout>

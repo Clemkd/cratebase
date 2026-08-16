@@ -2,49 +2,48 @@ import type { FieldOptions, FieldType } from '../api'
 import { supportsMultiple } from '../lib/fields'
 
 /**
- * Contraintes d'un champ, décrites une fois pour toutes.
+ * Constraints on a field, described once and for all.
  *
- * L'éditeur de schéma affiche une ligne par champ : les réglages propres au type ne peuvent donc
- * plus s'étaler en formulaire. Ils deviennent des jetons posés dans une cellule, ajoutés depuis une
- * liste qui ne propose que ce que le type admet — une longueur maximale sur un booléen n'a aucun
- * sens et ne doit même pas apparaître.
+ * The schema editor displays one row per field: type-specific settings therefore can no longer
+ * sprawl across a form. They become chips placed in a cell, added from a list that only offers
+ * what the type admits — a maximum length on a boolean makes no sense and must not even appear.
  *
- * Chaque descripteur sait lire, écrire et effacer sa contrainte : le reste de l'écran manipule des
- * descripteurs, jamais les clés de `FieldOptions` une à une, ce qui évite d'oublier un cas au
- * changement de type.
+ * Each descriptor knows how to read, write, and clear its constraint: the rest of the screen
+ * manipulates descriptors, never the keys of `FieldOptions` one by one, which avoids missing a
+ * case on a type change.
  */
 
-/** Ce qu'on édite dans le jeton : détermine le contrôle rendu. */
+/** What's being edited in the chip: determines the rendered control. */
 export type ConstraintKind = 'number' | 'text' | 'list' | 'flag' | 'collection'
 
-/** Portion du brouillon qu'une contrainte peut modifier. */
+/** Portion of the draft a constraint can modify. */
 export interface ConstraintTarget {
   maxSelect: number
   options: FieldOptions
 }
 
 export interface ConstraintDescriptor {
-  /** Identifiant unique : deux contraintes peuvent viser la même clé sur des types différents. */
+  /** Unique identifier: two constraints can target the same key on different types. */
   id: string
   label: string
   /**
-   * Libellé abrégé du jeton, dans le tableau des champs.
+   * Short label for the chip, in the fields table.
    *
-   * La liste d'ajout dispose de toute la largeur d'une bulle et peut se permettre d'être explicite ;
-   * le jeton, lui, partage une cellule avec quatre autres et doit tenir sur la même ligne.
+   * The add list has the full width of a flyout and can afford to be explicit; the chip, on the
+   * other hand, shares a cell with four others and must fit on the same line.
    */
   short?: string
   kind: ConstraintKind
   types: FieldType[]
-  /** La contrainte est-elle posée sur ce champ ? */
+  /** Is the constraint set on this field? */
   isSet: (target: ConstraintTarget) => boolean
-  /** Valeur telle qu'elle s'édite, sous forme de texte. */
+  /** Value as it's edited, as text. */
   read: (target: ConstraintTarget) => string
-  /** Écrit une valeur saisie. */
+  /** Writes an entered value. */
   write: (target: ConstraintTarget, raw: string) => ConstraintTarget
-  /** Pose la contrainte avec sa valeur de départ. */
+  /** Sets the constraint with its starting value. */
   add: (target: ConstraintTarget) => ConstraintTarget
-  /** Retire la contrainte. */
+  /** Removes the constraint. */
   clear: (target: ConstraintTarget) => ConstraintTarget
 }
 
@@ -74,8 +73,8 @@ function numberConstraint(
     types,
     isSet: ({ options }) => options[key] !== null && options[key] !== undefined,
     read: ({ options }) => (options[key] === null || options[key] === undefined ? '' : String(options[key])),
-    // Une case vidée en cours de frappe reste une contrainte posée, sans valeur : la retirer à la
-    // dernière touche effacée ferait disparaître le jeton sous les doigts de l'utilisateur.
+    // A field cleared mid-typing remains a set constraint, without a value: removing it on the
+    // last character deleted would make the chip vanish under the user's fingers.
     write: (target, raw) => withOption(target, key, raw === '' ? null : Number(raw)),
     add: (target) => withOption(target, key, initial),
     clear: (target) => withOption(target, key, null),
@@ -156,55 +155,55 @@ const ALL_TYPES: FieldType[] = [
 const MULTIPLE_TYPES: FieldType[] = ALL_TYPES.filter(supportsMultiple)
 
 /**
- * Catalogue des contraintes, dans l'ordre où elles sont proposées.
+ * Catalog of constraints, in the order they're offered.
  *
- * `Relation` porte sa collection cible ici plutôt que dans une colonne dédiée : c'est une
- * contrainte du champ au même titre que les autres, et lui réserver une colonne laisserait une
- * case vide sur toutes les lignes qui ne sont pas des relations.
+ * `Relation` carries its target collection here rather than in a dedicated column: it's a field
+ * constraint just like the others, and reserving a column for it would leave an empty cell on
+ * every row that isn't a relation.
  */
 /**
- * Abrégés des jetons, indexés par contrainte.
+ * Chip abbreviations, indexed by constraint.
  *
- * Rassemblés ici plutôt que passés à chaque fabrique : ce sont des libellés, pas un aspect du
- * comportement, et les tenir côte à côte est le seul moyen de vérifier d'un coup d'œil qu'ils
- * restent distincts les uns des autres.
+ * Gathered here rather than passed to each factory: they're labels, not an aspect of behavior,
+ * and keeping them side by side is the only way to check at a glance that they stay distinct
+ * from one another.
  */
 const SHORT_LABELS: Record<string, string> = {
-  textMin: 'Long. min',
-  textMax: 'Long. max',
+  textMin: 'Min length',
+  textMax: 'Max length',
   numberMin: 'Min',
   numberMax: 'Max',
-  integerOnly: 'Entiers',
-  values: 'Valeurs',
+  integerOnly: 'Integers',
+  values: 'Values',
   cascade: 'Cascade',
-  fileSize: 'Taille max',
+  fileSize: 'Max size',
   mime: 'MIME',
-  thumbs: 'Vignettes',
-  protected: 'Protégé',
-  onCreate: 'À la création',
-  onUpdate: 'À la modification',
+  thumbs: 'Thumbnails',
+  protected: 'Protected',
+  onCreate: 'On create',
+  onUpdate: 'On update',
   maxSelect: 'Max',
 }
 
-/** Libellé du jeton : l'abrégé s'il existe, le libellé complet sinon. */
+/** Label for the chip: the short form if it exists, the full label otherwise. */
 export function constraintShort(constraint: ConstraintDescriptor): string {
   return constraint.short ?? constraint.label
 }
 
 const CATALOGUE: ConstraintDescriptor[] = [
-  numberConstraint('textMin', 'Longueur min', ['Text', 'Editor'], 'min', 1),
-  numberConstraint('textMax', 'Longueur max', ['Text', 'Editor'], 'max', 255),
-  textConstraint('pattern', 'Motif', ['Text'], 'pattern'),
+  numberConstraint('textMin', 'Min length', ['Text', 'Editor'], 'min', 1),
+  numberConstraint('textMax', 'Max length', ['Text', 'Editor'], 'max', 255),
+  textConstraint('pattern', 'Pattern', ['Text'], 'pattern'),
 
-  numberConstraint('numberMin', 'Valeur min', ['Number'], 'min', 0),
-  numberConstraint('numberMax', 'Valeur max', ['Number'], 'max', 100),
-  flagConstraint('integerOnly', 'Entiers seulement', ['Number'], 'integerOnly'),
+  numberConstraint('numberMin', 'Min value', ['Number'], 'min', 0),
+  numberConstraint('numberMax', 'Max value', ['Number'], 'max', 100),
+  flagConstraint('integerOnly', 'Integers only', ['Number'], 'integerOnly'),
 
-  listConstraint('values', 'Valeurs admises', ['Select'], 'values'),
+  listConstraint('values', 'Allowed values', ['Select'], 'values'),
 
   {
     id: 'target',
-    label: 'Cible',
+    label: 'Target',
     kind: 'collection',
     types: ['Relation'],
     isSet: ({ options }) => options.targetCollection !== null && options.targetCollection !== undefined,
@@ -213,23 +212,23 @@ const CATALOGUE: ConstraintDescriptor[] = [
     add: (target) => withOption(target, 'targetCollection', ''),
     clear: (target) => withOption(target, 'targetCollection', null),
   },
-  flagConstraint('cascade', 'Suppression en cascade', ['Relation'], 'cascadeDelete'),
+  flagConstraint('cascade', 'Cascade delete', ['Relation'], 'cascadeDelete'),
 
-  numberConstraint('fileSize', 'Taille max (octets)', ['File'], 'maxFileSize', 5_242_880),
-  listConstraint('mime', 'Types MIME', ['File'], 'mimeTypes'),
-  listConstraint('thumbs', 'Vignettes', ['File'], 'thumbSizes'),
-  flagConstraint('protected', 'Fichier protégé', ['File'], 'protected'),
+  numberConstraint('fileSize', 'Max size (bytes)', ['File'], 'maxFileSize', 5_242_880),
+  listConstraint('mime', 'MIME types', ['File'], 'mimeTypes'),
+  listConstraint('thumbs', 'Thumbnails', ['File'], 'thumbSizes'),
+  flagConstraint('protected', 'Protected file', ['File'], 'protected'),
 
-  flagConstraint('onCreate', 'Posée à la création', ['AutoDate'], 'onCreate'),
-  flagConstraint('onUpdate', 'Posée à la modification', ['AutoDate'], 'onUpdate'),
+  flagConstraint('onCreate', 'Set on create', ['AutoDate'], 'onCreate'),
+  flagConstraint('onUpdate', 'Set on update', ['AutoDate'], 'onUpdate'),
 
   {
     id: 'maxSelect',
-    label: 'Max valeurs',
+    label: 'Max values',
     kind: 'number',
     types: MULTIPLE_TYPES,
-    // `maxSelect` à 1 n'est pas une contrainte mais l'absence de contrainte : c'est le champ
-    // simple, cas par défaut de tous les types.
+    // `maxSelect` of 1 isn't a constraint but the absence of one: it's the simple field, the
+    // default case for every type.
     isSet: ({ maxSelect }) => maxSelect > 1,
     read: ({ maxSelect }) => String(maxSelect),
     write: (target, raw) => ({ ...target, maxSelect: Math.max(1, Number(raw) || 1) }),
@@ -243,21 +242,21 @@ export const CONSTRAINTS: ConstraintDescriptor[] = CATALOGUE.map((constraint) =>
   short: SHORT_LABELS[constraint.id],
 }))
 
-/** Contraintes que ce type de champ admet. */
+/** Constraints this field type admits. */
 export function constraintsFor(type: FieldType): ConstraintDescriptor[] {
   return CONSTRAINTS.filter((constraint) => constraint.types.includes(type))
 }
 
-/** Contraintes posées et applicables, dans l'ordre du catalogue. */
+/** Constraints that are both set and applicable, in catalog order. */
 export function activeConstraints(type: FieldType, target: ConstraintTarget): ConstraintDescriptor[] {
   return constraintsFor(type).filter((constraint) => constraint.isSet(target))
 }
 
 /**
- * Retire les contraintes que le nouveau type n'admet pas.
+ * Removes constraints the new type doesn't admit.
  *
- * Rend aussi la liste de ce qui a été retiré : le changement ne doit pas être silencieux, sans quoi
- * un aller-retour entre deux types effacerait des réglages sans laisser de trace.
+ * Also returns the list of what was removed: the change must not be silent, otherwise switching
+ * back and forth between two types would erase settings without leaving a trace.
  */
 export function retype(
   target: ConstraintTarget,
@@ -276,8 +275,8 @@ export function retype(
     dropped.push(constraint.label)
   }
 
-  // Une relation sans cible n'est pas enregistrable : le jeton est posé d'office pour que le choix
-  // soit visible plutôt que réclamé par une erreur du serveur.
+  // A relation without a target isn't savable: the chip is added by default so the choice is
+  // visible instead of being demanded by a server error.
   if (next === 'Relation' && result.options.targetCollection === undefined) {
     result = withOption(result, 'targetCollection', '')
   }
@@ -285,7 +284,7 @@ export function retype(
   return { target: result, dropped }
 }
 
-/** Contrainte rendue en une ligne, pour les champs système qui ne s'éditent pas. */
+/** Constraint rendered as one line, for system fields that aren't editable. */
 export function describeConstraint(
   constraint: ConstraintDescriptor,
   target: ConstraintTarget,
@@ -296,5 +295,5 @@ export function describeConstraint(
 
   const value = constraint.read(target)
 
-  return value === '' ? label : `${label} : ${value}`
+  return value === '' ? label : `${label}: ${value}`
 }

@@ -2,13 +2,13 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { formatBytes } from '../lib/format'
 import { cn } from '../ui'
 
-/** Une part du donut. */
+/** A slice of the donut. */
 export interface UsageSlice {
   label: string
   bytes: number
-  /** Variable CSS de la teinte, pour que le graphique suive le thème sans code de synchronisation. */
+  /** CSS variable for the tone, so the chart follows the theme without sync code. */
   fill: string
-  /** Classe équivalente, pour la pastille de la légende — un aplat HTML ne lit pas un `fill` SVG. */
+  /** Equivalent class, for the legend swatch — a flat HTML fill can't read an SVG `fill`. */
   swatch: string
 }
 
@@ -17,7 +17,7 @@ interface Slice {
   value?: unknown
 }
 
-/** Bulle de survol : une part, sa taille, sa proportion. */
+/** Hover tooltip: a slice, its size, its proportion. */
 function DonutTooltip({
   active,
   payload,
@@ -36,21 +36,22 @@ function DonutTooltip({
       <p className="text-xs text-ink">{String(slice.name ?? '')}</p>
       <p className="text-xs tabular-nums text-ink-muted">
         {formatBytes(slice.value)}
-        {total > 0 && ` — ${((slice.value / total) * 100).toFixed(1)} %`}
+        {total > 0 && ` — ${((slice.value / total) * 100).toFixed(1)}%`}
       </p>
     </div>
   )
 }
 
 /**
- * Occupation d'un volume, en anneau.
+ * Volume usage, as a ring.
  *
- * L'anneau n'est pas décoratif : ce qu'on cherche sur un disque, c'est une proportion — « la base
- * a-t-elle pris toute la place ? » —, et une proportion se lit mieux en angle qu'en chiffres alignés.
- * Le centre porte le total, parce qu'un anneau sans dénominateur ne dit rien.
+ * The ring isn't decorative: what you look for on a disk is a proportion — "has the database
+ * taken up all the room?" — and a proportion reads better as an angle than as aligned numbers.
+ * The center carries the total, because a ring without a denominator says nothing.
  *
- * Les parts nulles sont écartées avant le rendu : Recharts leur réserve un secteur d'épaisseur nulle
- * qui garnit quand même la légende, et une légende de zéros noie les deux lignes qui comptent.
+ * Zero slices are discarded before rendering: Recharts still reserves a zero-thickness sector for
+ * them that fills out the legend anyway, and a legend full of zeros drowns out the two lines that
+ * matter.
  */
 export function UsageDonut({
   slices,
@@ -59,9 +60,9 @@ export function UsageDonut({
   className,
 }: {
   slices: UsageSlice[]
-  /** Dénominateur de l'anneau. Il vaut la somme des parts quand la capacité est connue. */
+  /** Denominator of the ring. Equals the sum of the slices when capacity is known. */
   total: number
-  /** Ce que le centre annonce sous le total. */
+  /** What the center announces under the total. */
   caption: string
   className?: string
 }) {
@@ -100,8 +101,8 @@ export function UsageDonut({
           </PieChart>
         </ResponsiveContainer>
 
-        {/* Le total au centre, hors du SVG : il doit rester sélectionnable et suivre la typographie
-            de la page, ce qu'un <text> ne fait ni l'un ni l'autre. */}
+        {/* The total at the center, outside the SVG: it must remain selectable and follow the
+            page's typography, neither of which a <text> element does. */}
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-sm font-semibold tabular-nums text-ink">{formatBytes(total)}</span>
           <span className="text-[11px] text-ink-faint">{caption}</span>
@@ -116,13 +117,13 @@ export function UsageDonut({
             <span className="shrink-0 tabular-nums text-ink">{formatBytes(slice.bytes)}</span>
             {total > 0 && (
               <span className="w-12 shrink-0 text-right tabular-nums text-ink-faint">
-                {((slice.bytes / total) * 100).toFixed(1)} %
+                {((slice.bytes / total) * 100).toFixed(1)}%
               </span>
             )}
           </li>
         ))}
 
-        {visible.length === 0 && <li className="text-xs text-ink-faint">Rien à mesurer.</li>}
+        {visible.length === 0 && <li className="text-xs text-ink-faint">Nothing to measure.</li>}
       </ul>
     </div>
   )
