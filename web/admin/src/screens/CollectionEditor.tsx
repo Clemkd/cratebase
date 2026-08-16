@@ -79,9 +79,9 @@ import {
 import { RulesEditor } from './RulesEditor'
 
 interface FieldDraft extends ConstraintTarget {
-  /** Clé de rendu stable, jamais transmise : l'identifiant d'un champ nouveau est vide. */
+  /** Stable render key, never transmitted: a new field's identifier is empty. */
   key: string
-  /** ⚠️ Vide pour un champ nouveau. Renseigné, il désigne le champ existant à faire évoluer. */
+  /** ⚠️ Empty for a new field. When set, designates the existing field to evolve. */
   id: string
   originalName: string | null
   originalType: FieldType | null
@@ -129,9 +129,8 @@ function toDraft(collection: Collection | null): Draft {
 }
 
 /**
- * Les index posés par le moteur sur une collection d'auth (unicité de l'adresse et de la clé de
- * jeton) sont réappliqués à chaque écriture : les afficher comme modifiables laisserait croire
- * qu'on peut les retirer.
+ * Indexes set by the engine on an auth collection (uniqueness of the email and the token key)
+ * are reapplied on every write: showing them as editable would suggest they can be removed.
  */
 function isSystemIndex(index: CollectionIndex, collection: Collection): boolean {
   return (
@@ -148,9 +147,9 @@ function toPayload(draft: Draft): CollectionPayload {
     rules: draft.rules,
     indexes: draft.indexes,
     fields: draft.fields.map((field) => ({
-      // L'identifiant vide est omis : c'est ainsi que le serveur reconnaît un champ nouveau. Le
-      // renvoyer pour un champ existant est ce qui transforme un renommage en RENAME COLUMN au
-      // lieu d'un DROP suivi d'un ADD, donc ce qui préserve les données de la colonne.
+      // The empty identifier is omitted: that's how the server recognizes a new field. Sending
+      // it back for an existing field is what turns a rename into a RENAME COLUMN instead of a
+      // DROP followed by an ADD, and therefore what preserves the column's data.
       ...(field.id ? { id: field.id } : {}),
       name: field.name,
       type: field.type,
@@ -162,11 +161,11 @@ function toPayload(draft: Draft): CollectionPayload {
 }
 
 /**
- * Éditeur de schéma.
+ * Schema editor.
  *
- * Quatre vues d'un même brouillon — général, champs, index, règles — pilotées par l'URL et rendues
- * par la barre d'onglets de la page. Le composant reste monté d'une vue à l'autre : la saisie
- * survit donc au changement d'onglet, et un seul bouton enregistre l'ensemble.
+ * Four views of a single draft — general, fields, indexes, rules — driven by the URL and
+ * rendered by the page's tab bar. The component stays mounted from one view to the next: the
+ * input therefore survives switching tabs, and a single button saves everything.
  */
 export function CollectionEditor({
   collection,
@@ -180,7 +179,7 @@ export function CollectionEditor({
   collection: Collection | null
   collections: Collection[]
   section: SchemaTab
-  /** Ouvre une autre vue de la collection : les indicateurs mènent à ce qu'ils signalent. */
+  /** Opens another view of the collection: indicators lead to what they flag. */
   onNavigate: (tab: CollectionTab) => void
   onSaved: (name: string) => void
   onCancel: () => void
@@ -197,7 +196,7 @@ export function CollectionEditor({
   const [dropping, setDropping] = useState(false)
 
   const isNew = collection === null
-  /** Le schéma des collections du moteur se consulte, il ne se modifie pas. */
+  /** The engine's collection schemas can be viewed, not edited. */
   const readOnly = collection?.isSystem ?? false
   const systemFields = useMemo(
     () => collection?.fields.filter((field) => field.isSystem) ?? [],
@@ -225,12 +224,12 @@ export function CollectionEditor({
 
     patch(field.key, { type, maxSelect: target.maxSelect, options: target.options })
 
-    // Le changement ne doit pas être silencieux : sans ce message, un aller-retour entre deux types
-    // effacerait des réglages sans laisser de trace.
+    // The change must not be silent: without this message, switching back and forth between two
+    // types would erase settings without leaving a trace.
     if (dropped.length > 0) {
       const plural = dropped.length > 1
       toast.info(
-        `« ${field.name || 'Champ sans nom'} » : ${dropped.join(', ')} ne s'applique${plural ? 'nt' : ''} pas au type ${typeLabel(type)} — contrainte${plural ? 's' : ''} retirée${plural ? 's' : ''}.`,
+        `"${field.name || 'Unnamed field'}": ${dropped.join(', ')} ${plural ? "don't" : "doesn't"} apply to type ${typeLabel(type)} — constraint${plural ? 's' : ''} removed.`,
       )
     }
   }
@@ -256,7 +255,7 @@ export function CollectionEditor({
       fields: [
         ...current.fields,
         {
-          key: `nouveau-${++temporaryKeys}`,
+          key: `new-${++temporaryKeys}`,
           id: '',
           originalName: null,
           originalType: null,
@@ -282,8 +281,8 @@ export function CollectionEditor({
 
       toast.success(
         collection
-          ? `Collection « ${saved.name} » enregistrée.`
-          : `Collection « ${saved.name} » créée.`,
+          ? `Collection "${saved.name}" saved.`
+          : `Collection "${saved.name}" created.`,
       )
       onSaved(saved.name)
     } catch (error) {
@@ -303,7 +302,7 @@ export function CollectionEditor({
 
     try {
       await api.collections.remove(collection.name)
-      toast.success(`Collection « ${collection.name} » supprimée.`)
+      toast.success(`Collection "${collection.name}" deleted.`)
       onDeleted()
     } catch (error) {
       toast.error(describeFailure(error))
@@ -316,28 +315,28 @@ export function CollectionEditor({
   return (
     <div className="space-y-5">
       {!readOnly && (
-        // Les actions rejoignent l'en-tête de la page, à droite du nom de la collection, plutôt que
-        // d'occuper une ligne à elles seules sous les onglets : l'espace vertical est ce qui manque
-        // le plus à un éditeur de schéma, et l'en-tête a de la place libre.
+        // Actions join the page header, to the right of the collection name, rather than
+        // occupying a line of their own below the tabs: vertical space is what a schema editor
+        // lacks the most, and the header has room to spare.
         //
-        // Un seul jeu de boutons pour les quatre vues, parce qu'elles n'ont qu'un brouillon :
-        // « Enregistrer » écrit le nom, le type, les champs, les index et les règles d'un coup,
-        // quel que soit l'onglet ouvert au moment du clic.
+        // A single set of buttons for the four views, because they share only one draft:
+        // "Save" writes the name, the type, the fields, the indexes, and the rules all at once,
+        // whichever tab is open at the moment of the click.
         <PageActions>
           <Button icon={<X size={15} aria-hidden="true" />} onClick={onCancel} disabled={saving}>
-            Annuler
+            Cancel
           </Button>
           <Button
             variant="primary"
-            // Deux gestes différents, deux glyphes différents : créer une collection ajoute une
-            // table, enregistrer le schéma modifie celle qui existe.
+            // Two different gestures, two different glyphs: creating a collection adds a table,
+            // saving the schema modifies the one that exists.
             icon={
               isNew ? <Plus size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />
             }
             onClick={() => void save()}
             loading={saving}
           >
-            {isNew ? 'Créer la collection' : 'Enregistrer le schéma'}
+            {isNew ? 'Create collection' : 'Save schema'}
           </Button>
         </PageActions>
       )}
@@ -348,8 +347,8 @@ export function CollectionEditor({
         <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] border border-border-subtle bg-surface-sunken px-4 py-3">
           <Lock size={15} className="mt-0.5 shrink-0 text-ink-faint" aria-hidden="true" />
           <p className="text-xs text-ink-muted">
-            Collection du moteur : son schéma est affiché pour référence, il ne se modifie pas depuis
-            la console.
+            Engine collection: its schema is shown for reference, it can't be edited from the
+            console.
           </p>
         </div>
       )}
@@ -374,10 +373,10 @@ export function CollectionEditor({
             <Notice
               tone="success"
               icon={<Pencil size={15} aria-hidden="true" />}
-              title="Renommage détecté"
+              title="Rename detected"
             >
-              {renamed.map((field) => field.originalName).join(', ')} — l'identifiant du champ est
-              conservé, donc la colonne est renommée et les données restent en place.
+              {renamed.map((field) => field.originalName).join(', ')} — the field's identifier is
+              preserved, so the column is renamed and the data stays in place.
             </Notice>
           )}
 
@@ -385,17 +384,17 @@ export function CollectionEditor({
             <Notice
               tone="warning"
               icon={<TriangleAlert size={15} aria-hidden="true" />}
-              title="Changement de type"
+              title="Type change"
             >
-              {retyped.map((field) => field.name).join(', ')} — les valeurs qui ne se convertissent
-              pas dans le nouveau type seront perdues.
+              {retyped.map((field) => field.name).join(', ')} — values that don't convert to the
+              new type will be lost.
             </Notice>
           )}
 
           <Card className="overflow-hidden">
             <CardHeader
-              title="Champs"
-              description="Une ligne par colonne de la table. Les contraintes se posent depuis la liste au bout de chaque ligne."
+              title="Fields"
+              description="One row per table column. Constraints are added from the list at the end of each row."
             />
 
             <FieldsTable
@@ -424,7 +423,7 @@ export function CollectionEditor({
             {!readOnly && (
               <div className="border-t border-border-subtle px-5 py-4">
                 <Button icon={<Plus size={15} aria-hidden="true" />} onClick={addField}>
-                  Ajouter un champ
+                  Add field
                 </Button>
               </div>
             )}
@@ -434,8 +433,8 @@ export function CollectionEditor({
 
       {section === 'indexes' && (
         <Panel
-          title="Index"
-          description="Un index unique impose l'unicité côté base : la contrainte survit aux écritures concurrentes, contrairement à une vérification faite avant l'insertion."
+          title="Indexes"
+          description="A unique index enforces uniqueness at the database level: the constraint survives concurrent writes, unlike a check done before insertion."
         >
           <IndexesEditor
             collectionName={draft.name}
@@ -458,17 +457,16 @@ export function CollectionEditor({
 
       <ConfirmDialog
         open={removing !== null}
-        title={`Supprimer le champ « ${removing?.name ?? ''} » ?`}
-        confirmLabel="Supprimer le champ"
+        title={`Delete field "${removing?.name ?? ''}"?`}
+        confirmLabel="Delete field"
         confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         message={
           <span className="flex items-start gap-2.5">
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-danger" aria-hidden="true" />
             <span>
-              La colonne sera retirée de la table à l'enregistrement et{' '}
-              <strong className="font-semibold text-ink">toutes ses données seront perdues</strong>,
-              sans possibilité de retour. Pour renommer le champ, modifiez son nom : les données
-              suivent.
+              The column will be removed from the table on save and{' '}
+              <strong className="font-semibold text-ink">all its data will be lost</strong>, with
+              no way back. To rename the field, change its name instead: the data follows.
             </span>
           </span>
         }
@@ -490,9 +488,9 @@ export function CollectionEditor({
       <ConfirmDialog
         open={confirmingDrop && collection !== null}
         busy={dropping}
-        title={`Supprimer la collection « ${collection?.name ?? ''} » ?`}
-        message="La table et toutes ses données seront détruites. L'opération est définitive et ne peut pas être annulée."
-        confirmLabel="Supprimer la collection"
+        title={`Delete collection "${collection?.name ?? ''}"?`}
+        message="The table and all its data will be destroyed. This operation is permanent and cannot be undone."
+        confirmLabel="Delete collection"
         confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         onConfirm={() => void drop()}
         onClose={() => setConfirmingDrop(false)}
@@ -501,13 +499,13 @@ export function CollectionEditor({
   )
 }
 
-/* ------------------------------------------------------------------ Général */
+/* ------------------------------------------------------------------ General */
 
 /**
- * Configuration de la collection et indicateurs de santé.
+ * Collection configuration and health indicators.
  *
- * Les indicateurs portent sur le brouillon : ouvrir une règle à tous fait virer la tuile au rouge
- * avant même d'enregistrer, ce qui est le moment où l'information sert.
+ * The indicators reflect the draft: opening a rule to everyone turns the tile red before it's
+ * even saved, which is the moment the information is useful.
  */
 function GeneralSection({
   draft,
@@ -569,16 +567,16 @@ function GeneralSection({
     <div className="space-y-5">
       <Panel
         title="Configuration"
-        description="Le schéma est une donnée : créer une collection crée sa table et expose son API CRUD immédiatement."
+        description="The schema is data: creating a collection creates its table and exposes its CRUD API immediately."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
-            label="Nom"
+            label="Name"
             required
             hint={
               isNew
-                ? 'Devient le nom de la table. Lettres, chiffres, soulignés.'
-                : 'Figé : la table porte déjà ce nom, et le changer reviendrait à en créer une autre.'
+                ? 'Becomes the table name. Letters, digits, underscores.'
+                : 'Fixed: the table already carries this name, and changing it would amount to creating another one.'
             }
             error={errors.name?.join(' ')}
           >
@@ -592,22 +590,22 @@ function GeneralSection({
           </Field>
 
           <Field
-            label="Nature"
+            label="Kind"
             hint={
               isNew
-                ? "« Auth » ajoute l'adresse, le mot de passe et les jetons de session."
-                : 'Figée : les champs système posés à la création en dépendent.'
+                ? '"Auth" adds the email, password, and session tokens.'
+                : 'Fixed: the system fields set at creation depend on it.'
             }
           >
             <Select<CollectionKind>
               value={draft.kind}
               disabled={!isNew}
               options={[
-                { value: 'Base', label: 'Base — données', hint: 'Table simple, sans compte.' },
+                { value: 'Base', label: 'Base — data', hint: 'Plain table, no account.' },
                 {
                   value: 'Auth',
-                  label: 'Auth — comptes',
-                  hint: 'Adresse, mot de passe et jetons de session.',
+                  label: 'Auth — accounts',
+                  hint: 'Email, password, and session tokens.',
                 },
               ]}
               onChange={(kind) => onChange({ kind })}
@@ -618,50 +616,50 @@ function GeneralSection({
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-sm font-semibold text-ink">Indicateurs</h2>
+          <h2 className="text-sm font-semibold text-ink">Indicators</h2>
           <p className="mt-0.5 text-xs text-ink-muted">
-            Calculés sur le brouillon en cours. Chaque tuile mène à la vue concernée.
+            Computed on the current draft. Each tile leads to the relevant view.
           </p>
         </div>
 
         <StatGrid>
           <Stat
-            label="Règles ouvertes à tous"
+            label="Rules open to everyone"
             value={`${rules.open.length} / ${total}`}
             tone={rules.open.length > 0 ? 'danger' : 'success'}
             icon={<Globe size={15} aria-hidden="true" />}
             hint={
               rules.open.length === 0
-                ? 'Aucune action accessible sans jeton.'
+                ? 'No action accessible without a token.'
                 : rules.openWrites.length > 0
-                  ? `Dont ${rules.openWrites.length} en écriture : ${rules.openWrites.map((action) => RULE_LABELS[action]).join(', ')}.`
-                  : `Lecture seule : ${rules.openReads.map((action) => RULE_LABELS[action]).join(', ')}.`
+                  ? `Including ${rules.openWrites.length} write: ${rules.openWrites.map((action) => RULE_LABELS[action]).join(', ')}.`
+                  : `Read-only: ${rules.openReads.map((action) => RULE_LABELS[action]).join(', ')}.`
             }
             onClick={() => onNavigate('rules')}
-            actionLabel="Voir les règles d'accès"
+            actionLabel="View access rules"
           />
 
           <Stat
-            label="Règles verrouillées"
+            label="Locked rules"
             value={`${rules.locked.length} / ${total}`}
             icon={<Lock size={15} aria-hidden="true" />}
-            hint="Super-admin uniquement."
+            hint="Superuser only."
             onClick={() => onNavigate('rules')}
-            actionLabel="Voir les règles d'accès"
+            actionLabel="View access rules"
           />
 
           <Stat
-            label="Règles conditionnelles"
+            label="Conditional rules"
             value={`${rules.conditional.length} / ${total}`}
             tone="brand"
             icon={<SlidersHorizontal size={15} aria-hidden="true" />}
-            hint="Autorisées quand leur expression est vraie."
+            hint="Allowed when their expression is true."
             onClick={() => onNavigate('rules')}
-            actionLabel="Voir les règles d'accès"
+            actionLabel="View access rules"
           />
 
           <Stat
-            label="Problèmes d'index"
+            label="Index issues"
             value={issues.length}
             tone={
               issues.length === 0
@@ -679,35 +677,35 @@ function GeneralSection({
             }
             hint={
               issues.length === 0
-                ? `${draft.indexes.length} index déclaré${draft.indexes.length > 1 ? 's' : ''}, aucun défaut détecté.`
-                : 'Détail sous les indicateurs.'
+                ? `${draft.indexes.length} index${draft.indexes.length > 1 ? 'es' : ''} declared, no issues detected.`
+                : 'Detail below the indicators.'
             }
             onClick={() => onNavigate('indexes')}
-            actionLabel="Voir les index"
+            actionLabel="View indexes"
           />
 
           <Stat
-            label="Champs"
+            label="Fields"
             value={systemFields.length + draft.fields.length}
             icon={<Columns3 size={15} aria-hidden="true" />}
-            hint={`Dont ${systemFields.length} posé${systemFields.length > 1 ? 's' : ''} par le moteur et ${required} obligatoire${required > 1 ? 's' : ''}.`}
+            hint={`Including ${systemFields.length} set by the engine and ${required} required.`}
             onClick={() => onNavigate('fields')}
-            actionLabel="Voir les champs"
+            actionLabel="View fields"
           />
 
           <Stat
-            label="Enregistrements"
+            label="Records"
             value={records === null ? '—' : formatCount(records)}
             icon={<Database size={15} aria-hidden="true" />}
             hint={
               isNew
-                ? 'La table sera créée à l’enregistrement.'
+                ? 'The table will be created on save.'
                 : records === null
-                  ? 'Nombre indisponible.'
-                  : 'Lignes actuellement en base.'
+                  ? 'Count unavailable.'
+                  : 'Rows currently in the database.'
             }
             onClick={isNew ? undefined : () => onNavigate('records')}
-            actionLabel="Voir les enregistrements"
+            actionLabel="View records"
           />
         </StatGrid>
 
@@ -718,7 +716,7 @@ function GeneralSection({
           >
             <p className="flex items-center gap-2 text-sm font-semibold text-ink">
               <Globe size={15} className="shrink-0 text-danger" aria-hidden="true" />
-              Actions autorisées sans aucun jeton
+              Actions allowed without any token
             </p>
             <ul className="mt-2 space-y-1">
               {rules.open.map((action) => (
@@ -727,8 +725,8 @@ function GeneralSection({
                     {RULE_LABELS[action]}
                   </Badge>
                   {rules.openWrites.includes(action)
-                    ? "N'importe quel visiteur anonyme peut modifier la base par cette action."
-                    : "N'importe quel visiteur anonyme peut lire ces données."}
+                    ? 'Any anonymous visitor can modify the database through this action.'
+                    : 'Any anonymous visitor can read this data.'}
                 </li>
               ))}
             </ul>
@@ -742,9 +740,9 @@ function GeneralSection({
         <Card className="border-danger/30">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-ink">Supprimer la collection</p>
+              <p className="text-sm font-semibold text-ink">Delete collection</p>
               <p className="mt-0.5 text-xs text-ink-muted">
-                La table et toutes ses données sont détruites. L'opération est définitive.
+                The table and all its data are destroyed. This operation is permanent.
               </p>
             </div>
             <Button
@@ -752,7 +750,7 @@ function GeneralSection({
               icon={<Trash2 size={15} aria-hidden="true" />}
               onClick={onRequestDrop}
             >
-              Supprimer « {collection.name} »
+              Delete "{collection.name}"
             </Button>
           </div>
         </Card>
@@ -765,11 +763,11 @@ function IssueList({ issues, onNavigate }: { issues: IndexIssue[]; onNavigate: (
   return (
     <Card className="overflow-hidden">
       <CardHeader
-        title="Anomalies d'indexation"
-        description="Aucune n'empêche d'enregistrer : ce sont des index qui ne serviront pas, ou des requêtes qui balayeront la table."
+        title="Indexing issues"
+        description="None of these prevent saving: they're indexes that won't be used, or queries that will scan the table."
         action={
           <Button size="sm" onClick={onNavigate}>
-            Ouvrir les index
+            Open indexes
           </Button>
         }
       />
@@ -793,11 +791,10 @@ function IssueList({ issues, onNavigate }: { issues: IndexIssue[]; onNavigate: (
 }
 
 /**
- * Nombre d'enregistrements de la collection.
+ * Number of records in the collection.
  *
- * Une page d'un seul élément suffit : c'est `totalItems` qu'on veut, pas les lignes. L'échec est
- * avalé — un compteur indisponible ne doit pas transformer l'écran de configuration en écran
- * d'erreur.
+ * A single-item page is enough: it's `totalItems` that's wanted, not the rows. The failure is
+ * swallowed — an unavailable counter must not turn the configuration screen into an error screen.
  */
 function useRecordCount(name: string | null): number | null {
   const [count, setCount] = useState<number | null>(null)
@@ -855,14 +852,14 @@ function Notice({
   )
 }
 
-/* --------------------------------------------------------------- Tableau des champs */
+/* --------------------------------------------------------------- Fields table */
 
 /**
- * Schéma en grille : une ligne par champ, une colonne par aspect.
+ * Schema as a grid: one row per field, one column per aspect.
  *
- * C'est la forme dans laquelle on conçoit réellement un schéma — on compare les champs entre eux,
- * on repère d'un coup d'œil ceux qui sont obligatoires, ceux qui portent des contraintes. Une
- * carte dépliée par champ obligeait à faire défiler pour répondre à ces questions.
+ * This is the shape in which a schema is actually designed — fields get compared against each
+ * other, the required ones and the constrained ones stand out at a glance. A card unfolded per
+ * field forced scrolling to answer those questions.
  */
 function FieldsTable({
   collectionName,
@@ -888,18 +885,18 @@ function FieldsTable({
   onRemove: (field: FieldDraft) => void
 }) {
   return (
-    <Table bare caption={`Champs de la collection ${collectionName}`}>
+    <Table bare caption={`Fields of the ${collectionName} collection`}>
       <THead>
         <tr>
           {!readOnly && (
             <Th className="w-14">
-              <span className="sr-only">Ordre</span>
+              <span className="sr-only">Order</span>
             </Th>
           )}
-          <Th className="min-w-56">Champ</Th>
+          <Th className="min-w-56">Field</Th>
           <Th className="w-44">Type</Th>
-          <Th className="w-24 text-center">Obligatoire</Th>
-          <Th className="min-w-72">Contraintes</Th>
+          <Th className="w-24 text-center">Required</Th>
+          <Th className="min-w-72">Constraints</Th>
           {!readOnly && (
             <Th className="w-12">
               <span className="sr-only">Actions</span>
@@ -932,8 +929,8 @@ function FieldsTable({
         {systemFields.length === 0 && fields.length === 0 && (
           <tr>
             <td colSpan={readOnly ? 4 : 6} className="px-5 py-8 text-center text-sm text-ink-muted">
-              Aucun champ déclaré. Le moteur posera tout de même{' '}
-              <code className="font-mono">id</code>, <code className="font-mono">created</code> et{' '}
+              No field declared. The engine will still set{' '}
+              <code className="font-mono">id</code>, <code className="font-mono">created</code>, and{' '}
               <code className="font-mono">updated</code>.
             </td>
           </tr>
@@ -944,10 +941,10 @@ function FieldsTable({
 }
 
 /**
- * Champ posé par le moteur.
+ * Field set by the engine.
  *
- * Affiché parce qu'il fait partie du schéma réel — le masquer laisse croire que la table n'a que
- * les colonnes déclarées ici. Non modifiable parce qu'il n'appartient pas au projet.
+ * Shown because it's part of the real schema — hiding it would suggest the table only has the
+ * columns declared here. Not editable because it doesn't belong to the project.
  */
 function SystemFieldRow({ field, readOnly }: { field: FieldDefinition; readOnly: boolean }) {
   const target: ConstraintTarget = { maxSelect: field.maxSelect, options: field.options }
@@ -961,15 +958,15 @@ function SystemFieldRow({ field, readOnly }: { field: FieldDefinition; readOnly:
         <span className="flex items-center gap-2">
           <Lock size={12} className="shrink-0 text-ink-faint" aria-hidden="true" />
           <span className="truncate font-mono text-xs text-ink-muted">{field.name}</span>
-          <Badge>système</Badge>
+          <Badge>system</Badge>
         </span>
       </Td>
 
       <Td className="text-xs text-ink-muted">{typeLabel(field.type)}</Td>
 
       <Td className="text-center text-xs text-ink-muted">
-        {field.required ? 'oui' : '—'}
-        <span className="sr-only">{field.required ? ' — obligatoire' : ' — facultatif'}</span>
+        {field.required ? 'yes' : '—'}
+        <span className="sr-only">{field.required ? ' — required' : ' — optional'}</span>
       </Td>
 
       <Td>
@@ -990,15 +987,15 @@ function SystemFieldRow({ field, readOnly }: { field: FieldDefinition; readOnly:
 }
 
 /**
- * État d'identité d'un champ, réduit à un pictogramme.
+ * Identity state of a field, reduced to a pictogram.
  *
- * L'identifiant et son explication tenaient une seconde ligne sous le nom, sur chaque ligne du
- * tableau : la hauteur doublait et on ne voyait plus que trois ou quatre champs à la fois — dans un
- * écran dont l'intérêt est justement de comparer les champs d'un coup d'œil.
+ * The identifier and its explanation used to take a second line under the name, on every row of
+ * the table: the height doubled and only three or four fields remained visible at once — in a
+ * screen whose whole point is comparing fields at a glance.
  *
- * Le pictogramme change de forme et de ton selon l'état, donc le signal reste visible sans lire :
- * un champ renommé se repère au crayon vert, un champ nouveau au plus. Seul le détail passe dans
- * l'infobulle, atteignable au survol comme au clavier.
+ * The pictogram changes shape and tone with the state, so the signal stays visible without
+ * reading: a renamed field is spotted by its green pencil, a new field by its plus sign. Only the
+ * detail moves into the tooltip, reachable on hover as on keyboard focus.
  */
 function FieldIdentity({
   field,
@@ -1013,23 +1010,23 @@ function FieldIdentity({
     ? {
         icon: <Plus size={13} aria-hidden="true" />,
         tone: 'text-brand',
-        summary: 'Champ nouveau',
-        detail: "Aucun identifiant : le serveur créera la colonne à l'enregistrement.",
+        summary: 'New field',
+        detail: 'No identifier: the server will create the column on save.',
       }
     : renamed
       ? {
           icon: <Pencil size={13} aria-hidden="true" />,
           tone: 'text-success',
-          summary: `Renommé depuis « ${field.originalName} »`,
+          summary: `Renamed from "${field.originalName}"`,
           detail:
-            "L'identifiant est conservé, donc la colonne est renommée et les données restent en place.",
+            'The identifier is preserved, so the column is renamed and the data stays in place.',
         }
       : {
           icon: <CircleHelp size={13} aria-hidden="true" />,
           tone: 'text-ink-faint',
-          summary: `Identifiant ${field.id.slice(0, 8)}`,
+          summary: `Identifier ${field.id.slice(0, 8)}`,
           detail:
-            "Renvoyé tel quel au serveur : c'est lui qui distingue un renommage d'un remplacement.",
+            "Sent back to the server as-is: it's what distinguishes a rename from a replacement.",
         }
 
   return (
@@ -1043,8 +1040,8 @@ function FieldIdentity({
     >
       <button
         type="button"
-        // Un bouton, et non une icône décorative : c'est la seule forme qui reçoive le focus, donc
-        // la seule par laquelle l'infobulle s'ouvre au clavier.
+        // A button, not a decorative icon: it's the only form that receives focus, and
+        // therefore the only one through which the tooltip opens by keyboard.
         aria-label={`${state.summary} — ${label}`}
         className={cn(
           'inline-flex size-6 shrink-0 items-center justify-center rounded-full',
@@ -1081,11 +1078,11 @@ function FieldRow({
   onMove: (offset: number) => void
   onRemove: () => void
 }) {
-  const label = field.name || `champ ${index + 1}`
+  const label = field.name || `field ${index + 1}`
 
-  // Un champ existant peut porter un type que la console ne propose pas encore à la création
-  // (fichier, date automatique). Sans son option, la liste afficherait le premier type venu et
-  // ferait croire à une conversion qui n'a pas eu lieu.
+  // An existing field can carry a type the console doesn't yet offer at creation (file, auto
+  // date). Without its option, the list would show whatever type comes first and suggest a
+  // conversion that never happened.
   const types = CREATABLE_TYPES.includes(field.type)
     ? CREATABLE_TYPES
     : [field.type, ...CREATABLE_TYPES]
@@ -1096,15 +1093,15 @@ function FieldRow({
     <Tr className={cn(error && 'bg-danger-subtle/60')}>
       {!readOnly && (
         <Td>
-          {/* Les deux flèches côte à côte et non l'une sur l'autre : empilées, elles faisaient à
-              elles seules 48 px et fixaient la hauteur de toute la ligne, au-dessus des 32 px des
-              contrôles voisins. */}
+          {/* The two arrows side by side rather than stacked: stacked, they alone measured
+              48 px and fixed the whole row's height, above the 32 px of the neighboring
+              controls. */}
           <div className="flex items-center">
             <Button
               variant="ghost"
               size="icon"
               className="size-6"
-              aria-label={`Remonter le ${label}`}
+              aria-label={`Move ${label} up`}
               disabled={index === 0}
               onClick={() => onMove(-1)}
             >
@@ -1114,7 +1111,7 @@ function FieldRow({
               variant="ghost"
               size="icon"
               className="size-6"
-              aria-label={`Descendre le ${label}`}
+              aria-label={`Move ${label} down`}
               disabled={index === total - 1}
               onClick={() => onMove(1)}
             >
@@ -1129,9 +1126,9 @@ function FieldRow({
           <Input
             value={field.name}
             spellCheck={false}
-            placeholder="nom_du_champ"
+            placeholder="field_name"
             disabled={readOnly}
-            aria-label={`Nom du ${label}`}
+            aria-label={`Name of ${label}`}
             aria-invalid={Boolean(error)}
             className="h-8 font-mono text-xs"
             onChange={(event) => onPatch({ name: event.target.value })}
@@ -1152,7 +1149,7 @@ function FieldRow({
           value={field.type}
           disabled={readOnly}
           size="sm"
-          aria-label={`Type du ${label}`}
+          aria-label={`Type of ${label}`}
           options={types.map((type) => ({ value: type, label: typeLabel(type) }))}
           onChange={onChangeType}
         />
@@ -1163,7 +1160,7 @@ function FieldRow({
           type="checkbox"
           checked={field.required}
           disabled={readOnly}
-          aria-label={`${label} obligatoire`}
+          aria-label={`${label} required`}
           className="size-4 cursor-pointer rounded border-border-strong accent-brand disabled:cursor-not-allowed disabled:opacity-50"
           onChange={(event) => onPatch({ required: event.target.checked })}
         />
@@ -1185,7 +1182,7 @@ function FieldRow({
             variant="ghost"
             size="icon"
             className="size-8 hover:text-danger"
-            aria-label={`Supprimer le ${label}`}
+            aria-label={`Delete ${label}`}
             onClick={onRemove}
           >
             <Trash2 size={15} aria-hidden="true" />
@@ -1196,7 +1193,7 @@ function FieldRow({
   )
 }
 
-/** Contraintes d'un champ : des jetons retirables, plus la liste de celles qui restent à poser. */
+/** Constraints for a field: removable chips, plus the list of ones still available to add. */
 function ConstraintCell({
   field,
   label,
@@ -1218,14 +1215,14 @@ function ConstraintCell({
     onPatch({ maxSelect: next.maxSelect, options: next.options })
 
   if (applicable.length === 0) {
-    return <span className="text-xs text-ink-faint">Aucune contrainte pour ce type.</span>
+    return <span className="text-xs text-ink-faint">No constraints for this type.</span>
   }
 
   return (
     <div className="flex items-center gap-1.5">
-      {/* Les jetons défilent latéralement au lieu de passer à la ligne : un champ « Fichier » en
-          porte cinq, et les empiler faisait une ligne quatre fois plus haute que celle du champ
-          voisin — dans un tableau dont l'intérêt est de comparer les champs entre eux. */}
+      {/* Chips scroll horizontally instead of wrapping: a "File" field carries five of them, and
+          stacking them made a row four times taller than the neighboring one — in a table whose
+          whole point is comparing fields against each other. */}
       <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
         {active.map((constraint) => (
           <ConstraintChip
@@ -1243,13 +1240,13 @@ function ConstraintCell({
         {active.length === 0 && <span className="text-xs text-ink-faint">—</span>}
       </div>
 
-      {/* Hors de la zone défilante : l'ajout doit rester visible même quand les jetons débordent. */}
+      {/* Outside the scrollable area: the add control must stay visible even when chips overflow. */}
       {!readOnly && available.length > 0 && (
         <SelectMenu<string>
           value=""
           size="sm"
-          placeholder="+ contrainte"
-          aria-label={`Ajouter une contrainte au ${label}`}
+          placeholder="+ constraint"
+          aria-label={`Add a constraint to ${label}`}
           className="h-7 w-auto shrink-0 border-dashed bg-transparent px-2 text-xs text-ink-muted hover:border-brand hover:text-brand"
           options={available.map((constraint) => ({
             value: constraint.id,
@@ -1286,7 +1283,7 @@ function ConstraintChip({
   onWrite: (raw: string) => void
   onClear: () => void
 }) {
-  const controlLabel = `${constraint.label} du ${fieldLabel}`
+  const controlLabel = `${constraint.label} of ${fieldLabel}`
   const value = constraint.read(field)
 
   return (
@@ -1342,7 +1339,7 @@ function ConstraintChip({
       ) : (
         <button
           type="button"
-          aria-label={`Retirer la contrainte « ${constraint.label} » du ${fieldLabel}`}
+          aria-label={`Remove constraint "${constraint.label}" from ${fieldLabel}`}
           onClick={onClear}
           className="rounded-full p-0.5 text-ink-faint transition-colors hover:text-danger"
         >
@@ -1353,14 +1350,14 @@ function ConstraintChip({
   )
 }
 
-/* --------------------------------------------------------------------- Index */
+/* --------------------------------------------------------------------- Indexes */
 
 /**
- * Nom d'index déduit de la collection et des champs indexés, dans leur ordre.
+ * Index name derived from the collection and the indexed fields, in their order.
  *
- * L'ordre fait partie du nom parce qu'il fait partie de l'index : sur `(a, b)`, une requête filtrant
- * `b` seul n'en tire rien. Deux index de mêmes champs dans deux ordres sont deux objets distincts, et
- * leurs noms doivent l'être aussi.
+ * The order is part of the name because it's part of the index: on `(a, b)`, a query filtering
+ * on `b` alone gains nothing from it. Two indexes on the same fields in two different orders are
+ * two distinct objects, and their names must be too.
  */
 function suggestIndexName(collectionName: string, fields: string[]): string {
   if (fields.length === 0) return ''
@@ -1370,17 +1367,17 @@ function suggestIndexName(collectionName: string, fields: string[]): string {
     .filter(Boolean)
     .join('_')
 
-  // PostgreSQL tronque les identifiants à 63 octets : au-delà, deux index aux noms voisins
-  // deviendraient le même objet, et la création du second échouerait pour une raison illisible.
+  // PostgreSQL truncates identifiers to 63 bytes: beyond that, two indexes with similar names
+  // would become the same object, and creating the second would fail for an unreadable reason.
   return proposed.length <= 63 ? proposed : proposed.slice(0, 63).replace(/_+$/, '')
 }
 
 /**
- * Éditeur d'index.
+ * Index editor.
  *
- * Les champs se choisissent dans une liste, jamais en les tapant : un index porte sur des colonnes
- * qui existent, et une saisie libre laissait écrire un nom approximatif que seule la base rejetterait,
- * à l'enregistrement, sans dire lequel des index était en cause.
+ * Fields are picked from a list, never typed: an index targets columns that exist, and free-form
+ * input let you write an approximate name that only the database would reject, on save, without
+ * saying which index was at fault.
  */
 function IndexesEditor({
   collectionName,
@@ -1401,11 +1398,11 @@ function IndexesEditor({
     )
 
   /**
-   * Applique une nouvelle liste de champs et rafraîchit le nom s'il n'a pas été saisi à la main.
+   * Applies a new list of fields and refreshes the name if it wasn't typed by hand.
    *
-   * « À la main » se déduit plutôt que se retient : un nom vaut auto s'il est vide ou s'il coïncide
-   * avec ce que la composition précédente aurait produit. Pas de drapeau à tenir à jour, donc pas de
-   * drapeau à désynchroniser.
+   * "By hand" is inferred rather than tracked: a name counts as automatic if it's empty or if it
+   * matches what the previous composition would have produced. No flag to keep up to date, so no
+   * flag to fall out of sync.
    */
   const changeFields = (position: number, fields: string[]) => {
     const current = indexes[position]
@@ -1424,7 +1421,7 @@ function IndexesEditor({
   return (
     <div className="space-y-3">
       {indexes.length === 0 && (
-        <p className="text-xs text-ink-muted">Aucun index déclaré sur cette collection.</p>
+        <p className="text-xs text-ink-muted">No index declared on this collection.</p>
       )}
 
       {indexes.map((index, position) => {
@@ -1436,28 +1433,28 @@ function IndexesEditor({
             className="grid gap-3 rounded-[var(--radius-card)] border border-border-subtle p-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)_auto_auto]"
           >
             <Field
-              label="Champs indexés"
+              label="Indexed fields"
               hint={
                 index.fields.length > 1
-                  ? "L'ordre compte : un filtre portant sur le seul second champ n'utilise pas l'index."
-                  : 'Choisis dans les champs de la collection.'
+                  ? "Order matters: a filter targeting only the second field doesn't use the index."
+                  : "Choose from the collection's fields."
               }
             >
               <FieldTokens
                 tokens={index.fields}
                 available={available}
                 readOnly={readOnly}
-                label={`Champs de l'index ${index.name || position + 1}`}
+                label={`Fields of index ${index.name || position + 1}`}
                 onChange={(fields) => changeFields(position, fields)}
               />
             </Field>
 
             <Field
-              label="Nom"
+              label="Name"
               hint={
                 index.name === suggestIndexName(collectionName, index.fields)
-                  ? 'Déduit des champs. Saisir un nom fige celui-ci.'
-                  : 'Saisi à la main.'
+                  ? 'Derived from the fields. Typing a name fixes it.'
+                  : 'Typed by hand.'
               }
             >
               <Input
@@ -1484,7 +1481,7 @@ function IndexesEditor({
                 variant="ghost"
                 size="icon"
                 disabled={readOnly}
-                aria-label={`Supprimer l'index ${index.name || position + 1}`}
+                aria-label={`Delete index ${index.name || position + 1}`}
                 className="hover:text-danger"
                 onClick={() => onChange(indexes.filter((_, entry) => entry !== position))}
               >
@@ -1500,7 +1497,7 @@ function IndexesEditor({
           icon={<Plus size={15} aria-hidden="true" />}
           onClick={() => onChange([...indexes, { name: '', fields: [], unique: false }])}
         >
-          Ajouter un index
+          Add index
         </Button>
       )}
     </div>
@@ -1508,11 +1505,12 @@ function IndexesEditor({
 }
 
 /**
- * Suite ordonnée de champs, présentée comme des jetons dans une zone de saisie.
+ * Ordered sequence of fields, presented as chips in an input area.
  *
- * Le conteneur imite un champ de texte — bordure, fond, anneau de focus — mais n'accepte aucune
- * frappe : on ajoute par la liste déroulante à droite, on retire par la croix. C'est ce qui garantit
- * que les champs indexés existent, sans avoir à valider une chaîne après coup.
+ * The container mimics a text field — border, background, focus ring — but accepts no
+ * keystrokes: fields are added through the dropdown on the right, removed with the cross. This
+ * is what guarantees that indexed fields actually exist, without having to validate a string
+ * after the fact.
  */
 function FieldTokens({
   tokens,
@@ -1551,7 +1549,7 @@ function FieldTokens({
       )}
     >
       {tokens.length === 0 && (
-        <span className="px-0.5 text-xs text-ink-faint">Aucun champ sélectionné</span>
+        <span className="px-0.5 text-xs text-ink-faint">No field selected</span>
       )}
 
       {tokens.map((name, position) => (
@@ -1565,7 +1563,7 @@ function FieldTokens({
             <>
               <button
                 type="button"
-                aria-label={`Avancer ${name}`}
+                aria-label={`Move ${name} earlier`}
                 disabled={position === 0}
                 onClick={() => move(position, -1)}
                 className="inline-flex size-4 items-center justify-center rounded-full text-ink-muted hover:text-ink disabled:opacity-30 focus-visible:-outline-offset-1"
@@ -1574,7 +1572,7 @@ function FieldTokens({
               </button>
               <button
                 type="button"
-                aria-label={`Reculer ${name}`}
+                aria-label={`Move ${name} later`}
                 disabled={position === tokens.length - 1}
                 onClick={() => move(position, 1)}
                 className="inline-flex size-4 items-center justify-center rounded-full text-ink-muted hover:text-ink disabled:opacity-30 focus-visible:-outline-offset-1"
@@ -1587,7 +1585,7 @@ function FieldTokens({
           {!readOnly && (
             <button
               type="button"
-              aria-label={`Retirer ${name}`}
+              aria-label={`Remove ${name}`}
               onClick={() => onChange(tokens.filter((entry) => entry !== name))}
               className="inline-flex size-4 items-center justify-center rounded-full text-ink-muted hover:bg-danger hover:text-danger-ink focus-visible:-outline-offset-1"
             >
@@ -1598,13 +1596,13 @@ function FieldTokens({
       ))}
 
       {!readOnly && available.length > 0 && (
-        // La liste revient toujours à sa valeur neutre : elle sert à ajouter, pas à représenter un
-        // choix courant — ce sont les jetons qui portent l'état.
+        // The list always returns to its neutral value: it's used to add, not to represent a
+        // current choice — it's the chips that carry the state.
         <SelectMenu<string>
           value=""
           size="sm"
-          placeholder="+ champ"
-          aria-label={`Ajouter un champ à ${label}`}
+          placeholder="+ field"
+          aria-label={`Add a field to ${label}`}
           className="ml-auto h-6 w-auto border-0 bg-transparent px-1.5 text-xs text-ink-muted hover:text-brand focus-visible:-outline-offset-1"
           options={available.map((name) => ({ value: name, label: name }))}
           onChange={(name) => onChange([...tokens, name])}
