@@ -7,7 +7,7 @@ import { PageActions, Stat, StatGrid } from '../layout/Page'
 import { Badge, Button, ErrorBlock, LoadingBlock, Panel, Tooltip, cn } from '../ui'
 import { UsageDonut, type UsageSlice } from './UsageDonut'
 
-/** Teintes des parts, portées par les jetons du thème plutôt que par des valeurs figées. */
+/** Slice tones, carried by theme tokens rather than fixed values. */
 const SLICES = {
   database: { fill: 'var(--color-brand)', swatch: 'bg-brand' },
   files: { fill: 'var(--color-success)', swatch: 'bg-success' },
@@ -15,7 +15,7 @@ const SLICES = {
   free: { fill: 'var(--color-border-subtle)', swatch: 'bg-border-subtle' },
 } as const
 
-/** Une ligne de la fiche d'instance. */
+/** A line in the instance info card. */
 function Line({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border-subtle py-2 last:border-0">
@@ -28,36 +28,37 @@ function Line({ label, value, mono = false }: { label: string; value: string; mo
 }
 
 /**
- * Volume dont la capacité n'est pas connue.
+ * A volume whose capacity is unknown.
  *
- * Ni PostgreSQL ni S3 n'exposent de limite de façon portable : le premier n'a pas de requête pour
- * l'espace restant de son volume, le second n'impose aucune borne par seau. Plutôt qu'un anneau
- * bâti sur un dénominateur inventé — qui se lirait comme une mesure —, le chiffre est donné seul,
- * avec la variable qui rendrait la jauge possible.
+ * Neither PostgreSQL nor S3 expose a limit in a portable way: the former has no query for its
+ * volume's remaining space, the latter imposes no per-bucket bound. Rather than a ring built on
+ * an invented denominator — which would read as a measurement —, the figure is given alone, with
+ * the variable that would make a gauge possible.
  */
 function UngaugedVolume({ bytes, variable }: { bytes: number; variable: string }) {
   return (
     <div className="space-y-2">
       <p className="text-2xl font-semibold tabular-nums text-ink">{formatBytes(bytes)}</p>
       <p className="text-xs text-ink-muted">
-        Aucune capacité n'est déclarée, et ce volume n'en expose aucune que l'on puisse lire.
-        Renseignez <code className="font-mono text-ink">{variable}</code> sur l'hôte pour obtenir une
-        jauge ; sans elle, il n'y aurait qu'un anneau plein qui ne mesurerait rien.
+        No capacity is declared, and this volume exposes none that can be read. Set{' '}
+        <code className="font-mono text-ink">{variable}</code> on the host to get a gauge;
+        without it, there would only be a full ring measuring nothing.
       </p>
     </div>
   )
 }
 
 /**
- * Tableau de bord de l'instance.
+ * Instance dashboard.
  *
- * Le premier écran de l'administration ne modifie rien : il répond à « sur quoi suis-je en train de
- * travailler, et combien de place cela prend-il ». Moteur, stockage et répertoire de données y
- * figurent parce que ce sont les trois réponses qu'on cherche quand une console ressemble à une
- * autre — et se tromper d'instance est la façon la plus banale de perdre des données.
+ * The first admin screen changes nothing: it answers "what am I working on, and how much space
+ * does it take?" Engine, storage, and data directory appear here because they're the three
+ * answers you look for when one console looks like another — and mistaking one instance for
+ * another is the most mundane way to lose data.
  *
- * L'occupation est mesurée par un appel distinct de la fiche d'instance : elle interroge le moteur
- * et parcourt le magasin, donc elle coûte, et son échec ne doit pas emporter le reste de l'écran.
+ * Usage is measured by a call distinct from the instance info: it queries the engine and walks
+ * the store, so it genuinely costs something, and its failure must not take down the rest of the
+ * screen.
  */
 export function Dashboard({ onOpenLogs }: { onOpenLogs: () => void }) {
   const [instance, setInstance] = useState<Instance | null>(null)
@@ -93,31 +94,31 @@ export function Dashboard({ onOpenLogs }: { onOpenLogs: () => void }) {
   }, [reload])
 
   if (error) return <ErrorBlock message={error} onRetry={() => void reload()} />
-  if (!instance) return <LoadingBlock label="Lecture de l'instance…" />
+  if (!instance) return <LoadingBlock label="Loading instance…" />
 
   const host = usage?.host
   const database = usage?.database
   const files = usage?.files
 
-  // Le disque de l'hôte porte ce que l'instance y écrit et tout ce qui l'y précédait. La part
-  // « autres usages » n'est pas du remplissage : sans elle, un disque partagé avec le reste du
-  // système paraîtrait vide alors qu'il ne l'est pas.
+  // The host disk carries what the instance writes to it and everything that preceded it there.
+  // The "other usage" slice isn't padding: without it, a disk shared with the rest of the system
+  // would look empty when it isn't.
   const hostSlices: UsageSlice[] = []
 
   if (host?.available) {
     if (database?.onHostDisk) {
-      hostSlices.push({ label: `Base ${database.engine}`, bytes: database.bytes, ...SLICES.database })
+      hostSlices.push({ label: `${database.engine} database`, bytes: database.bytes, ...SLICES.database })
     }
 
     if (files?.onHostDisk) {
-      hostSlices.push({ label: 'Fichiers', bytes: files.bytes, ...SLICES.files })
+      hostSlices.push({ label: 'Files', bytes: files.bytes, ...SLICES.files })
     }
 
     const known = hostSlices.reduce((sum, slice) => sum + slice.bytes, 0)
     const used = Math.max(0, host.totalBytes - host.freeBytes)
 
-    hostSlices.push({ label: 'Autres usages', bytes: Math.max(0, used - known), ...SLICES.other })
-    hostSlices.push({ label: 'Libre', bytes: host.freeBytes, ...SLICES.free })
+    hostSlices.push({ label: 'Other usage', bytes: Math.max(0, used - known), ...SLICES.other })
+    hostSlices.push({ label: 'Free', bytes: host.freeBytes, ...SLICES.free })
   }
 
   const remoteDatabase = database !== undefined && !database.onHostDisk
@@ -126,11 +127,11 @@ export function Dashboard({ onOpenLogs }: { onOpenLogs: () => void }) {
   return (
     <div className="space-y-4">
       <PageActions>
-        <Tooltip content="Recharger">
+        <Tooltip content="Reload">
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Recharger le tableau de bord"
+            aria-label="Reload dashboard"
             loading={loading}
             onClick={() => void reload()}
           >
@@ -141,92 +142,91 @@ export function Dashboard({ onOpenLogs }: { onOpenLogs: () => void }) {
 
       <StatGrid>
         <Stat
-          label="Moteur de base"
+          label="Database engine"
           value={instance.engine}
-          hint={database ? formatBytes(database.bytes) : "Modifiable en configuration d'hôte uniquement"}
+          hint={database ? formatBytes(database.bytes) : 'Changeable only in host configuration'}
           icon={<Database size={16} aria-hidden="true" />}
           tone="brand"
         />
         <Stat
-          label="Stockage des fichiers"
+          label="File storage"
           value={instance.storage}
-          hint={files ? `${formatCount(files.objects)} objets, ${formatBytes(files.bytes)}` : instance.dataDirectory}
+          hint={files ? `${formatCount(files.objects)} objects, ${formatBytes(files.bytes)}` : instance.dataDirectory}
           icon={<HardDrive size={16} aria-hidden="true" />}
         />
         <Stat
           label="Collections"
           value={formatCount(instance.collections.total)}
-          hint={`${instance.collections.system} système, ${instance.collections.auth} de comptes`}
+          hint={`${instance.collections.system} system, ${instance.collections.auth} accounts`}
           icon={<Boxes size={16} aria-hidden="true" />}
         />
         <Stat
-          label="Entrées de journal"
+          label="Log entries"
           value={formatCount(instance.logs.total)}
           hint={
             instance.logs.retentionDays === 0
-              ? 'Conservation illimitée'
-              : `Conservées ${instance.logs.retentionDays} jours`
+              ? 'Unlimited retention'
+              : `Kept ${instance.logs.retentionDays} days`
           }
           icon={<ScrollText size={16} aria-hidden="true" />}
           onClick={onOpenLogs}
-          actionLabel="Ouvrir le journal"
+          actionLabel="Open logs"
         />
       </StatGrid>
 
-      {/* Les pertes ne sont annoncées que lorsqu'il y en a : une tuile « 0 perdue » en permanence
-          finirait par ne plus être lue, et c'est précisément la valeur qu'il faut voir changer. */}
+      {/* Losses are only announced when there are some: a "0 dropped" tile displayed forever
+          would eventually stop being read, and that's precisely the value that needs watching. */}
       {instance.logs.dropped > 0 && (
         <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] border border-warning/40 bg-warning/10 px-4 py-3">
           <ShieldAlert size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-warning" />
           <p className="text-sm text-ink">
-            {formatCount(instance.logs.dropped)} entrées ont été perdues depuis le démarrage : le
-            tampon d'écriture a débordé. Le journal est donc incomplet sur les périodes de forte
-            charge.
+            {formatCount(instance.logs.dropped)} entries have been dropped since startup: the
+            write buffer overflowed. The log is therefore incomplete over periods of heavy load.
           </p>
         </div>
       )}
 
       {usageError && (
         <div className="rounded-[var(--radius-card)] border border-border-subtle bg-surface px-4 py-3 text-sm text-ink-muted">
-          L'occupation n'a pas pu être mesurée : {usageError}
+          Usage could not be measured: {usageError}
         </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {host?.available && (
           <Panel
-            title="Disque de l'hôte"
-            description={`Volume ${host.path} — ce que l'instance y écrit, et ce qui l'y précédait.`}
+            title="Host disk"
+            description={`Volume ${host.path} — what the instance writes to it, and what preceded it there.`}
           >
-            <UsageDonut slices={hostSlices} total={host.totalBytes} caption="au total" />
+            <UsageDonut slices={hostSlices} total={host.totalBytes} caption="total" />
           </Panel>
         )}
 
         {host && !host.available && (
-          <Panel title="Disque de l'hôte" description="Volume non mesurable.">
+          <Panel title="Host disk" description="Volume not measurable.">
             <p className="text-sm text-ink-muted">
-              La capacité de <code className="font-mono">{host.path}</code> n'a pas pu être lue —
-              montage réseau, système de fichiers non reconnu, ou droit manquant.
+              The capacity of <code className="font-mono">{host.path}</code> could not be read —
+              network mount, unrecognized file system, or missing permission.
             </p>
           </Panel>
         )}
 
         {remoteDatabase && (
           <Panel
-            title={`Base ${database.engine}`}
-            description="Serveur distinct de l'hôte : sa capacité ne se déduit pas du disque local."
+            title={`${database.engine} database`}
+            description="Server separate from the host: its capacity can't be inferred from the local disk."
             actions={
-              database.capacityBytes > 0 ? undefined : <Badge tone="neutral">sans jauge</Badge>
+              database.capacityBytes > 0 ? undefined : <Badge tone="neutral">no gauge</Badge>
             }
           >
             {database.capacityBytes > 0 ? (
               <UsageDonut
                 total={database.capacityBytes}
-                caption="déclarés"
+                caption="declared"
                 slices={[
-                  { label: 'Données', bytes: database.bytes, ...SLICES.database },
+                  { label: 'Data', bytes: database.bytes, ...SLICES.database },
                   {
-                    label: 'Libre',
+                    label: 'Free',
                     bytes: Math.max(0, database.capacityBytes - database.bytes),
                     ...SLICES.free,
                   },
@@ -243,18 +243,18 @@ export function Dashboard({ onOpenLogs }: { onOpenLogs: () => void }) {
 
         {bucket && (
           <Panel
-            title="Seau S3"
-            description="Objets stockés hors de l'hôte, vignettes comprises."
-            actions={bucket.capacityBytes > 0 ? undefined : <Badge tone="neutral">sans jauge</Badge>}
+            title="S3 bucket"
+            description="Objects stored off the host, thumbnails included."
+            actions={bucket.capacityBytes > 0 ? undefined : <Badge tone="neutral">no gauge</Badge>}
           >
             {bucket.capacityBytes > 0 ? (
               <UsageDonut
                 total={bucket.capacityBytes}
-                caption="déclarés"
+                caption="declared"
                 slices={[
-                  { label: 'Fichiers', bytes: bucket.bytes, ...SLICES.files },
+                  { label: 'Files', bytes: bucket.bytes, ...SLICES.files },
                   {
-                    label: 'Libre',
+                    label: 'Free',
                     bytes: Math.max(0, bucket.capacityBytes - bucket.bytes),
                     ...SLICES.free,
                   },
@@ -266,31 +266,31 @@ export function Dashboard({ onOpenLogs }: { onOpenLogs: () => void }) {
           </Panel>
         )}
 
-        <Panel title="Instance" description="Ce que sert ce processus, et depuis quand.">
-          <Line label="Nom" value={instance.appName} />
+        <Panel title="Instance" description="What this process serves, and since when.">
+          <Line label="Name" value={instance.appName} />
           <Line
-            label="URL publique"
-            value={instance.appUrl || '— non renseignée'}
+            label="Public URL"
+            value={instance.appUrl || '— not set'}
             mono={Boolean(instance.appUrl)}
           />
           <Line label="Version" value={instance.version} mono />
-          <Line label="Exécution" value={instance.runtime} mono />
-          <Line label="Démarrée le" value={formatDateTime(instance.startedAt)} />
-          <Line label="En service depuis" value={formatUptime(instance.uptimeSeconds)} />
-          <Line label="Préfixe de l'API" value={instance.apiPrefix} mono />
-          <Line label="Répertoire de données" value={instance.dataDirectory} mono />
+          <Line label="Runtime" value={instance.runtime} mono />
+          <Line label="Started" value={formatDateTime(instance.startedAt)} />
+          <Line label="Uptime" value={formatUptime(instance.uptimeSeconds)} />
+          <Line label="API prefix" value={instance.apiPrefix} mono />
+          <Line label="Data directory" value={instance.dataDirectory} mono />
         </Panel>
 
         <Panel
-          title="Répartition des collections"
-          description="Les collections système appartiennent au moteur et ne sont pas supprimables."
+          title="Collection breakdown"
+          description="System collections belong to the engine and cannot be deleted."
         >
           <ul className="space-y-2">
             {[
-              { label: 'Données', value: instance.collections.data },
-              { label: 'Comptes', value: instance.collections.auth },
-              { label: 'Vues', value: instance.collections.view },
-              { label: 'Système', value: instance.collections.system },
+              { label: 'Data', value: instance.collections.data },
+              { label: 'Accounts', value: instance.collections.auth },
+              { label: 'Views', value: instance.collections.view },
+              { label: 'System', value: instance.collections.system },
             ].map((row) => (
               <li key={row.label} className="flex items-center justify-between gap-3 text-sm">
                 <span className="text-ink-muted">{row.label}</span>
@@ -301,37 +301,37 @@ export function Dashboard({ onOpenLogs }: { onOpenLogs: () => void }) {
         </Panel>
 
         <Panel
-          title="Journalisation"
-          description="État courant du journal des requêtes."
+          title="Logging"
+          description="Current state of the request log."
           actions={
             <Badge tone={instance.logs.enabled ? 'success' : 'warning'} dot>
-              {instance.logs.enabled ? 'active' : 'suspendue'}
+              {instance.logs.enabled ? 'active' : 'suspended'}
             </Badge>
           }
         >
-          <Line label="Entrées conservées" value={formatCount(instance.logs.total)} />
+          <Line label="Entries kept" value={formatCount(instance.logs.total)} />
           <Line
-            label="Rétention"
+            label="Retention"
             value={
-              instance.logs.retentionDays === 0 ? 'illimitée' : `${instance.logs.retentionDays} jours`
+              instance.logs.retentionDays === 0 ? 'unlimited' : `${instance.logs.retentionDays} days`
             }
           />
-          <Line label="Entrées perdues" value={formatCount(instance.logs.dropped)} />
+          <Line label="Entries dropped" value={formatCount(instance.logs.dropped)} />
         </Panel>
 
         <Panel
-          title="Fournisseurs d'identité"
-          description="Configurés par l'hôte : leurs secrets ne transitent jamais par la console."
+          title="Identity providers"
+          description="Configured by the host: their secrets never pass through the console."
         >
           {instance.providers.length === 0 ? (
-            <p className="text-sm text-ink-muted">Aucun fournisseur externe n'est configuré.</p>
+            <p className="text-sm text-ink-muted">No external provider is configured.</p>
           ) : (
             <ul className="space-y-2">
               {instance.providers.map((provider) => (
                 <li key={provider.name} className="flex items-center justify-between gap-3 text-sm">
                   <span className="truncate text-ink">{provider.displayName}</span>
                   <Badge tone={provider.enabled ? 'success' : 'neutral'} dot>
-                    {provider.enabled ? 'activé' : 'inactif'}
+                    {provider.enabled ? 'enabled' : 'inactive'}
                   </Badge>
                 </li>
               ))}
