@@ -13,14 +13,14 @@ import { LEVEL_META } from '../lib/logs'
 import { formatCount } from '../lib/format'
 import { cn } from '../ui'
 
-/** Durée d'une tranche, en millisecondes. */
+/** Duration of a bucket, in milliseconds. */
 const STEP: Record<LogGranularity, number> = {
   Minute: 60_000,
   Hour: 3_600_000,
   Day: 86_400_000,
 }
 
-/** Découpage appliqué à l'intérieur d'une tranche qu'on ouvre. La minute ne se subdivise plus. */
+/** Bucketing applied inside a bucket being drilled into. Minute no longer subdivides. */
 const FINER: Record<LogGranularity, LogGranularity> = {
   Day: 'Hour',
   Hour: 'Minute',
@@ -28,10 +28,11 @@ const FINER: Record<LogGranularity, LogGranularity> = {
 }
 
 /**
- * Bornes d'une tranche, telles que le filtre les attend.
+ * Bounds of a bucket, as the filter expects them.
  *
- * La borne haute est exclue, comme côté serveur : deux tranches voisines partageraient sinon
- * l'entrée posée exactement sur leur frontière, et la somme des barres dépasserait le total.
+ * The upper bound is excluded, as it is server-side: two neighboring buckets would otherwise
+ * share the entry sitting exactly on their boundary, and the sum of the bars would exceed the
+ * total.
  */
 export function bucketRange(at: number, granularity: LogGranularity) {
   return {
@@ -42,20 +43,20 @@ export function bucketRange(at: number, granularity: LogGranularity) {
 }
 
 /**
- * Nombre maximal de barres.
+ * Maximum number of bars.
  *
- * Au-delà, chaque barre mesure moins d'un pixel : le graphique cesse d'être lisible avant de
- * cesser d'être calculable. Les tranches les plus anciennes sont alors écartées, pas agrégées —
- * agréger silencieusement changerait l'échelle sans que rien ne l'indique.
+ * Beyond this, each bar measures less than a pixel: the chart stops being readable before it
+ * stops being computable. The oldest buckets are then discarded, not aggregated — silently
+ * aggregating would change the scale with nothing indicating it.
  */
 const MAX_COLUMNS = 180
 
 /**
- * Teinte de chaque niveau.
+ * Tone for each level.
  *
- * Des variables CSS et non des valeurs figées : ce sont les mêmes jetons que le reste de la
- * console, donc le graphique bascule avec le thème sans qu'aucun code n'ait à écouter ce
- * changement. Une valeur calculée en JavaScript resterait, elle, celle du thème actif au montage.
+ * CSS variables rather than fixed values: they're the same tokens as the rest of the console, so
+ * the chart follows the theme without any code having to listen for the change. A value computed
+ * in JavaScript would instead stay stuck on whatever theme was active at mount.
  */
 const BAR_FILLS: Record<LogLevel, string> = {
   Debug: 'var(--color-border-strong)',
@@ -64,7 +65,7 @@ const BAR_FILLS: Record<LogLevel, string> = {
   Error: 'var(--color-danger)',
 }
 
-/** Classes équivalentes, pour la légende — un aplat HTML ne lit pas un `fill` SVG. */
+/** Equivalent classes, for the legend — a flat HTML fill can't read an SVG `fill`. */
 const LEGEND_TONES: Record<LogLevel, string> = {
   Debug: 'bg-border-strong',
   Info: 'bg-brand',
@@ -73,10 +74,10 @@ const LEGEND_TONES: Record<LogLevel, string> = {
 }
 
 /**
- * Ordre d'empilement, du bas de la barre vers le haut.
+ * Stacking order, from the bottom of the bar to the top.
  *
- * Recharts empile dans l'ordre de déclaration : le plus grave est déclaré en dernier, donc dessiné
- * en haut, là où l'œil le trouve sans chercher.
+ * Recharts stacks in declaration order: the most severe is declared last, so it's drawn on top,
+ * right where the eye finds it without looking.
  */
 const STACK: LogLevel[] = ['Debug', 'Info', 'Warning', 'Error']
 
@@ -90,11 +91,11 @@ function emptyCounts(): Record<LogLevel, number> {
 }
 
 /**
- * Reconstitue la suite complète des tranches.
+ * Reconstructs the full sequence of buckets.
  *
- * Le serveur ne renvoie que les tranches non vides : les afficher telles quelles collerait deux
- * heures distantes de trois jours l'une à côté de l'autre, et le graphique mentirait sur le rythme
- * des évènements. Les creux sont donc rétablis ici, avec leur largeur réelle.
+ * The server only returns non-empty buckets: displaying them as-is would place two hours three
+ * days apart right next to each other, and the chart would misrepresent the pace of events. Gaps
+ * are therefore restored here, with their real width.
  */
 function buildColumns(stats: LogStats | null): Column[] {
   if (!stats || stats.items.length === 0) return []
@@ -120,11 +121,11 @@ function buildColumns(stats: LogStats | null): Column[] {
 
   const ceiling = stats.to ? Date.parse(stats.to) : Number.NaN
 
-  // Sans borne haute, la dernière tranche est celle de maintenant et non la dernière tranche
-  // peuplée : un graphique qui s'arrête à la dernière erreur laisse croire que le silence qui a
-  // suivi n'existe pas. Avec une borne haute — une tranche ouverte au clic —, c'est elle qui
-  // ferme la série : la prolonger jusqu'à maintenant repousserait la fenêtre entière hors du
-  // graphique, qui s'afficherait vide alors que le tableau sous lui montre des lignes.
+  // Without an upper bound, the last bucket is now, not the last populated bucket: a chart that
+  // stops at the last error implies the silence that followed doesn't exist. With an upper bound
+  // — a bucket drilled into by a click — it's that bound that closes the series: extending it to
+  // now would push the whole window off the chart, which would render empty while the table
+  // below it shows rows.
   const end = Number.isNaN(ceiling)
     ? Math.max(truncate(Date.now()), ...times)
     : truncate(ceiling - 1)
@@ -154,10 +155,10 @@ const LABEL_FORMATS: Record<LogGranularity, Intl.DateTimeFormatOptions> = {
 }
 
 /**
- * Intitulé d'une tranche dans la bulle, plus explicite que la graduation de l'axe.
+ * Bucket heading in the tooltip, more explicit than the axis tick.
  *
- * Aucun de ces gabarits ne mêle `dateStyle` à des composants isolés : `Intl.DateTimeFormat` refuse
- * ce mélange à la construction, et la bulle emporterait l'écran entier au premier survol.
+ * None of these templates mix `dateStyle` with individual components: `Intl.DateTimeFormat`
+ * rejects that mix at construction, and the tooltip would crash the whole screen on first hover.
  */
 const DETAIL_FORMATS: Record<LogGranularity, Intl.DateTimeFormatOptions> = {
   Minute: { dateStyle: 'short', timeStyle: 'short' },
@@ -166,23 +167,23 @@ const DETAIL_FORMATS: Record<LogGranularity, Intl.DateTimeFormatOptions> = {
 }
 
 /**
- * Une part de la barre survolée, telle que Recharts la transmet.
+ * A slice of the hovered bar, as Recharts hands it over.
  *
- * Redéclarée ici plutôt qu'importée : le type de la bibliothèque porte une douzaine de champs
- * génériques dont la bulle n'utilise que deux, et s'y accrocher rendrait la mise à jour de Recharts
- * plus coûteuse qu'elle ne doit l'être.
+ * Redeclared here rather than imported: the library's type carries a dozen generic fields of
+ * which the tooltip uses only two, and depending on it would make upgrading Recharts more
+ * expensive than it needs to be.
  */
 interface Slice {
-  /** `unknown` parce que Recharts admet aussi une fonction d'accès ; ici c'est toujours un niveau. */
+  /** `unknown` because Recharts also allows an accessor function; here it's always a level. */
   dataKey?: unknown
   value?: unknown
 }
 
 /**
- * Bulle de détail d'une tranche.
+ * Detail tooltip for a bucket.
  *
- * Elle porte le décompte de chaque niveau et non le seul total : savoir qu'un pic vaut trois cents
- * requêtes n'apprend rien ; savoir que deux cent quatre-vingts sont des erreurs, si.
+ * It carries the count for each level rather than just the total: knowing a spike is worth
+ * three hundred requests teaches nothing; knowing two hundred eighty are errors does.
  */
 function HistogramTooltip({
   active,
@@ -198,7 +199,7 @@ function HistogramTooltip({
   if (!active || !payload || payload.length === 0) return null
 
   const at = typeof label === 'number' ? label : Number(label)
-  const detail = new Intl.DateTimeFormat('fr-FR', DETAIL_FORMATS[granularity])
+  const detail = new Intl.DateTimeFormat('en-US', DETAIL_FORMATS[granularity])
 
   const rows = STACK.map((level) => {
     const value = payload.find((slice) => slice.dataKey === level)?.value
@@ -217,7 +218,7 @@ function HistogramTooltip({
       </p>
 
       {total === 0 ? (
-        <p className="mt-1 text-xs text-ink-faint">Aucune entrée</p>
+        <p className="mt-1 text-xs text-ink-faint">No entries</p>
       ) : (
         <ul className="mt-1 space-y-0.5">
           {rows.map((row) => (
@@ -235,7 +236,7 @@ function HistogramTooltip({
 
       {rows.length > 1 && (
         <p className="mt-1.5 border-t border-border-subtle pt-1 text-right text-xs tabular-nums text-ink">
-          {formatCount(total)} au total
+          {formatCount(total)} total
         </p>
       )}
     </div>
@@ -243,18 +244,18 @@ function HistogramTooltip({
 }
 
 /**
- * Histogramme des volumes du journal.
+ * Log volume histogram.
  *
- * Empilé par niveau plutôt que superposé : ce qu'on cherche d'un coup d'œil, c'est « quand est-ce
- * que ça a cassé », pas la courbe de chaque niveau. Les couleurs reprennent celles des pastilles
- * du tableau, sans quoi il faudrait apprendre deux codes pour lire un même écran.
+ * Stacked by level rather than overlaid: what you're looking for at a glance is "when did it
+ * break", not the curve of each level. Colors mirror the table's badges, otherwise you'd have to
+ * learn two codes to read the same screen.
  */
 export function LogHistogram({
   stats,
   onSelect,
 }: {
   stats: LogStats | null
-  /** Ouverture d'une tranche : le filtre s'y restreint et l'histogramme s'y redécoupe. */
+  /** Drilling into a bucket: the filter narrows to it and the histogram rebuckets within it. */
   onSelect?: (at: number, granularity: LogGranularity) => void
 }) {
   const columns = useMemo(() => buildColumns(stats), [stats])
@@ -270,16 +271,16 @@ export function LogHistogram({
   if (columns.length === 0 || overall === 0) {
     return (
       <div className="flex h-36 items-center justify-center text-xs text-ink-faint">
-        Aucune entrée sur cette fenêtre.
+        No entries in this window.
       </div>
     )
   }
 
   const granularity = stats?.granularity ?? 'Hour'
-  const axis = new Intl.DateTimeFormat('fr-FR', LABEL_FORMATS[granularity])
+  const axis = new Intl.DateTimeFormat('en-US', LABEL_FORMATS[granularity])
 
   const summary =
-    `${formatCount(overall)} entrées, ` +
+    `${formatCount(overall)} entries, ` +
     LOG_LEVELS.filter((level) => totals[level] > 0)
       .map((level) => `${formatCount(totals[level])} ${LEVEL_META[level].label.toLowerCase()}`)
       .join(', ')
@@ -287,13 +288,13 @@ export function LogHistogram({
   return (
     <div
       role="img"
-      aria-label={`Histogramme : ${summary}`}
+      aria-label={`Histogram: ${summary}`}
       className={cn(
         'h-36',
         onSelect && 'cursor-pointer',
-        // Recharts rend son graphique focalisable pour la navigation au clavier : au clic, le
-        // navigateur y pose son anneau de focus, qui se lit comme une sélection alors que rien
-        // n'est sélectionné. On le retire sur le cadre et sur la surface SVG, pas au-delà.
+        // Recharts renders its chart focusable for keyboard navigation: on click, the browser
+        // places its focus ring on it, which reads as a selection when nothing is selected. It's
+        // removed on the frame and the SVG surface, no further.
         '[&_.recharts-surface]:outline-none [&_.recharts-wrapper]:outline-none',
       )}
     >
@@ -305,15 +306,15 @@ export function LogHistogram({
           onClick={(state) => {
             if (!onSelect) return
 
-            // `activeLabel` porte la valeur de l'axe, donc l'instant de la tranche : plus sûr que
-            // l'indice, dont le type varie selon la version et qui ne dit rien si les colonnes ont
-            // changé entre le rendu et le clic.
+            // `activeLabel` carries the axis value, i.e. the bucket's instant: safer than the
+            // index, whose type varies by version and says nothing if the columns changed
+            // between render and click.
             const at = Number(state?.activeLabel)
 
             if (Number.isFinite(at)) onSelect(at, granularity)
           }}
         >
-          {/* Seules les lignes horizontales : les verticales doubleraient les barres elles-mêmes. */}
+          {/* Only horizontal lines: vertical ones would duplicate the bars themselves. */}
           <CartesianGrid vertical={false} stroke="var(--color-border-subtle)" />
 
           <XAxis
@@ -322,8 +323,8 @@ export function LogHistogram({
             tick={{ fontSize: 11, fill: 'var(--color-ink-faint)' }}
             tickLine={false}
             axisLine={{ stroke: 'var(--color-border-subtle)' }}
-            // Laisser Recharts espacer les graduations : à soixante barres, une étiquette par barre
-            // se chevaucherait jusqu'à devenir illisible.
+            // Let Recharts space out the ticks: at sixty bars, one label per bar would overlap
+            // until unreadable.
             minTickGap={48}
           />
 
@@ -351,7 +352,7 @@ export function LogHistogram({
             <Bar
               key={level}
               dataKey={level}
-              stackId="niveaux"
+              stackId="levels"
               fill={BAR_FILLS[level]}
               isAnimationActive={false}
             />
@@ -362,7 +363,7 @@ export function LogHistogram({
   )
 }
 
-/** Légende des niveaux, partagée par l'histogramme et les filtres. */
+/** Level legend, shared by the histogram and the filters. */
 export function LevelLegend() {
   return (
     <ul className="flex flex-wrap items-center gap-3">
