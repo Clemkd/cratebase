@@ -4,23 +4,23 @@ using System.Threading.Channels;
 namespace Cratebase.Realtime;
 
 /// <summary>
-/// Transport en mémoire de processus. Implémentation de départ, dans le conteneur unique.
+/// In-process memory transport. Starting implementation, for the single-container deployment.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Un seul canal borné, lu par le concentrateur. Borné et non illimité : une rafale d'écritures
-/// plus rapide que la diffusion ferait grossir une file sans limite jusqu'à la fin du processus, ce
-/// qui échange une lenteur visible contre une panne mémoire qui ne l'est pas.
+/// A single bounded channel, read by the hub. Bounded, not unbounded: a burst of writes faster
+/// than broadcast can drain would otherwise grow a queue without limit until the process runs out
+/// of memory, trading a visible slowdown for an invisible crash.
 /// </para>
 /// <para>
-/// À saturation, ce sont les évènements <b>les plus anciens</b> qui tombent, et le compteur le dit.
-/// L'inverse — refuser les nouveaux — figerait l'affichage des abonnés sur un état périmé tout en
-/// laissant croire qu'il est à jour.
+/// Under saturation, it's the <b>oldest</b> events that get dropped, and the counter says so. The
+/// reverse — rejecting new ones — would freeze subscribers' view on stale state while making it
+/// look current.
 /// </para>
 /// </remarks>
 public sealed class InMemoryRealtimeTransport : IRealtimeTransport
 {
-    /// <summary>Nombre d'évènements en attente au-delà duquel les plus anciens sont écartés.</summary>
+    /// <summary>Number of pending events beyond which the oldest are discarded.</summary>
     public const int Capacity = 1024;
 
     private readonly Channel<RealtimeEvent> _channel = Channel.CreateBounded<RealtimeEvent>(
@@ -35,7 +35,7 @@ public sealed class InMemoryRealtimeTransport : IRealtimeTransport
     /// <inheritdoc />
     public string Name => "memory";
 
-    /// <summary>Évènements perdus par saturation depuis le démarrage.</summary>
+    /// <summary>Events lost to saturation since startup.</summary>
     public long Dropped => Interlocked.Read(ref _dropped);
 
     /// <inheritdoc />
@@ -45,9 +45,9 @@ public sealed class InMemoryRealtimeTransport : IRealtimeTransport
     {
         ArgumentNullException.ThrowIfNull(notification);
 
-        // `TryWrite` sur un canal `DropOldest` réussit toujours : le refus n'existe pas, mais
-        // l'éviction, si. On la compte en comparant ce qui entre à ce qui sort, faute d'un signal
-        // du canal lui-même.
+        // `TryWrite` on a `DropOldest` channel always succeeds: rejection doesn't exist, but
+        // eviction does. We count it by comparing what goes in to what comes out, for lack of a
+        // signal from the channel itself.
         if (!_channel.Writer.TryWrite(notification))
         {
             Interlocked.Increment(ref _dropped);

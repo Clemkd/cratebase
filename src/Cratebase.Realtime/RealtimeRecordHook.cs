@@ -4,14 +4,13 @@ using Cratebase.Schema;
 namespace Cratebase.Realtime;
 
 /// <summary>
-/// Publie chaque écriture validée sur le transport temps réel.
+/// Publishes every validated write to the realtime transport.
 /// </summary>
 /// <remarks>
-/// C'est un crochet d'après-écriture ordinaire, et pas un branchement privilégié dans le moteur
-/// d'enregistrements : le temps réel n'a besoin de rien que la librairie n'offre à qui veut réagir
-/// aux écritures. Un utilisateur qui veut envoyer un courriel, alimenter un index de recherche ou
-/// pousser vers un autre bus écrit exactement le même genre de classe et l'enregistre de la même
-/// façon.
+/// This is an ordinary after-write hook, not a privileged tap into the record engine: realtime
+/// needs nothing that the library doesn't already offer to anyone who wants to react to writes. A
+/// user who wants to send an email, feed a search index, or push to another bus writes exactly the
+/// same kind of class and registers it the same way.
 /// </remarks>
 public sealed class RealtimeRecordHook(IRealtimeTransport transport) : IRecordMutationHook
 {

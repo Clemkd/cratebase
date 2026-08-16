@@ -8,13 +8,13 @@ using Cratebase.Schema;
 namespace Cratebase.Realtime;
 
 /// <summary>
-/// Appelant d'un client temps réel, figé à la connexion.
+/// Caller of a realtime client, frozen at connection time.
 /// </summary>
 /// <remarks>
-/// Une copie, et non l'appelant de la requête HTTP : celui-ci est résolu par requête et n'a aucune
-/// raison de survivre à celle qui a ouvert le flux. Le figer a une conséquence qu'il faut nommer —
-/// des droits retirés pendant la connexion ne le sont pas pour ce flux —, d'où la révocation
-/// explicite du jeton, qui ferme les flux ouverts de ce compte.
+/// A copy, not the HTTP request's caller: that one is resolved per request and has no reason to
+/// outlive the request that opened the stream. Freezing it has a consequence worth naming —
+/// permissions revoked during the connection don't apply to this stream — hence the explicit token
+/// revocation, which closes the open streams of that account.
 /// </remarks>
 public sealed record RealtimePrincipal(
     bool IsAuthenticated,
@@ -24,7 +24,7 @@ public sealed record RealtimePrincipal(
     IReadOnlyCollection<string> Permissions,
     IReadOnlyDictionary<string, object?> Fields) : ICurrentUser
 {
-    /// <summary>Fige l'appelant courant.</summary>
+    /// <summary>Freezes the current caller.</summary>
     public static RealtimePrincipal From(ICurrentUser user)
     {
         ArgumentNullException.ThrowIfNull(user);
@@ -40,58 +40,58 @@ public sealed record RealtimePrincipal(
 }
 
 /// <summary>
-/// Un client connecté et ce à quoi il s'est abonné.
+/// A connected client and what it has subscribed to.
 /// </summary>
 public sealed class RealtimeClient
 {
-    /// <summary>Taille de la file d'attente d'un client, en messages.</summary>
+    /// <summary>Size of a client's outbox, in messages.</summary>
     public const int Capacity = 64;
 
     private readonly Channel<string> _outbox = Channel.CreateBounded<string>(
         new BoundedChannelOptions(Capacity)
         {
-            // Un client lent perd ses messages les plus anciens plutôt que de ralentir la
-            // diffusion : sans cela, un onglet en veille sur un réseau saturé bloquerait le flux de
-            // tous les autres.
+            // A slow client loses its oldest messages rather than slowing down the broadcast:
+            // without this, one tab asleep on a saturated network would block the stream for
+            // everyone else.
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
         });
 
-    /// <summary>Identifiant remis au client à la connexion.</summary>
+    /// <summary>Identifier handed to the client on connection.</summary>
     public string Id { get; } = RecordId.New().ToString();
 
-    /// <summary>Appelant figé à la connexion.</summary>
+    /// <summary>Caller frozen at connection time.</summary>
     public RealtimePrincipal Principal { get; internal set; } = RealtimePrincipal.From(AnonymousUser.Instance);
 
-    /// <summary>Sujets suivis : <c>collection</c> ou <c>collection/identifiant</c>.</summary>
+    /// <summary>Followed topics: <c>collection</c> or <c>collection/id</c>.</summary>
     public IReadOnlySet<string> Topics { get; internal set; } =
         new HashSet<string>(StringComparer.Ordinal);
 
-    /// <summary>Dépose un message. Sans effet si le client est déjà fermé.</summary>
+    /// <summary>Enqueues a message. No effect if the client is already closed.</summary>
     internal void Post(string payload) => _outbox.Writer.TryWrite(payload);
 
-    /// <summary>Lit les messages destinés à ce client, jusqu'à fermeture.</summary>
+    /// <summary>Reads the messages addressed to this client, until closed.</summary>
     public IAsyncEnumerable<string> ReadAsync(CancellationToken cancellationToken = default) =>
         _outbox.Reader.ReadAllAsync(cancellationToken);
 
-    /// <summary>Ferme le flux du client.</summary>
+    /// <summary>Closes the client's stream.</summary>
     internal void Close() => _outbox.Writer.TryComplete();
 }
 
 /// <summary>
-/// Concentrateur du temps réel : qui écoute quoi, et qui a le droit de le voir.
+/// Realtime hub: who is listening to what, and who is allowed to see it.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>La règle de consultation est réévaluée à la diffusion.</b> C'est le point qui décide de la
-/// valeur de tout le reste : sans lui, s'abonner à une collection suffirait à recevoir des
-/// enregistrements que l'API refuse de servir, et le temps réel deviendrait un contournement de
-/// toutes les règles d'accès à la fois.
+/// <b>The view rule is re-evaluated at broadcast time.</b> This is the point that decides the
+/// value of everything else: without it, subscribing to a collection would be enough to receive
+/// records the API refuses to serve, and realtime would become a bypass of every access rule at
+/// once.
 /// </para>
 /// <para>
-/// Les deux cas fréquents ne coûtent aucune requête : une règle verrouillée ne concerne que les
-/// super-admins, une règle ouverte concerne tout le monde. Seule une règle conditionnelle demande
-/// une lecture — une par appelant distinct, pas une par abonné.
+/// The two common cases cost no query: a locked rule concerns only superusers, an open rule
+/// concerns everyone. Only a conditional rule requires a read — one per distinct caller, not one
+/// per subscriber.
 /// </para>
 /// </remarks>
 public sealed class RealtimeHub(CollectionRegistry registry, RecordService records)
@@ -103,18 +103,18 @@ public sealed class RealtimeHub(CollectionRegistry registry, RecordService recor
 
     private readonly ConcurrentDictionary<string, RealtimeClient> _clients = new(StringComparer.Ordinal);
 
-    /// <summary>Clients connectés.</summary>
+    /// <summary>Connected clients.</summary>
     public int Count => _clients.Count;
 
-    /// <summary>Une collection est-elle suivie par au moins un client ?</summary>
+    /// <summary>Is a collection followed by at least one client?</summary>
     /// <remarks>
-    /// Consultée avant de payer une lecture supplémentaire : le contenu d'un enregistrement
-    /// supprimé n'est chargé que si quelqu'un attend de l'apprendre.
+    /// Checked before paying for an extra read: the content of a deleted record is only loaded if
+    /// someone is waiting to learn about it.
     /// </remarks>
     public bool IsWatched(string collection) =>
         _clients.Values.Any(client => client.Topics.Any(topic => Matches(topic, collection)));
 
-    /// <summary>Enregistre un client et lui attribue son identifiant.</summary>
+    /// <summary>Registers a client and assigns its identifier.</summary>
     public RealtimeClient Connect(ICurrentUser user)
     {
         var client = new RealtimeClient { Principal = RealtimePrincipal.From(user) };
@@ -124,7 +124,7 @@ public sealed class RealtimeHub(CollectionRegistry registry, RecordService recor
         return client;
     }
 
-    /// <summary>Retire un client et ferme son flux.</summary>
+    /// <summary>Removes a client and closes its stream.</summary>
     public void Disconnect(string clientId)
     {
         if (_clients.TryRemove(clientId, out var client))
@@ -134,12 +134,13 @@ public sealed class RealtimeHub(CollectionRegistry registry, RecordService recor
     }
 
     /// <summary>
-    /// Remplace la liste des sujets suivis par un client.
+    /// Replaces the list of topics a client follows.
     /// </summary>
     /// <remarks>
-    /// Remplace, et n'ajoute pas : un client qui change d'écran doit pouvoir se désabonner de tout
-    /// en une requête. L'appelant est réactualisé au passage — c'est ainsi qu'une console qui se
-    /// connecte avant d'être authentifiée devient un abonné authentifié sans rouvrir son flux.
+    /// Replaces, doesn't add: a client switching screens must be able to unsubscribe from
+    /// everything in one request. The caller is refreshed along the way — that's how a console that
+    /// connects before authenticating becomes an authenticated subscriber without reopening its
+    /// stream.
     /// </remarks>
     public bool Subscribe(string clientId, IEnumerable<string> topics, ICurrentUser user)
     {
@@ -154,7 +155,7 @@ public sealed class RealtimeHub(CollectionRegistry registry, RecordService recor
         return true;
     }
 
-    /// <summary>Ferme tous les flux d'un compte. Appelé à la révocation de ses jetons.</summary>
+    /// <summary>Closes every stream of an account. Called when its tokens are revoked.</summary>
     public void DisconnectAccount(string collection, RecordId id)
     {
         foreach (var (key, client) in _clients)
@@ -166,7 +167,7 @@ public sealed class RealtimeHub(CollectionRegistry registry, RecordService recor
         }
     }
 
-    /// <summary>Diffuse un évènement aux abonnés qui y ont droit.</summary>
+    /// <summary>Broadcasts an event to the subscribers entitled to it.</summary>
     public async Task DispatchAsync(
         RealtimeEvent notification,
         Func<RealtimeEvent, string, string> render,
@@ -179,8 +180,8 @@ public sealed class RealtimeHub(CollectionRegistry registry, RecordService recor
 
         if (collection is null) return;
 
-        // Le verdict est calculé une fois par appelant distinct, pas une fois par abonné : dix
-        // onglets du même compte ne valent pas dix évaluations de la même règle.
+        // The verdict is computed once per distinct caller, not once per subscriber: ten tabs of
+        // the same account aren't worth ten evaluations of the same rule.
         var verdicts = new Dictionary<RealtimePrincipal, bool>();
 
         foreach (var client in _clients.Values)
@@ -202,7 +203,7 @@ public sealed class RealtimeHub(CollectionRegistry registry, RecordService recor
         }
     }
 
-    /// <summary>Le sujet suivi désigne-t-il cette collection, éventuellement cet enregistrement ?</summary>
+    /// <summary>Does the followed topic designate this collection, or possibly this record?</summary>
     private static bool Matches(string topic, string collection, string? recordId = null)
     {
         if (string.Equals(topic, collection, StringComparison.Ordinal)) return true;
@@ -212,12 +213,12 @@ public sealed class RealtimeHub(CollectionRegistry registry, RecordService recor
     }
 
     /// <summary>
-    /// L'appelant a-t-il le droit de voir cet enregistrement ?
+    /// Is the caller allowed to see this record?
     /// </summary>
     /// <remarks>
-    /// La règle est celle de la consultation, appliquée par le moteur d'enregistrements lui-même :
-    /// réimplémenter ici une évaluation « équivalente » garantirait qu'elle diverge un jour, et la
-    /// divergence irait dans le sens de la fuite.
+    /// The rule is the view rule, applied by the record engine itself: reimplementing an
+    /// "equivalent" evaluation here would guarantee it drifts one day, and the drift would go in
+    /// the direction of a leak.
     /// </remarks>
     private async Task<bool> CanSeeAsync(
         CollectionDefinition collection,
@@ -229,15 +230,15 @@ public sealed class RealtimeHub(CollectionRegistry registry, RecordService recor
 
         var rule = collection.Rules.View;
 
-        // Verrouillée : réservée aux super-admins, déjà rendus plus haut.
+        // Locked: reserved for superusers, already handled above.
         if (rule is null) return false;
 
-        // Ouverte à tous : rien à évaluer.
+        // Open to everyone: nothing to evaluate.
         if (rule.Length == 0) return true;
 
-        // Une suppression ne laisse rien à évaluer : la ligne n'existe plus, donc la règle ne peut
-        // plus être appliquée. On refuse plutôt que de supposer — un abonné qui ne voyait pas
-        // l'enregistrement n'a pas à apprendre qu'il a disparu.
+        // A deletion leaves nothing to evaluate: the row no longer exists, so the rule can no
+        // longer be applied. We refuse rather than assume — a subscriber who couldn't see the
+        // record shouldn't learn that it disappeared.
         if (notification.Action is RecordAction.Delete && notification.Record is null) return false;
 
         try
