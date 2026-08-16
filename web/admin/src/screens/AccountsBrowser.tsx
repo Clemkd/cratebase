@@ -33,14 +33,14 @@ interface Role {
 }
 
 /**
- * Comptes d'une collection d'authentification.
+ * Accounts of an authentication collection.
  *
- * L'attribution des droits passe par `POST .../grants`, jamais par un PATCH ordinaire : rôles et
- * permissions sont des champs système, refusés dans un corps de requête. C'est ce qui empêche un
- * compte de s'accorder ses propres droits dès que la règle de modification est un peu large.
+ * Granting rights goes through `POST .../grants`, never an ordinary PATCH: roles and permissions
+ * are system fields, rejected in a request body. That's what stops an account from granting
+ * itself its own rights the moment the update rule is even slightly permissive.
  *
- * D'où deux chemins d'édition bien séparés : le panneau d'enregistrement pour ce qui appartient au
- * compte, une modale de droits pour ce qui appartient au moteur d'autorisation.
+ * Hence two clearly separate editing paths: the record panel for what belongs to the account, a
+ * rights modal for what belongs to the authorization engine.
  */
 export function AccountsBrowser({
   collection,
@@ -81,8 +81,8 @@ export function AccountsBrowser({
         )
       })
       .catch(() => {
-        // Le catalogue de rôles n'est qu'une aide à la saisie : sans lui, les permissions restent
-        // attribuables une à une.
+        // The role catalog is only an input aid: without it, permissions remain assignable one
+        // by one.
       })
 
     return () => {
@@ -97,7 +97,7 @@ export function AccountsBrowser({
 
     try {
       await api.records.remove(collection.name, String(removing.id))
-      toast.success('Compte supprimé.')
+      toast.success('Account deleted.')
       await reload()
     } catch (failure) {
       toast.error(describeFailure(failure))
@@ -114,17 +114,17 @@ export function AccountsBrowser({
       <Card className="flex flex-wrap items-center gap-2 px-4 py-3">
         <p className="text-xs text-ink-muted">
           {result
-            ? `${formatCount(result.totalItems)} ${plural(result.totalItems, 'compte', 'comptes')}`
-            : 'Chargement…'}
+            ? `${formatCount(result.totalItems)} ${plural(result.totalItems, 'account', 'accounts')}`
+            : 'Loading…'}
         </p>
 
         <div className="ml-auto flex items-center gap-2">
-          <Tooltip content="Recharger">
+          <Tooltip content="Reload">
             <Button
               variant="ghost"
               size="icon"
               className="size-8"
-              aria-label="Recharger la liste"
+              aria-label="Reload list"
               onClick={() => void reload()}
             >
               <RotateCw size={16} aria-hidden="true" />
@@ -137,7 +137,7 @@ export function AccountsBrowser({
             icon={<UserPlus size={15} aria-hidden="true" />}
             onClick={() => setCreating(true)}
           >
-            Nouveau compte
+            New account
           </Button>
         </div>
       </Card>
@@ -149,15 +149,15 @@ export function AccountsBrowser({
       {!loading && !error && items.length === 0 && (
         <EmptyState
           icon={<Users size={28} aria-hidden="true" />}
-          title="Aucun compte"
-          description="Créez un compte, ou laissez vos utilisateurs s'inscrire si la règle de création le permet."
+          title="No accounts"
+          description="Create an account, or let your users sign up if the create rule allows it."
           action={
             <Button
               variant="primary"
               icon={<Plus size={15} aria-hidden="true" />}
               onClick={() => setCreating(true)}
             >
-              Créer un compte
+              Create an account
             </Button>
           }
         />
@@ -165,14 +165,14 @@ export function AccountsBrowser({
 
       {items.length > 0 && (
         <Card className="overflow-hidden">
-          <Table bare caption={`Comptes de la collection ${collection.name}`}>
+          <Table bare caption={`Accounts in the ${collection.name} collection`}>
             <THead>
               <tr>
-                <Th>Adresse</Th>
-                <Th>Vérifié</Th>
-                <Th>Rôles</Th>
+                <Th>Address</Th>
+                <Th>Verified</Th>
+                <Th>Roles</Th>
                 <Th>Permissions</Th>
-                <Th>Créé le</Th>
+                <Th>Created</Th>
                 <Th className="w-24">
                   <span className="sr-only">Actions</span>
                 </Th>
@@ -195,7 +195,7 @@ export function AccountsBrowser({
 
                     <Td>
                       <Badge tone={account.verified === true ? 'success' : 'neutral'} dot>
-                        {account.verified === true ? 'oui' : 'non'}
+                        {account.verified === true ? 'yes' : 'no'}
                       </Badge>
                     </Td>
 
@@ -238,12 +238,12 @@ export function AccountsBrowser({
 
                     <Td>
                       <div className="flex justify-end gap-1">
-                        <Tooltip content="Rôles et permissions">
+                        <Tooltip content="Roles and permissions">
                           <Button
                             variant="ghost"
                             size="icon"
                             className="size-8"
-                            aria-label={`Modifier les droits de ${String(account.email ?? account.id)}`}
+                            aria-label={`Edit rights for ${String(account.email ?? account.id)}`}
                             onClick={() => setGranting(account)}
                           >
                             <ShieldCheck size={15} aria-hidden="true" />
@@ -254,7 +254,7 @@ export function AccountsBrowser({
                           variant="ghost"
                           size="icon"
                           className="size-8 hover:text-danger"
-                          aria-label={`Supprimer ${String(account.email ?? account.id)}`}
+                          aria-label={`Delete ${String(account.email ?? account.id)}`}
                           onClick={() => setRemoving(account)}
                         >
                           <Trash2 size={15} aria-hidden="true" />
@@ -273,14 +273,14 @@ export function AccountsBrowser({
                 page {result.page} / {result.totalPages}
               </span>
               <Button size="sm" disabled={result.page <= 1} onClick={() => setPage(result.page - 1)}>
-                Précédent
+                Previous
               </Button>
               <Button
                 size="sm"
                 disabled={result.page >= result.totalPages}
                 onClick={() => setPage(result.page + 1)}
               >
-                Suivant
+                Next
               </Button>
             </div>
           )}
@@ -317,14 +317,14 @@ export function AccountsBrowser({
       <ConfirmDialog
         open={removing !== null}
         busy={deleting}
-        title="Supprimer ce compte ?"
+        title="Delete this account?"
         message={
           <>
-            Le compte <strong className="text-ink">{String(removing?.email ?? '')}</strong> et ses
-            sessions seront détruits. L'opération est définitive.
+            The account <strong className="text-ink">{String(removing?.email ?? '')}</strong> and
+            its sessions will be destroyed. This operation is permanent.
           </>
         }
-        confirmLabel="Supprimer le compte"
+        confirmLabel="Delete account"
         confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         onConfirm={() => void remove()}
         onClose={() => setRemoving(null)}
@@ -363,7 +363,7 @@ function GrantsDialog({
 
     try {
       await api.auth.grant(collection.name, String(account.id), selectedRoles, permissions)
-      toast.success('Droits enregistrés. Les sessions ouvertes du compte ont été révoquées.')
+      toast.success('Rights saved. The account\'s open sessions have been revoked.')
       onSaved()
     } catch (error) {
       setFailure(describeFailure(error))
@@ -376,7 +376,7 @@ function GrantsDialog({
     <Dialog
       open
       onClose={onClose}
-      title="Rôles et permissions"
+      title="Roles and permissions"
       description={String(account.email ?? account.id)}
       footer={
         <>
@@ -386,7 +386,7 @@ function GrantsDialog({
             onClick={onClose}
             disabled={saving}
           >
-            Annuler
+            Cancel
           </Button>
           <Button
             variant="primary"
@@ -394,7 +394,7 @@ function GrantsDialog({
             onClick={() => void save()}
             loading={saving}
           >
-            Enregistrer les droits
+            Save rights
           </Button>
         </>
       }
@@ -402,10 +402,10 @@ function GrantsDialog({
       <div className="space-y-5">
         {failure && <ErrorBlock message={failure} />}
 
-        <Field label="Rôles" hint="Chaque rôle apporte les permissions qui lui sont attachées.">
+        <Field label="Roles" hint="Each role brings the permissions attached to it.">
           {roles.length === 0 ? (
             <p className="text-xs text-ink-muted">
-              Aucun rôle déclaré. La collection <code className="font-mono">_roles</code> est vide.
+              No roles declared. The <code className="font-mono">_roles</code> collection is empty.
             </p>
           ) : (
             <div className="space-y-2 rounded-[var(--radius-control)] border border-border-subtle p-3">
@@ -413,7 +413,7 @@ function GrantsDialog({
                 <Checkbox
                   key={role.name}
                   label={role.name}
-                  hint={role.grants.join(', ') || 'aucune permission'}
+                  hint={role.grants.join(', ') || 'no permissions'}
                   checked={selectedRoles.includes(role.name)}
                   onChange={(event) =>
                     setSelectedRoles((current) =>
@@ -429,13 +429,13 @@ function GrantsDialog({
         </Field>
 
         <Field
-          label="Dérogations individuelles"
-          hint="Permissions accordées à ce compte seul, en plus de celles de ses rôles. Le joker « * » est admis."
+          label="Individual overrides"
+          hint="Permissions granted to this account alone, in addition to those from its roles. The '*' wildcard is allowed."
         >
           <StringListInput
             value={permissions}
             onChange={setPermissions}
-            placeholder="ex. : posts.write puis Entrée"
+            placeholder="e.g. posts.write then Enter"
           />
         </Field>
 
@@ -443,7 +443,7 @@ function GrantsDialog({
           <div className="rounded-[var(--radius-card)] border border-border-subtle bg-surface-sunken p-4">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-ink">
               <KeyRound size={13} aria-hidden="true" />
-              Permissions héritées des rôles
+              Permissions inherited from roles
             </p>
             <div className="flex flex-wrap gap-1">
               {[...new Set(inherited)].map((permission) => (
@@ -456,8 +456,8 @@ function GrantsDialog({
         )}
 
         <p className="text-xs text-ink-muted">
-          Enregistrer révoque les jetons du compte : un droit retiré cesse d'être utilisable
-          immédiatement, y compris sur une session déjà ouverte.
+          Saving revokes the account's tokens: a removed right stops being usable immediately,
+          including on a session that's already open.
         </p>
       </div>
     </Dialog>
