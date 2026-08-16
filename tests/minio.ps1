@@ -1,8 +1,7 @@
-# Rejoue la suite de bout en bout avec le stockage objet S3 (MinIO).
+# Replays the end-to-end suite with S3 (MinIO) object storage.
 #
-# Pendant de `postgres.ps1` pour l'autre moitié de la promesse d'évolutivité : passer du disque
-# local à S3 doit rester un changement de configuration. Le jour où ce script casse, ce n'est plus
-# vrai.
+# Counterpart to `postgres.ps1` for the other half of the scalability promise: moving from local
+# disk to S3 must stay a configuration change. The day this script breaks, that's no longer true.
 #
 #   pwsh tests/minio.ps1
 
@@ -29,7 +28,7 @@ else {
 }
 
 Start-Sleep -Seconds 4
-Write-Host "  service pret sur 127.0.0.1:$MinioPort" -ForegroundColor Green
+Write-Host "  service ready on 127.0.0.1:$MinioPort" -ForegroundColor Green
 
 Write-Host "`n== Application ==" -ForegroundColor Cyan
 
@@ -39,8 +38,8 @@ Get-CimInstance Win32_Process -Filter "Name='dotnet.exe'" |
 
 Start-Sleep -Seconds 2
 
-# Base locale remise à neuf : les enregistrements doivent repartir de zéro, sinon les assertions
-# sur les compteurs échouent pour une raison sans rapport avec le stockage.
+# Local database reset from scratch: records must start from zero, otherwise the assertions on
+# counters fail for a reason unrelated to storage.
 Remove-Item -Recurse -Force (Join-Path $root 'src\Cratebase.App\data') -ErrorAction SilentlyContinue
 
 $env:ASPNETCORE_ENVIRONMENT = 'Development'
@@ -62,19 +61,18 @@ for ($i = 0; $i -lt 90; $i++) {
 & (Join-Path $PSScriptRoot 'smoke.ps1') -BaseUrl "http://127.0.0.1:$AppPort"
 $outcome = $LASTEXITCODE
 
-# Contrôle décisif : les octets doivent être DANS le seau, et le répertoire local ne doit pas
-# exister. Sans lui, un repli silencieux sur le disque ferait passer la suite pour la mauvaise
-# raison.
-Write-Host "`n== Emplacement reel des octets ==" -ForegroundColor Cyan
+# Decisive check: the bytes must be IN the bucket, and the local directory must not exist. Without
+# this, a silent fallback to disk would make the suite pass for the wrong reason.
+Write-Host "`n== Actual byte location ==" -ForegroundColor Cyan
 
 $inBucket = (docker exec $Container ls /data/cratebase 2>&1 | Out-String).Trim()
 $localPath = Join-Path $root 'src\Cratebase.App\data\storage'
 
 if ($inBucket -and -not (Test-Path $localPath)) {
-    Write-Host "  OK   les objets sont dans le seau, rien sur le disque local" -ForegroundColor Green
+    Write-Host "  OK   objects are in the bucket, nothing on local disk" -ForegroundColor Green
 }
 else {
-    Write-Host "  ECHEC repli silencieux sur le disque local" -ForegroundColor Red
+    Write-Host "  FAIL silent fallback to local disk" -ForegroundColor Red
     $outcome = 1
 }
 
