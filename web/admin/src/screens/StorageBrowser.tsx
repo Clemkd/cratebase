@@ -39,17 +39,17 @@ import {
 
 const PER_PAGE_CHOICES = [25, 50, 100, 200]
 
-/** Une image est-elle affichable en aperçu ? */
+/** Can an image be shown as a preview? */
 function isImage(entry: StoredObject): boolean {
   return entry.contentType.startsWith('image/')
 }
 
 /**
- * Adresse de lecture d'un objet.
+ * Read address for an object.
  *
- * Elle passe par la route de fichiers existante, qui applique la règle de consultation quand le
- * champ est protégé. L'inventaire n'ouvre donc aucun chemin d'accès nouveau : il nomme des fichiers,
- * il ne les déverrouille pas.
+ * It goes through the existing file route, which applies the view rule when the field is
+ * protected. The inventory therefore opens no new access path: it names files, it doesn't
+ * unlock them.
  */
 function fileHref(entry: StoredObject, token: string, thumb?: string): string {
   const query = new URLSearchParams()
@@ -62,7 +62,7 @@ function fileHref(entry: StoredObject, token: string, thumb?: string): string {
   return `/api/files/${encodeURIComponent(entry.collection)}/${encodeURIComponent(entry.recordId)}/${encodeURIComponent(entry.fileName)}${search ? `?${search}` : ''}`
 }
 
-/** Vignette de la colonne d'aperçu, ou glyphe de repli. */
+/** Thumbnail for the preview column, or a fallback glyph. */
 function Preview({ entry, token }: { entry: StoredObject; token: string }) {
   if (!isImage(entry) || entry.collection === '') {
     return (
@@ -82,7 +82,7 @@ function Preview({ entry, token }: { entry: StoredObject; token: string }) {
   )
 }
 
-/** Détail d'un objet, en panneau latéral. */
+/** Detail of an object, in a side panel. */
 function ObjectDetail({
   entry,
   token,
@@ -115,24 +115,24 @@ function ObjectDetail({
               icon={<Trash2 size={15} aria-hidden="true" />}
               onClick={() => onDelete(entry)}
             >
-              Supprimer
+              Delete
             </Button>
           )}
           <Button variant="primary" icon={<X size={15} aria-hidden="true" />} onClick={onClose}>
-            Fermer
+            Close
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          {entry.isThumb && <Badge tone="neutral">vignette</Badge>}
+          {entry.isThumb && <Badge tone="neutral">thumbnail</Badge>}
           {entry.orphan ? (
-            <Badge tone="warning">orphelin</Badge>
+            <Badge tone="warning">orphan</Badge>
           ) : (
-            <Badge tone="success">référencé</Badge>
+            <Badge tone="success">referenced</Badge>
           )}
-          <Badge mono>{entry.contentType || 'type inconnu'}</Badge>
+          <Badge mono>{entry.contentType || 'unknown type'}</Badge>
         </div>
 
         {isImage(entry) && entry.collection !== '' && (
@@ -145,7 +145,7 @@ function ObjectDetail({
 
         <div className="space-y-2 text-xs">
           <div className="flex items-start justify-between gap-3 border-b border-border-subtle pb-2">
-            <span className="shrink-0 text-ink-muted">Clé</span>
+            <span className="shrink-0 text-ink-muted">Key</span>
             <span className="min-w-0 text-right font-mono break-all text-ink">
               {entry.key}
               <CopyButton value={entry.key} size="icon" className="ml-1 size-6 align-middle" />
@@ -158,7 +158,7 @@ function ObjectDetail({
           </div>
 
           <div className="flex items-center justify-between gap-3 border-b border-border-subtle pb-2">
-            <span className="text-ink-muted">Enregistrement</span>
+            <span className="text-ink-muted">Record</span>
             {reachable ? (
               <a
                 href={routeHref({
@@ -177,22 +177,22 @@ function ObjectDetail({
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <span className="text-ink-muted">Taille</span>
+            <span className="text-ink-muted">Size</span>
             <span className="tabular-nums text-ink">{formatBytes(entry.size)}</span>
           </div>
         </div>
 
         {entry.orphan && (
           <p className="rounded-[var(--radius-control)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-ink">
-            Aucun enregistrement ne référence ce fichier. Il occupe de la place sans qu'aucune vue
-            de l'application n'y mène.
+            No record references this file. It occupies space with no view of the application
+            leading to it.
           </p>
         )}
 
         {!removable && (
           <p className="text-xs text-ink-muted">
-            Ce fichier est référencé par son enregistrement : il se retire depuis l'éditeur de cet
-            enregistrement, qui met la référence à jour en même temps.
+            This file is referenced by its record: it's removed from that record's editor, which
+            updates the reference at the same time.
           </p>
         )}
       </div>
@@ -201,14 +201,13 @@ function ObjectDetail({
 }
 
 /**
- * Inventaire du magasin de fichiers.
+ * File store inventory.
  *
- * Le magasin ne connaît que des clés ; cet écran leur rend leur sens — quelle collection, quel
- * enregistrement, et surtout : quelqu'un s'en sert-il encore. C'est la seule question à laquelle ni
- * un explorateur de fichiers ni une console S3 ne savent répondre, parce qu'il faut la base pour
- * cela.
+ * The store only knows keys; this screen gives them back their meaning — which collection, which
+ * record, and above all: is anyone still using it. That's the one question neither a file
+ * explorer nor an S3 console can answer, because it takes the database to know.
  *
- * Les filtres sont posés sous l'en-tête de la colonne qu'ils restreignent, comme dans le journal.
+ * Filters sit under the header of the column they restrict, as in the log.
  */
 export function StorageBrowser({ collections }: { collections: Collection[] }) {
   const toast = useToast()
@@ -235,8 +234,8 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
     orphansOnly,
   })
 
-  // Un jeton de courte durée sert les aperçus : une balise <img> ne porte pas d'en-tête, et les
-  // fichiers d'un champ protégé sont refusés sans lui.
+  // A short-lived token serves the previews: an <img> tag carries no header, and files from a
+  // protected field are refused without it.
   useEffect(() => {
     let abandoned = false
 
@@ -246,8 +245,8 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
         if (!abandoned) setToken(issued)
       })
       .catch(() => {
-        // Sans jeton, les aperçus des champs protégés ne s'affichent pas ; l'inventaire, lui,
-        // reste entièrement lisible.
+        // Without a token, previews of protected fields don't display; the inventory itself
+        // remains fully readable.
       })
 
     return () => {
@@ -278,7 +277,7 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
     try {
       const { deleted } = await api.storage.remove(entries.map((entry) => entry.key))
 
-      toast.success(`${formatCount(deleted)} ${plural(deleted, 'objet supprimé', 'objets supprimés')}.`)
+      toast.success(`${formatCount(deleted)} ${plural(deleted, 'object deleted', 'objects deleted')}.`)
       setSelected(null)
       await reload()
     } catch (failure) {
@@ -304,11 +303,11 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
   return (
     <div className="space-y-4">
       <PageActions>
-        <Tooltip content="Recharger">
+        <Tooltip content="Reload">
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Recharger l'inventaire"
+            aria-label="Reload inventory"
             onClick={() => void reload()}
           >
             <RotateCw size={16} aria-hidden="true" />
@@ -317,7 +316,7 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
 
         {filtered && (
           <Button variant="outline" icon={<Eraser size={15} aria-hidden="true" />} onClick={reset}>
-            Réinitialiser
+            Reset
           </Button>
         )}
 
@@ -326,7 +325,7 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
           icon={<Download size={15} aria-hidden="true" />}
           onClick={() => void download()}
         >
-          Extraire les fichiers
+          Export files
         </Button>
       </PageActions>
 
@@ -335,11 +334,11 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
       {orphans > 0 && !orphansOnly && (
         <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-ink">
           <span className="flex-1">
-            {formatCount(orphans)} {plural(orphans, 'objet', 'objets')}{' '}
-            {plural(orphans, 'ne correspond', 'ne correspondent')} à aucun enregistrement.
+            {formatCount(orphans)} {plural(orphans, 'object', 'objects')}{' '}
+            {plural(orphans, 'matches', 'match')} no record.
           </span>
           <Button size="sm" variant="outline" onClick={() => setOrphansOnly(true)}>
-            Les isoler
+            Isolate them
           </Button>
         </div>
       )}
@@ -347,17 +346,17 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
       {loading && result === null && <TableSkeleton columns={6} />}
 
       <Card className="overflow-hidden">
-        <Table bare caption="Objets du magasin">
+        <Table bare caption="Store objects">
           <THead>
-            {/* Le libellé et son filtre forment un seul bloc : le trait ne les sépare pas, il
-                ferme l'ensemble sous la ligne de filtres. */}
+            {/* The label and its filter form a single block: the rule doesn't separate them,
+                it closes off the pair below the filter row. */}
             <tr className="[&>th]:border-b-0">
-              <Th className="w-14">Aperçu</Th>
-              <Th>Fichier</Th>
+              <Th className="w-14">Preview</Th>
+              <Th>File</Th>
               <Th className="w-40">Collection</Th>
-              <Th className="w-44">Enregistrement</Th>
-              <Th className="w-24">Taille</Th>
-              <Th className="w-28">État</Th>
+              <Th className="w-44">Record</Th>
+              <Th className="w-24">Size</Th>
+              <Th className="w-28">State</Th>
             </tr>
 
             <tr className="[&>td]:border-b [&>td]:border-border-subtle [&>td]:px-2 [&>td]:pb-2">
@@ -365,12 +364,12 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
                 <SelectMenu<string>
                   value={kind === '' ? 'all' : kind}
                   size="sm"
-                  aria-label="Nature des objets"
+                  aria-label="Object kind"
                   className="w-full"
                   options={[
-                    { value: 'all', label: 'Tous' },
-                    { value: 'files', label: 'Fichiers' },
-                    { value: 'thumbs', label: 'Vignettes' },
+                    { value: 'all', label: 'All' },
+                    { value: 'files', label: 'Files' },
+                    { value: 'thumbs', label: 'Thumbnails' },
                   ]}
                   onChange={(choice) => setKind(choice === 'all' ? '' : choice)}
                 />
@@ -379,8 +378,8 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
                 <Input
                   value={search}
                   spellCheck={false}
-                  aria-label="Filtre sur la clé"
-                  placeholder="nom ou clé"
+                  aria-label="Filter on key"
+                  placeholder="name or key"
                   className="h-8 font-mono text-xs"
                   onChange={(event) => setSearch(event.target.value)}
                 />
@@ -392,7 +391,7 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
                   aria-label="Collection"
                   className="w-full"
                   options={[
-                    { value: 'all', label: 'Toutes' },
+                    { value: 'all', label: 'All' },
                     ...collections.map((entry) => ({ value: entry.name, label: entry.name })),
                   ]}
                   onChange={(choice) => setCollection(choice === 'all' ? '' : choice)}
@@ -404,11 +403,11 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
                 <SelectMenu<string>
                   value={orphansOnly ? 'orphans' : 'all'}
                   size="sm"
-                  aria-label="État de référencement"
+                  aria-label="Reference state"
                   className="w-full"
                   options={[
-                    { value: 'all', label: 'Tous' },
-                    { value: 'orphans', label: 'Orphelins' },
+                    { value: 'all', label: 'All' },
+                    { value: 'orphans', label: 'Orphans' },
                   ]}
                   onChange={(choice) => setOrphansOnly(choice === 'orphans')}
                 />
@@ -430,7 +429,7 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
                     title={entry.key}
                   >
                     {entry.fileName}
-                    {entry.isThumb && <span className="ml-1.5 text-ink-faint">vignette</span>}
+                    {entry.isThumb && <span className="ml-1.5 text-ink-faint">thumbnail</span>}
                   </button>
                 </Td>
                 <Td className="font-mono text-xs text-ink-muted">{entry.collection || '—'}</Td>
@@ -457,9 +456,9 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
                 <Td className="text-xs tabular-nums text-ink-muted">{formatBytes(entry.size)}</Td>
                 <Td>
                   {entry.orphan ? (
-                    <Badge tone="warning">orphelin</Badge>
+                    <Badge tone="warning">orphan</Badge>
                   ) : (
-                    <Badge tone="success">référencé</Badge>
+                    <Badge tone="success">referenced</Badge>
                   )}
                 </Td>
               </Tr>
@@ -476,11 +475,11 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
                         <ImageIcon size={28} aria-hidden="true" />
                       )
                     }
-                    title="Aucun objet"
+                    title="No objects"
                     description={
                       filtered
-                        ? 'Aucun objet ne correspond à ces critères.'
-                        : "Le magasin est vide. Les fichiers importés dans un champ de type fichier y apparaissent."
+                        ? 'No object matches these criteria.'
+                        : 'The store is empty. Files uploaded to a file-type field appear here.'
                     }
                     action={
                       filtered ? (
@@ -489,7 +488,7 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
                           icon={<Eraser size={15} aria-hidden="true" />}
                           onClick={reset}
                         >
-                          Réinitialiser les filtres
+                          Reset filters
                         </Button>
                       ) : undefined
                     }
@@ -504,7 +503,7 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-surface-sunken px-4 py-2.5 text-xs text-ink-muted">
             <div className="flex items-center gap-2">
               <span className="tabular-nums">
-                {formatCount(result.totalItems)} {plural(result.totalItems, 'objet', 'objets')}
+                {formatCount(result.totalItems)} {plural(result.totalItems, 'object', 'objects')}
               </span>
               <Badge>
                 page {result.page} / {Math.max(result.totalPages, 1)}
@@ -513,11 +512,11 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
 
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5">
-                <span aria-hidden="true">Par page</span>
+                <span aria-hidden="true">Per page</span>
                 <SelectMenu<string>
                   value={String(perPage)}
                   size="sm"
-                  aria-label="Objets par page"
+                  aria-label="Objects per page"
                   className="w-auto"
                   options={PER_PAGE_CHOICES.map((choice) => ({
                     value: String(choice),
@@ -531,14 +530,14 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
               </div>
 
               <Button size="sm" disabled={result.page <= 1} onClick={() => setPage(result.page - 1)}>
-                Précédent
+                Previous
               </Button>
               <Button
                 size="sm"
                 disabled={result.page >= result.totalPages}
                 onClick={() => setPage(result.page + 1)}
               >
-                Suivant
+                Next
               </Button>
             </div>
           </div>
@@ -558,13 +557,13 @@ export function StorageBrowser({ collections }: { collections: Collection[] }) {
       <ConfirmDialog
         open={confirming !== null}
         busy={deleting}
-        title="Supprimer cet objet ?"
+        title="Delete this object?"
         message={
           confirming?.[0]?.isThumb
-            ? "Cette vignette sera régénérée à la prochaine demande : la supprimer ne fait que libérer de la place."
-            : "Ce fichier n'est référencé par aucun enregistrement. La suppression est définitive."
+            ? 'This thumbnail will be regenerated on the next request: deleting it only frees up space.'
+            : 'This file is referenced by no record. The deletion is permanent.'
         }
-        confirmLabel="Supprimer"
+        confirmLabel="Delete"
         confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         onConfirm={() => void remove(confirming ?? [])}
         onClose={() => setConfirming(null)}
