@@ -4,29 +4,29 @@ using Dapper;
 
 namespace Cratebase.Auth;
 
-/// <summary>Résultat d'une inscription à la double authentification.</summary>
-/// <param name="Secret">Secret partagé, à saisir manuellement au besoin.</param>
-/// <param name="ProvisioningUri">URI <c>otpauth://</c> à présenter en code QR.</param>
+/// <summary>Result of enrolling in two-factor authentication.</summary>
+/// <param name="Secret">Shared secret, for manual entry if needed.</param>
+/// <param name="ProvisioningUri"><c>otpauth://</c> URI to present as a QR code.</param>
 public sealed record MfaEnrollment(string Secret, string ProvisioningUri);
 
 /// <summary>
-/// Double authentification par mot de passe à usage unique.
+/// Two-factor authentication with one-time passwords.
 /// </summary>
 /// <remarks>
-/// Deux facteurs enchaînés, comme chez PocketBase : le mot de passe réussit mais ne rend pas de
-/// jeton — il rend un <c>mfaId</c>, à présenter avec le code du second facteur. Tant que le second
-/// facteur n'est pas fourni, <b>aucun jeton n'existe</b> : c'est ce qui distingue une vraie double
-/// authentification d'un simple écran supplémentaire.
+/// Two chained factors, as in PocketBase: the password succeeds but returns no token — it returns
+/// an <c>mfaId</c>, to be presented along with the second factor's code. Until the second factor is
+/// supplied, <b>no token exists</b>: that's what distinguishes real two-factor authentication from
+/// a mere extra screen.
 /// </remarks>
 public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore tokens, IClock clock)
 {
-    /// <summary>Table des secrets.</summary>
+    /// <summary>Secrets table.</summary>
     public const string SecretsTable = "_mfaSecrets";
 
-    /// <summary>Table des défis en cours.</summary>
+    /// <summary>Table of pending challenges.</summary>
     public const string ChallengesTable = "_mfaChallenges";
 
-    /// <summary>Durée de validité d'un défi.</summary>
+    /// <summary>Validity duration of a challenge.</summary>
     public static readonly TimeSpan ChallengeLifetime = TimeSpan.FromMinutes(5);
 
     private readonly IDbConnectionFactory _connections = connections
@@ -35,7 +35,7 @@ public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore 
     private readonly AuthTokenStore _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
     private readonly IClock _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
-    /// <summary>Crée les tables si elles n'existent pas.</summary>
+    /// <summary>Creates the tables if they don't exist.</summary>
     public async Task EnsureTablesAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -79,7 +79,7 @@ public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore 
         }
     }
 
-    /// <summary>La double authentification est-elle active sur ce compte ?</summary>
+    /// <summary>Is two-factor authentication active on this account?</summary>
     public async Task<bool> IsEnabledAsync(
         string collection,
         RecordId recordId,
@@ -91,7 +91,7 @@ public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore 
         return secret is not null;
     }
 
-    /// <summary>Prépare une inscription : produit un secret, non encore confirmé.</summary>
+    /// <summary>Prepares an enrollment: produces a secret, not yet confirmed.</summary>
     public async Task<MfaEnrollment> EnrollAsync(
         string collection,
         RecordId recordId,
@@ -105,8 +105,8 @@ public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore 
 
         var dialect = _connections.Dialect;
 
-        // Une inscription non confirmée écrase la précédente : sans cela, abandonner une
-        // inscription en cours empêcherait d'en relancer une.
+        // An unconfirmed enrollment overwrites the previous one: without this, abandoning an
+        // in-progress enrollment would make it impossible to start a new one.
         await connection.ExecuteAsync(new CommandDefinition(
                 $"""
                  DELETE FROM {dialect.QuoteIdentifier(SecretsTable)}
@@ -147,11 +147,11 @@ public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore 
     }
 
     /// <summary>
-    /// Confirme une inscription en vérifiant un premier code.
+    /// Confirms an enrollment by verifying a first code.
     /// </summary>
     /// <remarks>
-    /// La confirmation n'est pas une formalité : sans elle, un secret mal recopié activerait la
-    /// double authentification sur un compte dont plus personne ne peut produire le code.
+    /// Confirmation is not a formality: without it, a mistyped secret would enable two-factor
+    /// authentication on an account for which nobody can produce the code anymore.
     /// </remarks>
     public async Task ConfirmAsync(
         string collection,
@@ -161,11 +161,11 @@ public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore 
     {
         var secret = await SecretOfAsync(collection, recordId, confirmedOnly: false, cancellationToken)
             .ConfigureAwait(false)
-            ?? throw new CratebaseBadRequestException("Aucune inscription en cours.");
+            ?? throw new CratebaseBadRequestException("No enrollment in progress.");
 
         if (!Totp.Verify(code, secret, _clock.UtcNow))
         {
-            throw new CratebaseBadRequestException("Code incorrect.");
+            throw new CratebaseBadRequestException("Incorrect code.");
         }
 
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -189,7 +189,7 @@ public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore 
             .ConfigureAwait(false);
     }
 
-    /// <summary>Désactive la double authentification.</summary>
+    /// <summary>Disables two-factor authentication.</summary>
     public async Task DisableAsync(
         string collection,
         RecordId recordId,
@@ -210,7 +210,7 @@ public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore 
             .ConfigureAwait(false);
     }
 
-    /// <summary>Ouvre un défi après un premier facteur réussi.</summary>
+    /// <summary>Opens a challenge after a successful first factor.</summary>
     public async Task<string> ChallengeAsync(
         string collection,
         RecordId recordId,
@@ -243,7 +243,7 @@ public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore 
     }
 
     /// <summary>
-    /// Achève un défi : vérifie le code du second facteur et émet le jeton.
+    /// Completes a challenge: verifies the second factor's code and issues the token.
     /// </summary>
     public async Task<(string Token, string Collection, RecordId RecordId)> CompleteAsync(
         string challengeId,
@@ -272,20 +272,20 @@ public sealed class MfaService(IDbConnectionFactory connections, AuthTokenStore 
             || !RecordId.TryParse(found.RecordId, out var recordId)
             || Timestamp.Parse(found.Expires) <= _clock.UtcNow)
         {
-            throw new CratebaseBadRequestException("Défi expiré ou inconnu.");
+            throw new CratebaseBadRequestException("Challenge expired or unknown.");
         }
 
         var secret = await SecretOfAsync(found.Collection, recordId, confirmedOnly: true, cancellationToken)
             .ConfigureAwait(false)
-            ?? throw new CratebaseBadRequestException("Double authentification inactive sur ce compte.");
+            ?? throw new CratebaseBadRequestException("Two-factor authentication is not active on this account.");
 
         if (!Totp.Verify(code, secret, _clock.UtcNow))
         {
-            throw new CratebaseBadRequestException("Code incorrect.");
+            throw new CratebaseBadRequestException("Incorrect code.");
         }
 
-        // Le défi est consommé, quoi qu'il arrive ensuite : un défi rejouable transformerait une
-        // interception unique en accès permanent.
+        // The challenge is consumed no matter what happens next: a replayable challenge would turn
+        // a single interception into permanent access.
         await connection.ExecuteAsync(new CommandDefinition(
                 $"DELETE FROM {dialect.QuoteIdentifier(ChallengesTable)} " +
                 $"WHERE {dialect.QuoteIdentifier("id")} = @id",

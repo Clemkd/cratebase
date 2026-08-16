@@ -6,34 +6,34 @@ using Dapper;
 
 namespace Cratebase.Auth;
 
-/// <summary>Jeton d'authentification résolu.</summary>
-/// <param name="Collection">Collection d'auth ayant émis le jeton.</param>
-/// <param name="RecordId">Enregistrement authentifié.</param>
+/// <summary>Resolved authentication token.</summary>
+/// <param name="Collection">Auth collection that issued the token.</param>
+/// <param name="RecordId">Authenticated record.</param>
 /// <param name="ExpiresAt">Expiration.</param>
 public sealed record ResolvedToken(string Collection, RecordId RecordId, DateTimeOffset ExpiresAt);
 
 /// <summary>
-/// Magasin des jetons d'authentification.
+/// Store for authentication tokens.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Jetons opaques stockés en base, et non JWT auto-signés.</b> PocketBase émet des JWT HS256
-/// sans état : c'est plus rapide, et c'est irrévocable — un jeton volé reste valable jusqu'à son
-/// expiration, quoi qu'on fasse. Un jeton opaque coûte une lecture indexée par requête et rend la
-/// révocation immédiate : déconnexion réelle, changement de mot de passe qui invalide les sessions,
-/// compte désactivé qui l'est vraiment.
+/// <b>Opaque, database-backed tokens, not self-signed JWTs.</b> PocketBase issues stateless HS256
+/// JWTs: faster, and irrevocable — a stolen token stays valid until it expires, whatever is done
+/// about it. An opaque token costs an indexed lookup per request and makes revocation immediate:
+/// real sign-out, a password change that invalidates sessions, a disabled account that is truly
+/// disabled.
 /// </para>
 /// <para>
-/// La base ne stocke que le <b>condensat SHA-256</b> du jeton. Une fuite de la table ne donne donc
-/// aucun jeton utilisable — même raisonnement que pour les mots de passe.
+/// The database stores only the token's <b>SHA-256 digest</b>. A leak of the table therefore
+/// yields no usable token — the same reasoning as for passwords.
 /// </para>
 /// </remarks>
 public sealed class AuthTokenStore(IDbConnectionFactory connections, IClock clock)
 {
-    /// <summary>Table portant les jetons.</summary>
+    /// <summary>Table carrying the tokens.</summary>
     public const string TableName = "_authTokens";
 
-    /// <summary>Durée de validité d'un jeton.</summary>
+    /// <summary>Validity duration of a token.</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromDays(14);
 
     private readonly IDbConnectionFactory _connections = connections
@@ -41,7 +41,7 @@ public sealed class AuthTokenStore(IDbConnectionFactory connections, IClock cloc
 
     private readonly IClock _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
-    /// <summary>Crée la table des jetons si elle n'existe pas.</summary>
+    /// <summary>Creates the tokens table if it doesn't exist.</summary>
     public async Task EnsureTableAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -75,14 +75,14 @@ public sealed class AuthTokenStore(IDbConnectionFactory connections, IClock cloc
         }
     }
 
-    /// <summary>Durée de validité d'un jeton de fichier.</summary>
+    /// <summary>Validity duration of a file token.</summary>
     /// <remarks>
-    /// Très courte : il circule dans une URL, donc dans les journaux de serveur, l'historique du
-    /// navigateur et l'en-tête <c>Referer</c>. Sa fenêtre d'exploitation doit être minuscule.
+    /// Very short: it travels in a URL, hence through server logs, browser history, and the
+    /// <c>Referer</c> header. Its exploitation window must be tiny.
     /// </remarks>
     public static readonly TimeSpan FileTokenLifetime = TimeSpan.FromMinutes(2);
 
-    /// <summary>Émet un jeton pour un enregistrement, et renvoie sa forme en clair.</summary>
+    /// <summary>Issues a token for a record, and returns its plaintext form.</summary>
     public async Task<string> IssueAsync(
         string collection,
         RecordId recordId,
@@ -118,7 +118,7 @@ public sealed class AuthTokenStore(IDbConnectionFactory connections, IClock cloc
         return token;
     }
 
-    /// <summary>Résout un jeton, ou rend <see langword="null"/> s'il est inconnu ou expiré.</summary>
+    /// <summary>Resolves a token, or returns <see langword="null"/> if unknown or expired.</summary>
     public async Task<ResolvedToken?> ResolveAsync(
         string? token,
         CancellationToken cancellationToken = default)
@@ -161,7 +161,7 @@ public sealed class AuthTokenStore(IDbConnectionFactory connections, IClock cloc
         return new ResolvedToken(found.Collection, recordId, expires);
     }
 
-    /// <summary>Révoque un jeton.</summary>
+    /// <summary>Revokes a token.</summary>
     public async Task RevokeAsync(string token, CancellationToken cancellationToken = default)
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -177,12 +177,12 @@ public sealed class AuthTokenStore(IDbConnectionFactory connections, IClock cloc
     }
 
     /// <summary>
-    /// Révoque tous les jetons d'un enregistrement.
+    /// Revokes every token of a record.
     /// </summary>
     /// <remarks>
-    /// Appelé au changement de mot de passe et à la désactivation d'un compte. Sans cela, changer
-    /// son mot de passe après un vol de session ne déconnecte pas le voleur — c'est pourtant le
-    /// premier réflexe de l'utilisateur, et il croirait le problème réglé.
+    /// Called on password change and on account deactivation. Without it, changing a password
+    /// after a session theft wouldn't sign the thief out — yet that's the user's first instinct,
+    /// and they'd believe the problem solved.
     /// </remarks>
     public async Task RevokeAllAsync(
         string collection,
@@ -204,7 +204,7 @@ public sealed class AuthTokenStore(IDbConnectionFactory connections, IClock cloc
             .ConfigureAwait(false);
     }
 
-    /// <summary>Supprime les jetons expirés.</summary>
+    /// <summary>Deletes expired tokens.</summary>
     public async Task<int> PurgeExpiredAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);

@@ -4,18 +4,17 @@ using System.Security.Cryptography;
 namespace Cratebase.Auth;
 
 /// <summary>
-/// Hachage des mots de passe : PBKDF2-HMAC-SHA512.
+/// Password hashing: PBKDF2-HMAC-SHA512.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Format du condensat, encodé en base64 : <c>[version:1][itérations:4][sel:16][clé:32]</c>. La
-/// version et le nombre d'itérations sont <b>stockés avec le condensat</b>, et non lus dans la
-/// configuration : sans cela, augmenter le coût demain rendrait invérifiables tous les mots de
-/// passe d'hier.
+/// Digest format, base64-encoded: <c>[version:1][iterations:4][salt:16][key:32]</c>. The version
+/// and iteration count are <b>stored with the digest</b>, not read from configuration: without
+/// that, raising the cost tomorrow would make every password hashed yesterday unverifiable.
 /// </para>
 /// <para>
-/// La comparaison est à temps constant. Une comparaison naïve laisse fuir la longueur du préfixe
-/// correct, ce qui suffit à reconstruire un condensat octet par octet.
+/// The comparison runs in constant time. A naive comparison leaks the length of the correct
+/// prefix, which is enough to reconstruct a digest byte by byte.
 /// </para>
 /// </remarks>
 public static class PasswordHasher
@@ -24,13 +23,13 @@ public static class PasswordHasher
     private const int SaltSize = 16;
     private const int KeySize = 32;
 
-    /// <summary>Nombre d'itérations appliqué aux nouveaux condensats.</summary>
+    /// <summary>Iteration count applied to new digests.</summary>
     public const int Iterations = 210_000;
 
-    /// <summary>Longueur minimale exigée d'un mot de passe.</summary>
+    /// <summary>Minimum required password length.</summary>
     public const int MinimumLength = 10;
 
-    /// <summary>Produit le condensat d'un mot de passe.</summary>
+    /// <summary>Produces a password's digest.</summary>
     public static string Hash(string password)
     {
         ArgumentException.ThrowIfNullOrEmpty(password);
@@ -47,7 +46,7 @@ public static class PasswordHasher
         return Convert.ToBase64String(payload);
     }
 
-    /// <summary>Vérifie un mot de passe contre un condensat.</summary>
+    /// <summary>Verifies a password against a digest.</summary>
     public static bool Verify(string? password, string? hash)
     {
         if (string.IsNullOrEmpty(password) || string.IsNullOrEmpty(hash))
@@ -86,7 +85,8 @@ public static class PasswordHasher
     }
 
     /// <summary>
-    /// Indique si un condensat gagnerait à être recalculé, le coût de référence ayant augmenté.
+    /// Indicates whether a digest would benefit from being recomputed, the reference cost having
+    /// increased.
     /// </summary>
     public static bool NeedsRehash(string? hash)
     {

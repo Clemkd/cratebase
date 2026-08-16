@@ -4,15 +4,15 @@ using Cratebase.Schema;
 namespace Cratebase.Auth;
 
 /// <summary>
-/// Collections que le moteur pose lui-même au premier démarrage.
+/// Collections the engine sets up itself on first start.
 /// </summary>
 /// <remarks>
-/// Leurs identifiants sont déterministes, pour la même raison que ceux des champs système : un
-/// instantané de migration produit sur une machine doit désigner les mêmes objets sur une autre.
+/// Their identifiers are deterministic, for the same reason as system fields: a migration
+/// snapshot produced on one machine must designate the same objects on another.
 /// </remarks>
 public static class SystemCollections
 {
-    /// <summary>Crée les collections système manquantes.</summary>
+    /// <summary>Creates missing system collections.</summary>
     public static async Task EnsureAsync(
         CollectionRegistry registry,
         CancellationToken cancellationToken = default)
@@ -30,7 +30,7 @@ public static class SystemCollections
         }
     }
 
-    /// <summary>Définition de la collection des super-admins.</summary>
+    /// <summary>Definition of the superusers collection.</summary>
     public static CollectionDefinition Superusers() => new()
     {
         Id = Deterministic(1),
@@ -38,15 +38,14 @@ public static class SystemCollections
         Kind = CollectionKind.Auth,
         IsSystem = true,
 
-        // Toutes les règles verrouillées : seul un super-admin atteint cette collection,
-        // ce qui lui permet d'administrer ses pairs depuis la console. Les secrets ne sont pas
-        // protégés par la règle mais par les champs masqués — « password » et « tokenKey » ne
-        // sortent d'aucune route, super-admin compris.
+        // Every rule locked: only a superuser reaches this collection, which is how they
+        // administer their peers from the console. Secrets are protected not by the rule but by
+        // hidden fields — "password" and "tokenKey" leave no route, superusers included.
         Rules = AccessRules.Locked,
         Fields = [],
     };
 
-    /// <summary>Définition de la collection des rôles.</summary>
+    /// <summary>Definition of the roles collection.</summary>
     public static CollectionDefinition Roles() => new()
     {
         Id = Deterministic(2),

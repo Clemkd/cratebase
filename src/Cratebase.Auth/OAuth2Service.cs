@@ -8,19 +8,19 @@ using Dapper;
 
 namespace Cratebase.Auth;
 
-/// <summary>Profil renvoyé par un fournisseur externe.</summary>
-/// <param name="ProviderId">Identifiant stable chez le fournisseur.</param>
-/// <param name="Email">Adresse, si le fournisseur la communique.</param>
-/// <param name="Name">Nom affiché.</param>
+/// <summary>Profile returned by an external provider.</summary>
+/// <param name="ProviderId">Stable identifier at the provider.</param>
+/// <param name="Email">Address, if the provider supplies it.</param>
+/// <param name="Name">Display name.</param>
 public sealed record ExternalProfile(string ProviderId, string? Email, string? Name);
 
 /// <summary>
-/// Connexion par un fournisseur d'identité externe.
+/// Sign-in through an external identity provider.
 /// </summary>
 /// <remarks>
-/// Implémente le flot OAuth2 « code d'autorisation », côté serveur. Le client obtient un code, le
-/// remet ici, et le serveur seul détient le secret : c'est ce qui évite d'exposer le secret client
-/// dans le navigateur.
+/// Implements the server-side OAuth2 "authorization code" flow. The client obtains a code, hands
+/// it here, and only the server holds the secret: that's what avoids exposing the client secret in
+/// the browser.
 /// </remarks>
 public sealed class OAuth2Service(
     IDbConnectionFactory connections,
@@ -30,7 +30,7 @@ public sealed class OAuth2Service(
     IHttpClientFactory httpClients,
     IClock clock)
 {
-    /// <summary>Table des liens entre comptes locaux et identités externes.</summary>
+    /// <summary>Table of links between local accounts and external identities.</summary>
     public const string LinksTable = "_externalAuths";
 
     private readonly IDbConnectionFactory _connections = connections
@@ -47,7 +47,7 @@ public sealed class OAuth2Service(
 
     private readonly IClock _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
-    /// <summary>Crée la table des liens si elle n'existe pas.</summary>
+    /// <summary>Creates the links table if it doesn't exist.</summary>
     public async Task EnsureTableAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -68,9 +68,9 @@ public sealed class OAuth2Service(
              )
              """,
 
-            // ⚠️ Unicité sur (fournisseur, identifiant chez lui) : sans elle, deux comptes locaux
-            // pourraient se réclamer du même compte Google, et la connexion suivante tomberait sur
-            // l'un ou l'autre au hasard.
+            // ⚠️ Uniqueness on (provider, id at the provider): without it, two local accounts could
+            // both claim the same Google account, and the next sign-in would land on either one at
+            // random.
             $"""
              CREATE UNIQUE INDEX IF NOT EXISTS {dialect.QuoteIdentifier("idx_externalAuths_identity")}
                ON {dialect.QuoteIdentifier(LinksTable)}
@@ -87,8 +87,8 @@ public sealed class OAuth2Service(
     }
 
     /// <summary>
-    /// Authentifie par un fournisseur externe : échange le code, résout le profil, relie ou crée
-    /// le compte local, et émet un jeton.
+    /// Authenticates through an external provider: exchanges the code, resolves the profile, links
+    /// or creates the local account, and issues a token.
     /// </summary>
     public async Task<AuthResult> AuthenticateAsync(
         string collectionName,
@@ -105,13 +105,13 @@ public sealed class OAuth2Service(
         if (collection.Kind is not CollectionKind.Auth)
         {
             throw new CratebaseBadRequestException(
-                $"La collection « {collection.Name} » n'est pas une collection d'authentification.");
+                $"Collection \"{collection.Name}\" is not an authentication collection.");
         }
 
         if (!provider.Enabled || string.IsNullOrWhiteSpace(provider.ClientId))
         {
             throw new CratebaseBadRequestException(
-                $"Le fournisseur « {provider.Name} » n'est pas configuré.");
+                $"Provider \"{provider.Name}\" is not configured.");
         }
 
         var accessToken = await ExchangeCodeAsync(provider, code, codeVerifier, redirectUrl, cancellationToken)
@@ -126,7 +126,7 @@ public sealed class OAuth2Service(
             .ConfigureAwait(false);
 
         var record = await _auth.LoadAsync(collection.Name, recordId, cancellationToken).ConfigureAwait(false)
-            ?? throw new CratebaseBadRequestException("Le compte lié est introuvable.");
+            ?? throw new CratebaseBadRequestException("The linked account could not be found.");
 
         var token = await _tokens
             .IssueAsync(collection.Name, recordId, cancellationToken: cancellationToken)
@@ -169,10 +169,10 @@ public sealed class OAuth2Service(
 
         if (!response.IsSuccessStatusCode)
         {
-            // Le corps d'erreur du fournisseur n'est pas renvoyé tel quel : il contient parfois des
-            // fragments du secret client ou de la requête.
+            // The provider's error body is not returned as-is: it sometimes contains fragments of
+            // the client secret or of the request.
             throw new CratebaseBadRequestException(
-                $"L'échange de code auprès de « {provider.Name} » a échoué.");
+                $"The code exchange with \"{provider.Name}\" failed.");
         }
 
         var payload = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken)
@@ -181,7 +181,7 @@ public sealed class OAuth2Service(
         return payload.TryGetProperty("access_token", out var token) && token.GetString() is { Length: > 0 } value
             ? value
             : throw new CratebaseBadRequestException(
-                $"« {provider.Name} » n'a pas renvoyé de jeton d'accès.");
+                $"\"{provider.Name}\" did not return an access token.");
     }
 
     private async Task<ExternalProfile> FetchProfileAsync(
@@ -195,7 +195,7 @@ public sealed class OAuth2Service(
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        // GitHub refuse les requêtes sans agent utilisateur.
+        // GitHub refuses requests with no user agent.
         request.Headers.UserAgent.ParseAdd("Cratebase");
 
         using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -203,7 +203,7 @@ public sealed class OAuth2Service(
         if (!response.IsSuccessStatusCode)
         {
             throw new CratebaseBadRequestException(
-                $"La lecture du profil auprès de « {provider.Name} » a échoué.");
+                $"Reading the profile from \"{provider.Name}\" failed.");
         }
 
         var payload = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken)
@@ -214,7 +214,7 @@ public sealed class OAuth2Service(
         if (string.IsNullOrWhiteSpace(id))
         {
             throw new CratebaseBadRequestException(
-                $"« {provider.Name} » n'a pas renvoyé d'identifiant de compte.");
+                $"\"{provider.Name}\" did not return an account identifier.");
         }
 
         return new ExternalProfile(
@@ -258,17 +258,17 @@ public sealed class OAuth2Service(
 
         var dialect = _connections.Dialect;
 
-        // Deux représentations distinctes, et c'est voulu : les tables système déclarent leurs
-        // dates en texte, les tables d'enregistrements les laissent typer par le dialecte.
+        // Two distinct representations, and that's intended: system tables declare their dates as
+        // text, records tables let the dialect type them.
         var recordNow = dialect.ToStorage(FieldType.AutoDate, multiple: false, _clock.UtcNow);
         var now = Timestamp.Normalize(_clock.UtcNow);
 
-        // Rattachement par adresse : si un compte local porte déjà cette adresse, on le relie
-        // plutôt que d'en créer un second.
+        // Linking by address: if a local account already carries this address, link to it rather
+        // than create a second one.
         //
-        // ⚠️ Cela n'est sûr que parce qu'on exige une adresse VÉRIFIÉE par le fournisseur. Relier
-        // sur une adresse non vérifiée permettrait de prendre le contrôle d'un compte local en
-        // déclarant simplement son adresse chez un fournisseur complaisant.
+        // ⚠️ This is only safe because a VERIFIED address from the provider is required. Linking
+        // on an unverified address would let an attacker take over a local account simply by
+        // claiming its address with a complicit provider.
         RecordId recordId;
 
         var existing = string.IsNullOrWhiteSpace(profile.Email)
@@ -310,12 +310,12 @@ public sealed class OAuth2Service(
                     {
                         id = recordId.ToString(),
                         now = recordNow,
-                        email = profile.Email ?? $"{provider.Name}_{profile.ProviderId}@externe.local",
+                        email = profile.Email ?? $"{provider.Name}_{profile.ProviderId}@external.local",
                         visible = dialect.ToStorage(FieldType.Bool, false, false),
                         verified = dialect.ToStorage(FieldType.Bool, false, true),
 
-                        // Mot de passe aléatoire jamais communiqué : le compte n'est accessible que
-                        // par le fournisseur, jusqu'à ce que son propriétaire en définisse un.
+                        // Random password, never communicated: the account is reachable only
+                        // through the provider, until its owner sets one.
                         password = PasswordHasher.Hash(Guid.CreateVersion7().ToString()),
                         tokenKey = RecordId.New().ToString(),
                         roles = dialect.ToStorage(FieldType.Text, multiple: true, null),

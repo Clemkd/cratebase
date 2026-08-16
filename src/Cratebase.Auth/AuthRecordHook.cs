@@ -5,23 +5,22 @@ using Cratebase.Schema;
 namespace Cratebase.Auth;
 
 /// <summary>
-/// Traitement des champs d'authentification à l'écriture d'un enregistrement.
+/// Processing of authentication fields when a record is written.
 /// </summary>
 /// <remarks>
 /// <para>
-/// C'est ce qui rend l'inscription possible : <c>password</c> est un champ système, donc écarté par
-/// la validation pour empêcher qu'on écrive un condensat arbitraire. Le crochet le récupère dans le
-/// corps brut, le vérifie, et pose le condensat lui-même.
+/// This is what makes sign-up possible: <c>password</c> is a system field, so it's stripped by
+/// validation to prevent an arbitrary digest from being written. The hook retrieves it from the
+/// raw body, verifies it, and sets the digest itself.
 /// </para>
 /// <para>
-/// Il porte aussi les deux invariantes que le moteur ne peut pas confier à une règle d'accès : un
-/// changement de mot de passe <b>révoque les sessions</b>, et le dernier super-admin ne
-/// peut pas être supprimé.
+/// It also carries the two invariants the engine cannot hand off to an access rule: a password
+/// change <b>revokes sessions</b>, and the last superuser cannot be deleted.
 /// </para>
 /// </remarks>
 public sealed class AuthRecordHook(AuthService auth, AuthTokenStore tokens) : IRecordMutationHook
 {
-    /// <summary>Nom du champ de confirmation du mot de passe.</summary>
+    /// <summary>Name of the password confirmation field.</summary>
     public const string PasswordConfirmField = "password_confirm";
 
     private readonly AuthService _auth = auth ?? throw new ArgumentNullException(nameof(auth));
@@ -49,21 +48,20 @@ public sealed class AuthRecordHook(AuthService auth, AuthTokenStore tokens) : IR
         if (password.Length == 0)
         {
             throw CratebaseValidationException.ForField(
-                SystemFields.Password, "Un mot de passe est obligatoire pour créer un compte.");
+                SystemFields.Password, "A password is required to create an account.");
         }
 
         ValidatePassword(password, submitted);
 
         data[SystemFields.Password] = PasswordHasher.Hash(password);
 
-        // Clé de jeton : marque de génération du compte, régénérée à chaque changement de mot de
-        // passe. La révocation effective, elle, passe par la suppression des jetons — voir
-        // BeforeUpdateAsync.
+        // Token key: a generation marker for the account, regenerated on every password change.
+        // Effective revocation itself goes through deleting the tokens — see BeforeUpdateAsync.
         data[SystemFields.TokenKey] = RecordId.New().ToString();
 
-        // Ni le rôle ni les permissions ne peuvent venir du client. Une inscription ouverte, avec
-        // « permissions » modifiable, permettrait à n'importe qui de s'accorder tous les droits en
-        // une requête. L'attribution passe par un endpoint réservé au super-admin.
+        // Neither the role nor the permissions can come from the client. An open sign-up with a
+        // modifiable "permissions" field would let anyone grant themselves every right in one
+        // request. Assignment goes through a superuser-only endpoint.
         data[SystemFields.Roles] = Array.Empty<string>();
         data[SystemFields.Permissions] = Array.Empty<string>();
         data[SystemFields.Verified] = false;
@@ -101,14 +99,14 @@ public sealed class AuthRecordHook(AuthService auth, AuthTokenStore tokens) : IR
         data[SystemFields.Password] = PasswordHasher.Hash(password);
         data[SystemFields.TokenKey] = RecordId.New().ToString();
 
-        // ⚠️ Les sessions sont réellement détruites, et pas seulement marquées : la rotation de
-        // « tokenKey » n'est consultée nulle part à la résolution d'un jeton. Sans cette ligne,
-        // changer son mot de passe après un vol de session ne déconnecte pas le voleur — c'est
-        // pourtant le premier réflexe de l'utilisateur, et il croirait le problème réglé.
+        // ⚠️ Sessions are actually destroyed, not merely marked: rotating "tokenKey" is checked
+        // nowhere when resolving a token. Without this line, changing a password after a session
+        // theft wouldn't sign the thief out — yet that's the user's first instinct, and they'd
+        // believe the problem solved.
         //
-        // La révocation précède l'écriture : si celle-ci échoue, on aura déconnecté pour rien —
-        // c'est le sens sûr de l'erreur, l'inverse laisserait des sessions ouvertes sur un mot de
-        // passe changé.
+        // Revocation happens before the write: if the write then fails, sessions were closed for
+        // nothing — that's the safe direction of the error, the reverse would leave sessions open
+        // on a password that has changed.
         if (RecordId.TryParse(AsText(original.GetValueOrDefault(SystemFields.Id)), out var id))
         {
             await _tokens.RevokeAllAsync(collection.Name, id, cancellationToken).ConfigureAwait(false);
@@ -128,18 +126,17 @@ public sealed class AuthRecordHook(AuthService auth, AuthTokenStore tokens) : IR
             return;
         }
 
-        // ⚠️ Supprimer le dernier super-admin rend l'instance inadministrable : toutes les
-        // collections système sont verrouillées, et l'amorçage ne recrée un compte que si la
-        // configuration en porte un — ce qui n'est pas le cas d'un déploiement ordinaire. Aucune
-        // règle d'accès ne peut exprimer cette garde, puisqu'elle porte justement sur le compte qui
-        // a le droit de tout faire.
+        // ⚠️ Deleting the last superuser makes the instance unadministrable: every system
+        // collection is locked, and bootstrap only recreates an account if configuration carries
+        // one — which an ordinary deployment doesn't. No access rule can express this guard, since
+        // it concerns precisely the account that has the right to do everything.
         var only = await _auth.OnlySuperuserIdAsync(cancellationToken).ConfigureAwait(false);
 
         if (only is not null && string.Equals(only, recordId, StringComparison.Ordinal))
         {
             throw new CratebaseConflictException(
-                "Ce compte est le dernier super-admin : le supprimer rendrait l'instance " +
-                "inadministrable. Créez-en un autre avant de supprimer celui-ci.");
+                "This account is the last superuser: deleting it would make the instance " +
+                "unadministrable. Create another one before deleting this one.");
         }
     }
 
@@ -149,17 +146,17 @@ public sealed class AuthRecordHook(AuthService auth, AuthTokenStore tokens) : IR
         {
             throw CratebaseValidationException.ForField(
                 SystemFields.Password,
-                $"Le mot de passe doit compter au moins {PasswordHasher.MinimumLength} caractères.");
+                $"The password must be at least {PasswordHasher.MinimumLength} characters long.");
         }
 
-        // La confirmation n'est exigée que si elle est soumise : un client programmatique n'a
-        // aucune raison de la fournir, un formulaire si.
+        // Confirmation is only required if it's submitted: a programmatic client has no reason to
+        // supply it, a form does.
         var confirmation = submitted.GetValueOrDefault(PasswordConfirmField);
 
         if (confirmation is not null && !string.Equals(AsText(confirmation), password, StringComparison.Ordinal))
         {
             throw CratebaseValidationException.ForField(
-                PasswordConfirmField, "La confirmation ne correspond pas au mot de passe.");
+                PasswordConfirmField, "The confirmation does not match the password.");
         }
     }
 

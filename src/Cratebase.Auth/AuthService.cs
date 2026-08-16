@@ -6,16 +6,16 @@ using Dapper;
 
 namespace Cratebase.Auth;
 
-/// <summary>Résultat d'une authentification.</summary>
+/// <summary>Result of an authentication.</summary>
 /// <param name="Token">
-/// Jeton à présenter en <c>Authorization</c>, ou <see langword="null"/> si un second facteur reste
-/// à fournir.
+/// Token to present in <c>Authorization</c>, or <see langword="null"/> if a second factor still
+/// needs to be supplied.
 /// </param>
-/// <param name="Record">Enregistrement authentifié, champs masqués retirés.</param>
+/// <param name="Record">Authenticated record, hidden fields removed.</param>
 /// <param name="MfaId">
-/// Identifiant du défi de double authentification, quand le premier facteur a réussi mais ne
-/// suffit pas. <b>Aucun jeton n'est émis dans ce cas</b> — c'est ce qui distingue une vraie double
-/// authentification d'un écran de confirmation cosmétique.
+/// Identifier of the two-factor challenge, when the first factor succeeded but isn't enough.
+/// <b>No token is issued in this case</b> — that's what distinguishes real two-factor
+/// authentication from a cosmetic confirmation screen.
 /// </param>
 public sealed record AuthResult(
     string? Token,
@@ -23,7 +23,7 @@ public sealed record AuthResult(
     string? MfaId = null);
 
 /// <summary>
-/// Authentification par identifiant et mot de passe, et résolution des droits.
+/// Authentication by identity and password, and resolution of rights.
 /// </summary>
 public sealed class AuthService(
     IDbConnectionFactory connections,
@@ -32,19 +32,19 @@ public sealed class AuthService(
     MfaService mfa,
     IClock clock)
 {
-    /// <summary>Nom de la collection des super-admins.</summary>
+    /// <summary>Name of the superusers collection.</summary>
     public const string SuperusersCollection = "_superusers";
 
-    /// <summary>Nom de la collection des rôles.</summary>
+    /// <summary>Name of the roles collection.</summary>
     public const string RolesCollection = "_roles";
 
     /// <summary>
-    /// Nom du champ portant les permissions d'un rôle.
+    /// Name of the field carrying a role's permissions.
     /// </summary>
     /// <remarks>
-    /// Volontairement distinct de <see cref="SystemFields.Permissions"/> : ce dernier est un nom
-    /// réservé, que le moteur retire des collections où il n'a pas cours. Réutiliser le même nom
-    /// ferait disparaître le champ des rôles à la première normalisation, sans erreur.
+    /// Deliberately distinct from <see cref="SystemFields.Permissions"/>: the latter is a reserved
+    /// name, which the engine strips from collections where it doesn't apply. Reusing the same
+    /// name would make the roles' field vanish at the first normalization, without an error.
     /// </remarks>
     public const string RoleGrantsField = "grants";
 
@@ -59,12 +59,12 @@ public sealed class AuthService(
     private readonly IClock _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
     /// <summary>
-    /// Authentifie un compte.
+    /// Authenticates an account.
     /// </summary>
     /// <remarks>
-    /// Le message d'échec est <b>le même</b> qu'il s'agisse d'une adresse inconnue ou d'un mot de
-    /// passe faux, et un condensat factice est vérifié dans le premier cas : sans cela, la
-    /// différence de temps de réponse dit à l'attaquant quelles adresses existent.
+    /// The failure message is <b>the same</b> whether the address is unknown or the password is
+    /// wrong, and a decoy digest is verified in the first case: without that, the difference in
+    /// response time would tell an attacker which addresses exist.
     /// </remarks>
     public async Task<AuthResult> AuthenticateAsync(
         string collectionName,
@@ -77,7 +77,7 @@ public sealed class AuthService(
         if (collection.Kind is not CollectionKind.Auth)
         {
             throw new CratebaseBadRequestException(
-                $"La collection « {collection.Name} » n'est pas une collection d'authentification.");
+                $"Collection \"{collection.Name}\" is not an authentication collection.");
         }
 
         var record = await FindByEmailAsync(collection, identity, cancellationToken).ConfigureAwait(false);
@@ -85,15 +85,15 @@ public sealed class AuthService(
 
         if (!PasswordHasher.Verify(password, hash ?? DecoyHash))
         {
-            throw new CratebaseBadRequestException("Identifiant ou mot de passe incorrect.");
+            throw new CratebaseBadRequestException("Incorrect identity or password.");
         }
 
         if (record is null || !RecordId.TryParse(record.GetValueOrDefault(SystemFields.Id) as string, out var id))
         {
-            throw new CratebaseBadRequestException("Identifiant ou mot de passe incorrect.");
+            throw new CratebaseBadRequestException("Incorrect identity or password.");
         }
 
-        // Le mot de passe est bon, mais il ne suffit pas : on rend un défi, pas un jeton.
+        // The password is correct, but it isn't enough: return a challenge, not a token.
         if (await _mfa.IsEnabledAsync(collection.Name, id, cancellationToken).ConfigureAwait(false))
         {
             var challenge = await _mfa.ChallengeAsync(collection.Name, id, cancellationToken)
@@ -109,7 +109,7 @@ public sealed class AuthService(
         return new AuthResult(token, Sanitize(collection, record));
     }
 
-    /// <summary>Charge un enregistrement d'auth et ses permissions effectives.</summary>
+    /// <summary>Loads an auth record and its effective permissions.</summary>
     public async Task<AuthenticatedRecord?> LoadAsync(
         string collectionName,
         RecordId recordId,
@@ -150,7 +150,7 @@ public sealed class AuthService(
     }
 
     /// <summary>
-    /// Calcule les permissions effectives : celles des rôles, plus les dérogations individuelles.
+    /// Computes effective permissions: those from roles, plus individual overrides.
     /// </summary>
     private async Task<IReadOnlyCollection<string>> ResolvePermissionsAsync(
         IReadOnlyDictionary<string, object?> record,
@@ -174,9 +174,9 @@ public sealed class AuthService(
 
         var dialect = _connections.Dialect;
 
-        // Emplacements générés un par un, plutôt que de compter sur l'expansion automatique de
-        // « IN @names » par Dapper : elle dépend du pilote, et là où elle n'opère pas, le tableau
-        // part comme paramètre unique et le moteur rejette la requête. Explicite, donc portable.
+        // Placeholders generated one by one, rather than relying on Dapper's automatic expansion
+        // of "IN @names": it's driver-dependent, and where it doesn't apply, the array is sent as
+        // a single parameter and the engine rejects the query. Explicit, therefore portable.
         var placeholders = new List<string>(roles.Count);
         var parameters = new DynamicParameters();
 
@@ -208,11 +208,11 @@ public sealed class AuthService(
     }
 
     /// <summary>
-    /// Crée ou met à jour un super-admin.
+    /// Creates or updates a superuser.
     /// </summary>
     /// <remarks>
-    /// Sert au démarrage initial (variables d'environnement) et à la ligne de commande. Volontaire-
-    /// ment hors de l'API des enregistrements : un compte superadmin ne se crée pas par un POST.
+    /// Used at initial startup (environment variables) and from the CLI. Deliberately outside the
+    /// records API: a superuser account is not created by a POST.
     /// </remarks>
     public async Task UpsertSuperuserAsync(
         string email,
@@ -226,7 +226,7 @@ public sealed class AuthService(
             throw new CratebaseValidationException(new Dictionary<string, string[]>
             {
                 [SystemFields.Password] =
-                    [$"Le mot de passe doit compter au moins {PasswordHasher.MinimumLength} caractères."],
+                    [$"The password must be at least {PasswordHasher.MinimumLength} characters long."],
             });
         }
 
@@ -237,10 +237,10 @@ public sealed class AuthService(
 
         var dialect = _connections.Dialect;
 
-        // ⚠️ Passer par ToStorage, et non par la chaîne canonique directement. Les colonnes de date
-        // d'une table d'enregistrements sont typées par le dialecte : « TEXT » sur SQLite, mais
-        // « timestamptz » sur PostgreSQL, qui refuse net une chaîne. Écrire la date en dur marche
-        // donc jusqu'au jour de la migration, et pas au-delà.
+        // ⚠️ Go through ToStorage, not the canonical string directly. Date columns of a records
+        // table are typed by the dialect: "TEXT" on SQLite, but "timestamptz" on PostgreSQL, which
+        // flatly refuses a string. Hardcoding the date therefore works until migration day, and no
+        // further.
         var now = dialect.ToStorage(FieldType.AutoDate, multiple: false, _clock.UtcNow);
         var hash = PasswordHasher.Hash(password);
 
@@ -258,8 +258,8 @@ public sealed class AuthService(
                     cancellationToken: cancellationToken))
                 .ConfigureAwait(false);
 
-            // Changer le mot de passe déconnecte les sessions ouvertes. C'est le réflexe attendu
-            // après un vol de session, et il serait sans effet sans cette ligne.
+            // Changing the password signs open sessions out. This is the expected reflex after a
+            // session theft, and it would have no effect without this line.
             await _tokens.RevokeAllAsync(collection.Name, existingId, cancellationToken).ConfigureAwait(false);
 
             return;
@@ -293,8 +293,8 @@ public sealed class AuthService(
                     verified = dialect.ToStorage(FieldType.Bool, false, true),
                     password = hash,
                     tokenKey = RecordId.New().ToString(),
-                    // Toujours par le dialecte : sur PostgreSQL, ces colonnes sont en jsonb et
-                    // refusent une chaîne nue.
+                    // Always through the dialect: on PostgreSQL, these columns are jsonb and
+                    // flatly refuse a bare string.
                     roles = dialect.ToStorage(FieldType.Text, multiple: true, null),
                     permissions = dialect.ToStorage(FieldType.Text, multiple: true, null),
                 },
@@ -302,7 +302,7 @@ public sealed class AuthService(
             .ConfigureAwait(false);
     }
 
-    /// <summary>Y a-t-il au moins un super-admin ?</summary>
+    /// <summary>Is there at least one superuser?</summary>
     public async Task<bool> HasSuperuserAsync(CancellationToken cancellationToken = default)
     {
         if (_registry.Find(SuperusersCollection) is not { } collection)
@@ -321,13 +321,12 @@ public sealed class AuthService(
     }
 
     /// <summary>
-    /// Identifiant de l'unique super-admin, ou <see langword="null"/> s'il y en a zéro ou
-    /// plusieurs.
+    /// Identifier of the sole superuser, or <see langword="null"/> if there are zero or several.
     /// </summary>
     /// <remarks>
-    /// Rend l'identifiant plutôt qu'un simple décompte : la garde doit refuser la suppression du
-    /// <b>dernier</b> compte, pas de n'importe lequel tant qu'il n'en reste qu'un. Sans cette
-    /// précision, supprimer un identifiant inexistant rendrait un conflit là où un 404 est dû.
+    /// Returns the identifier rather than a bare count: the guard must refuse deleting the
+    /// <b>last</b> account, not just any one while one remains. Without this distinction, deleting
+    /// a nonexistent identifier would produce a conflict where a 404 is due.
     /// </remarks>
     public async Task<string?> OnlySuperuserIdAsync(CancellationToken cancellationToken = default)
     {
@@ -340,7 +339,7 @@ public sealed class AuthService(
 
         var dialect = _connections.Dialect;
 
-        // Deux lignes suffisent à trancher : au-delà, le décompte exact n'apporte rien.
+        // Two rows are enough to decide: beyond that, an exact count adds nothing.
         var identifiers = await connection.QueryAsync<string>(new CommandDefinition(
                 $"SELECT {dialect.QuoteIdentifier(SystemFields.Id)} " +
                 $"FROM {dialect.QuoteIdentifier(collection.TableName)} " +
@@ -402,7 +401,7 @@ public sealed class AuthService(
 
         foreach (var (key, value) in record)
         {
-            // Mot de passe et clé de jeton ne sortent jamais, quelle que soit la route empruntée.
+            // Password and token key never leave, regardless of the route taken.
             if (collection.Field(key)?.Hidden == true)
             {
                 continue;
@@ -422,17 +421,17 @@ public sealed class AuthService(
         _ => [],
     };
 
-    // Condensat d'un mot de passe qui n'existe pas : vérifié quand le compte est introuvable, pour
-    // que le temps de réponse ne trahisse pas les adresses existantes.
+    // Digest of a password that doesn't exist: verified when the account isn't found, so response
+    // time doesn't betray which addresses exist.
     private static readonly string DecoyHash = PasswordHasher.Hash("cratebase-decoy-password");
 }
 
-/// <summary>Enregistrement d'auth résolu, avec ses droits effectifs.</summary>
-/// <param name="Collection">Collection d'auth.</param>
-/// <param name="Id">Identifiant.</param>
-/// <param name="IsSuperuser">Le compte appartient-il à la collection des super-admins ?</param>
-/// <param name="Permissions">Permissions effectives, rôles fusionnés.</param>
-/// <param name="Fields">Champs visibles, pour <c>@request.auth.*</c>.</param>
+/// <summary>Resolved auth record, with its effective rights.</summary>
+/// <param name="Collection">Auth collection.</param>
+/// <param name="Id">Identifier.</param>
+/// <param name="IsSuperuser">Does the account belong to the superusers collection?</param>
+/// <param name="Permissions">Effective permissions, roles merged in.</param>
+/// <param name="Fields">Visible fields, for <c>@request.auth.*</c>.</param>
 public sealed record AuthenticatedRecord(
     string Collection,
     RecordId Id,

@@ -1,74 +1,74 @@
 namespace Cratebase.Auth;
 
 /// <summary>
-/// Fournisseur d'identité externe.
+/// External identity provider.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Décrit en <b>données</b>, et non en code : les fournisseurs se configurent depuis la console,
-/// sans redéploiement. C'est ce qui interdit d'utiliser les handlers d'authentification d'ASP.NET
-/// Core, qui se déclarent au démarrage — d'où l'échange de code implémenté ici, qui suit
-/// simplement le flot OAuth2 « code d'autorisation ».
+/// Described as <b>data</b>, not code: providers are configured from the console, without a
+/// redeploy. That's what rules out using ASP.NET Core's own authentication handlers, which are
+/// declared at startup — hence the code exchange implemented here, which simply follows the
+/// OAuth2 "authorization code" flow.
 /// </para>
 /// </remarks>
 public sealed record OAuth2Provider
 {
-    /// <summary>Identifiant technique : <c>google</c>, <c>facebook</c>…</summary>
+    /// <summary>Technical identifier: <c>google</c>, <c>facebook</c>…</summary>
     public required string Name { get; init; }
 
-    /// <summary>Libellé affiché.</summary>
+    /// <summary>Displayed label.</summary>
     public required string DisplayName { get; init; }
 
-    /// <summary>Point d'autorisation, où l'utilisateur est envoyé.</summary>
+    /// <summary>Authorization endpoint, where the user is sent.</summary>
     public required string AuthorizationUrl { get; init; }
 
-    /// <summary>Point d'échange du code contre un jeton.</summary>
+    /// <summary>Endpoint for exchanging the code for a token.</summary>
     public required string TokenUrl { get; init; }
 
-    /// <summary>Point de récupération du profil.</summary>
+    /// <summary>Endpoint for fetching the profile.</summary>
     public required string UserInfoUrl { get; init; }
 
-    /// <summary>Portées demandées.</summary>
+    /// <summary>Requested scopes.</summary>
     public IReadOnlyList<string> Scopes { get; init; } = [];
 
-    /// <summary>Chemin JSON de l'identifiant dans la réponse de profil.</summary>
+    /// <summary>JSON path of the identifier in the profile response.</summary>
     public string IdField { get; init; } = "id";
 
-    /// <summary>Chemin JSON de l'adresse de courriel.</summary>
+    /// <summary>JSON path of the email address.</summary>
     public string EmailField { get; init; } = "email";
 
-    /// <summary>Chemin JSON du nom affiché.</summary>
+    /// <summary>JSON path of the display name.</summary>
     public string NameField { get; init; } = "name";
 
-    /// <summary>Identifiant client, fourni par le fournisseur.</summary>
+    /// <summary>Client identifier, supplied by the provider.</summary>
     public string ClientId { get; init; } = string.Empty;
 
-    /// <summary>Secret client. Jamais renvoyé par l'API.</summary>
+    /// <summary>Client secret. Never returned by the API.</summary>
     public string ClientSecret { get; init; } = string.Empty;
 
-    /// <summary>Le fournisseur est-il activé ?</summary>
+    /// <summary>Is the provider enabled?</summary>
     public bool Enabled { get; init; }
 
     /// <summary>
-    /// Le fournisseur exige-t-il PKCE ?
+    /// Does the provider require PKCE?
     /// </summary>
     /// <remarks>
-    /// Vrai partout où c'est possible. PKCE protège l'échange de code contre l'interception, et son
-    /// absence est la faiblesse classique des intégrations OAuth2 côté client public.
+    /// True everywhere it's possible. PKCE protects the code exchange against interception, and
+    /// its absence is the classic weakness of public-client OAuth2 integrations.
     /// </remarks>
     public bool UsePkce { get; init; } = true;
 }
 
 /// <summary>
-/// Réglages préconfigurés des fournisseurs courants.
+/// Preconfigured settings for common providers.
 /// </summary>
 /// <remarks>
-/// Les URL de ces services changent rarement, mais les retrouver coûte du temps à chaque
-/// intégration. Les préréglages ne portent aucun secret : ils décrivent le protocole, pas le compte.
+/// These services' URLs rarely change, but looking them up costs time on every integration. The
+/// presets carry no secret: they describe the protocol, not the account.
 /// </remarks>
 public static class OAuth2Presets
 {
-    /// <summary>Préréglages connus, indexés par nom technique.</summary>
+    /// <summary>Known presets, indexed by technical name.</summary>
     public static IReadOnlyDictionary<string, OAuth2Provider> All { get; } =
         new Dictionary<string, OAuth2Provider>(StringComparer.OrdinalIgnoreCase)
         {
@@ -117,12 +117,12 @@ public static class OAuth2Presets
             },
         };
 
-    /// <summary>Complète une configuration partielle avec le préréglage correspondant.</summary>
+    /// <summary>Fills in a partial configuration with the matching preset.</summary>
     public static OAuth2Provider Apply(string name, string clientId, string clientSecret, bool enabled)
     {
         if (!All.TryGetValue(name, out var preset))
         {
-            throw new Core.CratebaseBadRequestException($"Fournisseur inconnu : « {name} ».");
+            throw new Core.CratebaseBadRequestException($"Unknown provider: \"{name}\".");
         }
 
         return preset with { ClientId = clientId, ClientSecret = clientSecret, Enabled = enabled };

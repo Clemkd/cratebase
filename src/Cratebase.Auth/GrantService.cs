@@ -6,11 +6,11 @@ using Dapper;
 namespace Cratebase.Auth;
 
 /// <summary>
-/// Attribution des rôles et des permissions à un compte.
+/// Assigning roles and permissions to an account.
 /// </summary>
 /// <remarks>
-/// Service distinct du moteur CRUD, et réservé au super-admin : l'élévation de privilèges
-/// ne doit pas emprunter le même chemin que la modification d'un champ ordinaire.
+/// A service separate from the CRUD engine, and reserved to superusers: privilege escalation must
+/// not travel the same path as an ordinary field edit.
 /// </remarks>
 public sealed class GrantService(
     IDbConnectionFactory connections,
@@ -27,7 +27,7 @@ public sealed class GrantService(
     private readonly AuthTokenStore _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
     private readonly IClock _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
-    /// <summary>Pose les rôles et permissions d'un compte.</summary>
+    /// <summary>Sets an account's roles and permissions.</summary>
     public async Task AssignAsync(
         string collectionName,
         string recordId,
@@ -43,7 +43,7 @@ public sealed class GrantService(
         if (collection.Kind is not CollectionKind.Auth)
         {
             throw new CratebaseBadRequestException(
-                $"La collection « {collection.Name} » ne porte pas de comptes.");
+                $"Collection \"{collection.Name}\" does not carry accounts.");
         }
 
         if (!RecordId.TryParse(recordId, out var id))
@@ -68,8 +68,8 @@ public sealed class GrantService(
                     roles = dialect.ToStorage(FieldType.Text, multiple: true, roles),
                     permissions = dialect.ToStorage(FieldType.Text, multiple: true, permissions),
 
-                    // Colonne de date d'une table d'enregistrements : typée par le dialecte, donc
-                    // convertie par lui. Une chaîne canonique est refusée par PostgreSQL.
+                    // Date column of a records table: typed by the dialect, so converted by it. A
+                    // canonical string is rejected by PostgreSQL.
                     now = dialect.ToStorage(FieldType.AutoDate, multiple: false, _clock.UtcNow),
                     id = id.ToString(),
                 },
@@ -84,10 +84,10 @@ public sealed class GrantService(
         static string Json(ISqlDialect dialect, string placeholder) =>
             dialect.BindParameter(FieldType.Text, multiple: true, placeholder);
 
-        // Les droits sont résolus à chaque requête depuis la base, donc la révocation des jetons
-        // n'est pas indispensable à la fraîcheur. On la fait quand même sur un RETRAIT de droits :
-        // une session en cours doit cesser de pouvoir ce qu'on vient de lui retirer, et c'est le
-        // seul moyen d'en être sûr si un cache est ajouté plus tard.
+        // Rights are resolved from the database on every request, so revoking tokens isn't
+        // required for freshness. It's done anyway on a rights REMOVAL: an ongoing session must
+        // stop being able to do what was just taken away, and this is the only way to be sure if a
+        // cache is added later.
         await _tokens.RevokeAllAsync(collection.Name, id, cancellationToken).ConfigureAwait(false);
     }
 }
