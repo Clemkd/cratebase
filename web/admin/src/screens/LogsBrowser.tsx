@@ -52,14 +52,14 @@ import { LevelLegend, LogHistogram, bucketRange } from './LogHistogram'
 const PER_PAGE_CHOICES = [25, 50, 100, 200]
 const METHODS = ['GET', 'POST', 'PATCH', 'DELETE']
 
-/** Intitulé d'une tranche ouverte : ses deux bornes, dans la précision qui la distingue. */
+/** Heading for a drilled-down slice: its two bounds, at the precision that distinguishes it. */
 function sliceLabel(slice: LogSlice): string {
   const from = new Date(slice.from)
   const to = new Date(slice.to)
   const sameDay = from.toDateString() === to.toDateString()
 
-  const date = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' })
-  const time = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  const date = new Intl.DateTimeFormat('en-US', { dateStyle: 'short' })
+  const time = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' })
 
   return sameDay
     ? `${date.format(from)} ${time.format(from)} – ${time.format(to)}`
@@ -67,10 +67,10 @@ function sliceLabel(slice: LogSlice): string {
 }
 
 /**
- * Pastille de niveau, icône comprise.
+ * Level badge, icon included.
  *
- * En forme abrégée dans le tableau, où la colonne se répète à chaque ligne ; le libellé entier
- * reste accessible au survol.
+ * In abbreviated form in the table, where the column repeats on every row; the full label
+ * remains accessible on hover.
  */
 function LevelBadge({ level, compact = false }: { level: LogLevel; compact?: boolean }) {
   const meta = LEVEL_META[level]
@@ -84,11 +84,11 @@ function LevelBadge({ level, compact = false }: { level: LogLevel; compact?: boo
 }
 
 /**
- * Auteur d'une entrée, sous son nom et non sous son identifiant.
+ * An entry's author, under their name rather than their identifier.
  *
- * Le lien mène à l'enregistrement du compte, cadré par l'adresse : c'est la question qui suit
- * immédiatement « qui a fait ça ». Il n'est posé que si la collection existe encore — un lien vers
- * une collection supprimée ne mènerait qu'à un écran vide.
+ * The link leads to the account's record, framed by the address: that's the question that
+ * immediately follows "who did this". It's only set if the collection still exists — a link to a
+ * deleted collection would only lead to an empty screen.
  */
 function AuthorLink({
   entry,
@@ -99,7 +99,7 @@ function AuthorLink({
   label?: string
   reachable: boolean
 }) {
-  if (entry.authId === '') return <span className="text-ink-faint">anonyme</span>
+  if (entry.authId === '') return <span className="text-ink-faint">anonymous</span>
 
   const title = `${entry.authCollection} / ${entry.authId}`
   const text = label ?? `${entry.authId.slice(0, 8)}…`
@@ -129,14 +129,14 @@ function AuthorLink({
   )
 }
 
-/** Icône seule d'un niveau, pour les options de la liste de filtre. */
+/** Icon alone for a level, for the filter list's options. */
 function LevelIcon({ level }: { level: LogLevel }) {
   const meta = LEVEL_META[level]
 
   return <meta.icon size={13} aria-hidden="true" className={LEVEL_INK[level]} />
 }
 
-/** Une ligne du détail : intitulé à gauche, valeur à droite. */
+/** A detail row: heading on the left, value on the right. */
 function Detail({
   label,
   value,
@@ -164,10 +164,10 @@ function Detail({
 }
 
 /**
- * Détail d'une entrée.
+ * Detail for an entry.
  *
- * En panneau latéral et non en modale centrée : on ouvre plusieurs entrées à la suite pour
- * comparer, et une modale centrée oblige à repartir du milieu de l'écran à chaque fois.
+ * In a side panel rather than a centered modal: several entries get opened in succession to
+ * compare, and a centered modal forces you to restart from the middle of the screen every time.
  */
 function LogDetail({
   entry,
@@ -189,7 +189,7 @@ function LogDetail({
       open
       side="right"
       onClose={onClose}
-      title="Entrée du journal"
+      title="Log entry"
       description={formatDateTime(entry.created)}
       footer={
         <>
@@ -197,10 +197,10 @@ function LogDetail({
             value={() => JSON.stringify(entry, null, 2)}
             variant="outline"
             size="md"
-            label="Copier le JSON"
+            label="Copy JSON"
           />
           <Button variant="primary" icon={<X size={15} aria-hidden="true" />} onClick={onClose}>
-            Fermer
+            Close
           </Button>
         </>
       }
@@ -217,29 +217,29 @@ function LogDetail({
         </p>
 
         <div>
-          <Detail label="Identifiant" value={entry.id} mono copy={entry.id} />
-          <Detail label="Horodatage" value={formatDateTime(entry.created)} />
-          <Detail label="Chemin" value={entry.url} mono copy={entry.url} />
+          <Detail label="ID" value={entry.id} mono copy={entry.id} />
+          <Detail label="Timestamp" value={formatDateTime(entry.created)} />
+          <Detail label="Path" value={entry.url} mono copy={entry.url} />
           <Detail
-            label="Durée"
+            label="Duration"
             value={entry.duration > 0 ? formatDuration(entry.duration) : null}
           />
           <Detail
-            label="Auteur"
+            label="Author"
             value={
               <AuthorLink entry={entry} label={authorLabel} reachable={authorReachable} />
             }
           />
-          <Detail label="Collection du compte" value={entry.authCollection} mono />
-          <Detail label="Identifiant du compte" value={entry.authId} mono copy={entry.authId} />
-          <Detail label="Adresse" value={entry.ip} mono />
-          <Detail label="Référent" value={entry.referer} />
+          <Detail label="Account collection" value={entry.authCollection} mono />
+          <Detail label="Account ID" value={entry.authId} mono copy={entry.authId} />
+          <Detail label="Address" value={entry.ip} mono />
+          <Detail label="Referer" value={entry.referer} />
           <Detail label="Agent" value={entry.userAgent} />
         </div>
 
         {data.length > 0 && (
           <div>
-            <h3 className="mb-1.5 text-xs font-semibold text-ink">Détails</h3>
+            <h3 className="mb-1.5 text-xs font-semibold text-ink">Details</h3>
             <pre className="overflow-x-auto rounded-[var(--radius-control)] border border-border-subtle bg-surface-sunken px-3 py-2 font-mono text-[11px] leading-relaxed text-ink">
               {JSON.stringify(entry.data, null, 2)}
             </pre>
@@ -251,16 +251,16 @@ function LogDetail({
 }
 
 /**
- * Journal des requêtes.
+ * Request log.
  *
- * Deux blocs : la forme de la fenêtre, puis les lignes. Les filtres ne sont pas rassemblés dans une
- * barre au-dessus mais posés sous l'en-tête de la colonne qu'ils restreignent — c'est la colonne
- * qu'on regarde quand on décide de filtrer, et une barre séparée oblige à retrouver quel contrôle
- * commande quelle colonne.
+ * Two blocks: the shape of the window, then the rows. Filters aren't gathered into a bar above
+ * but placed under the header of the column they restrict — that's the column you look at when
+ * deciding to filter, and a separate bar forces you to figure out which control drives which
+ * column.
  *
- * L'histogramme n'est pas un ornement : il dit en un coup d'œil si l'anomalie cherchée est un pic
- * isolé ou un état permanent, question à laquelle une table paginée ne répond jamais. Cliquer une
- * barre l'ouvre — la fenêtre se restreint à cette tranche, qui se redécoupe d'un cran plus fin.
+ * The histogram isn't an ornament: it says at a glance whether the anomaly you're looking for is
+ * an isolated spike or a permanent state, a question a paginated table never answers. Clicking a
+ * bar drills into it — the window narrows to that slice, which rebuckets one notch finer.
  */
 export function LogsBrowser({ collections }: { collections: Collection[] }) {
   const toast = useToast()
@@ -270,9 +270,9 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
   const [method, setMethod] = useState('')
   const [statusText, setStatusText] = useState('')
   const [ascending, setAscending] = useState(false)
-  // Nommée « range » et non « window » : le second masquerait l'objet global du même nom dans tout
-  // le composant, et la prochaine ligne qui voudrait `window.matchMedia` échouerait sans raison
-  // visible.
+  // Named "range" rather than "window": the latter would shadow the global object of the same
+  // name throughout the component, and the next line wanting `window.matchMedia` would fail for
+  // no visible reason.
   const [range, setRange] = useState<LogWindow>('24h')
   const [slice, setSlice] = useState<LogSlice | null>(null)
   const [page, setPage] = useState(1)
@@ -310,15 +310,15 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
   const reachable = (entry: LogEntry) =>
     collections.some((item) => item.name === entry.authCollection)
 
-  // Tout changement de critère ramène à la première page : rester en page sept d'un résultat qui
-  // en compte deux affiche un tableau vide, sans que rien ne dise pourquoi.
+  // Any change of criteria resets to the first page: staying on page seven of a result that has
+  // only two shows an empty table, with nothing saying why.
   const criteria = `${q}|${levels.join(',')}|${method}|${statusFilter}|${range}|${slice?.from ?? ''}`
 
   useEffect(() => {
     setPage(1)
   }, [criteria])
 
-  /** Ouvre une tranche de l'histogramme : la fenêtre s'y restreint, le découpage s'affine. */
+  /** Drills into a histogram bucket: the window narrows to it, the bucketing gets finer. */
   const openSlice = (at: number, granularity: LogGranularity) => setSlice(bucketRange(at, granularity))
 
   const reset = () => {
@@ -337,7 +337,7 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
     try {
       const { deleted } = await api.logs.clear()
 
-      toast.success(`${formatCount(deleted)} ${plural(deleted, 'entrée supprimée', 'entrées supprimées')}.`)
+      toast.success(`${formatCount(deleted)} ${plural(deleted, 'entry deleted', 'entries deleted')}.`)
       setPage(1)
       await reload()
     } catch (failure) {
@@ -351,11 +351,11 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
   return (
     <div className="space-y-4">
       <PageActions>
-        <Tooltip content="Recharger">
+        <Tooltip content="Reload">
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Recharger le journal"
+            aria-label="Reload log"
             onClick={() => void reload()}
           >
             <RotateCw size={16} aria-hidden="true" />
@@ -368,7 +368,7 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
             icon={<Eraser size={15} aria-hidden="true" />}
             onClick={reset}
           >
-            Réinitialiser
+            Reset
           </Button>
         )}
 
@@ -377,14 +377,14 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
           icon={<Trash2 size={15} aria-hidden="true" />}
           onClick={() => setConfirming(true)}
         >
-          Vider le journal
+          Clear log
         </Button>
       </PageActions>
 
       <Card className="space-y-2 px-4 py-3">
         {slice && (
           <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-            <span>Tranche ouverte</span>
+            <span>Slice open</span>
             <Badge tone="brand">{sliceLabel(slice)}</Badge>
             <Button
               size="sm"
@@ -392,7 +392,7 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
               icon={<CornerUpLeft size={14} aria-hidden="true" />}
               onClick={() => setSlice(null)}
             >
-              Revenir à la fenêtre
+              Back to window
             </Button>
           </div>
         )}
@@ -406,42 +406,42 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
 
       {loading && result === null && <TableSkeleton columns={7} />}
 
-      {/* Le tableau reste monté même vide : les filtres vivent dans son en-tête, et les escamoter
-          rendrait impossible de défaire le critère trop étroit qui a vidé le résultat. */}
+      {/* The table stays mounted even when empty: the filters live in its header, and hiding it
+          would make it impossible to undo the too-narrow criteria that emptied the result. */}
       <Card className="overflow-hidden">
-          <Table bare caption="Entrées du journal">
+          <Table bare caption="Log entries">
             <THead>
-              {/* Le libellé et son filtre forment un seul bloc : le trait ne les sépare pas, il
-                  ferme l'ensemble sous la ligne de filtres. */}
+              {/* The label and its filter form a single block: the rule doesn't separate them,
+                  it closes off the pair below the filter row. */}
               <tr className="[&>th]:border-b-0">
-                {/* Le seul tri qui ait un sens ici : deux états, pas trois. Un « aucun tri »
-                    rendrait au journal l'ordre d'insertion, qui est déjà l'ordre chronologique —
-                    un troisième clic sans effet visible. */}
+                {/* The only sort that makes sense here: two states, not three. A "no sort" would
+                    hand the log back insertion order, which is already chronological order — a
+                    third click with no visible effect. */}
                 <SortableTh
                   className="w-40"
-                  label="Horodatage"
+                  label="Timestamp"
                   direction={ascending ? 'asc' : 'desc'}
                   onSort={() => {
                     setAscending((current) => !current)
                     setPage(1)
                   }}
                 />
-                <Th className="w-28">Niveau</Th>
-                <Th className="w-24">Méthode</Th>
-                <Th>Chemin</Th>
-                <Th className="w-24">Statut</Th>
-                <Th className="w-24">Durée</Th>
-                <Th className="w-44">Auteur</Th>
+                <Th className="w-28">Level</Th>
+                <Th className="w-24">Method</Th>
+                <Th>Path</Th>
+                <Th className="w-24">Status</Th>
+                <Th className="w-24">Duration</Th>
+                <Th className="w-44">Author</Th>
               </tr>
 
-              {/* Chaque filtre est posé sous la colonne qu'il restreint. Les colonnes que l'API ne
-                  sait pas filtrer — durée, auteur — n'exposent rien plutôt qu'un contrôle inerte. */}
+              {/* Each filter sits under the column it restricts. Columns the API can't filter —
+                  duration, author — expose nothing rather than an inert control. */}
               <tr className="[&>td]:border-b [&>td]:border-border-subtle [&>td]:px-2 [&>td]:pb-2">
                 <td>
                   <SelectMenu<LogWindow>
                     value={range}
                     size="sm"
-                    aria-label="Fenêtre temporelle"
+                    aria-label="Time window"
                     className="w-full"
                     disabled={slice !== null}
                     options={LOG_WINDOWS.map((entry) => ({
@@ -455,8 +455,8 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
                   <MultiSelectMenu<LogLevel>
                     values={levels}
                     size="sm"
-                    aria-label="Niveaux retenus"
-                    placeholder="Tous"
+                    aria-label="Levels selected"
+                    placeholder="All"
                     className="w-full"
                     options={LOG_LEVELS.map((entry) => ({
                       value: entry,
@@ -471,10 +471,10 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
                   <SelectMenu<string>
                     value={method === '' ? 'all' : method}
                     size="sm"
-                    aria-label="Méthode HTTP"
+                    aria-label="HTTP method"
                     className="w-full"
                     options={[
-                      { value: 'all', label: 'Toutes' },
+                      { value: 'all', label: 'All' },
                       ...METHODS.map((entry) => ({ value: entry, label: entry })),
                     ]}
                     onChange={(choice) => setMethod(choice === 'all' ? '' : choice)}
@@ -484,7 +484,7 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
                   <Input
                     value={path}
                     spellCheck={false}
-                    aria-label="Filtre sur le chemin ou le message"
+                    aria-label="Filter on path or message"
                     placeholder="/api/collections"
                     className="h-8 font-mono text-xs"
                     onChange={(event) => setPath(event.target.value)}
@@ -494,7 +494,7 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
                   <Input
                     value={statusText}
                     inputMode="numeric"
-                    aria-label="Statut HTTP exact"
+                    aria-label="Exact HTTP status"
                     placeholder="404"
                     className="h-8 text-xs tabular-nums"
                     onChange={(event) =>
@@ -511,9 +511,9 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
               {items.map((entry) => (
                 <Tr key={entry.id}>
                   <Td className="p-0">
-                    {/* La ligne entière ouvre le détail, mais l'élément cliquable reste un bouton :
-                        une cellule munie d'un `onClick` n'est atteignable ni au clavier ni au
-                        lecteur d'écran. */}
+                    {/* The whole row opens the detail, but the clickable element remains a
+                        button: a cell fitted with an `onClick` is reachable neither by keyboard
+                        nor by a screen reader. */}
                     <button
                       type="button"
                       onClick={() => setSelected(entry)}
@@ -538,12 +538,12 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
                   </Td>
                   <Td>
                     {entry.status > 0 && (
-                      // La pastille filtre : chercher « tous les 404 » est le geste le plus courant
-                      // de cet écran, et le faire à la main obligerait à retaper un nombre qu'on a
-                      // sous les yeux.
+                      // The badge filters: looking up "all the 404s" is the most common gesture
+                      // on this screen, and doing it by hand would mean retyping a number that's
+                      // right there in front of you.
                       <button
                         type="button"
-                        aria-label={`Ne montrer que les réponses ${entry.status}`}
+                        aria-label={`Show only ${entry.status} responses`}
                         onClick={() => setStatusText(String(entry.status))}
                         className="cursor-pointer"
                       >
@@ -568,11 +568,11 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
                   <td colSpan={7} className="px-3 py-10">
                     <EmptyState
                       icon={<ScrollText size={28} aria-hidden="true" />}
-                      title="Aucune entrée"
+                      title="No entries"
                       description={
                         filtered
-                          ? "Aucune entrée ne correspond à ces critères sur cette fenêtre."
-                          : "Le journal est vide. Les requêtes servies par l'API y apparaissent en quelques secondes."
+                          ? 'No entry matches these criteria in this window.'
+                          : 'The log is empty. Requests served by the API appear here within seconds.'
                       }
                       action={
                         filtered ? (
@@ -581,7 +581,7 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
                             icon={<Eraser size={15} aria-hidden="true" />}
                             onClick={reset}
                           >
-                            Réinitialiser les filtres
+                            Reset filters
                           </Button>
                         ) : undefined
                       }
@@ -596,7 +596,7 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-surface-sunken px-4 py-2.5 text-xs text-ink-muted">
               <div className="flex items-center gap-2">
                 <span className="tabular-nums">
-                  {formatCount(result.totalItems)} {plural(result.totalItems, 'entrée', 'entrées')}
+                  {formatCount(result.totalItems)} {plural(result.totalItems, 'entry', 'entries')}
                 </span>
                 <Badge>
                   page {result.page} / {Math.max(result.totalPages, 1)}
@@ -605,11 +605,11 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
 
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
-                  <span aria-hidden="true">Par page</span>
+                  <span aria-hidden="true">Per page</span>
                   <SelectMenu<string>
                     value={String(perPage)}
                     size="sm"
-                    aria-label="Entrées par page"
+                    aria-label="Entries per page"
                     className="w-auto"
                     options={PER_PAGE_CHOICES.map((choice) => ({
                       value: String(choice),
@@ -623,14 +623,14 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
                 </div>
 
                 <Button size="sm" disabled={result.page <= 1} onClick={() => setPage(result.page - 1)}>
-                  Précédent
+                  Previous
                 </Button>
                 <Button
                   size="sm"
                   disabled={result.page >= result.totalPages}
                   onClick={() => setPage(result.page + 1)}
                 >
-                  Suivant
+                  Next
                 </Button>
               </div>
             </div>
@@ -647,9 +647,9 @@ export function LogsBrowser({ collections }: { collections: Collection[] }) {
       <ConfirmDialog
         open={confirming}
         busy={clearing}
-        title="Vider le journal ?"
-        message="Toutes les entrées seront supprimées, y compris celles qui documentent un incident en cours. La suppression est définitive et sera elle-même journalisée."
-        confirmLabel="Vider définitivement"
+        title="Clear the log?"
+        message="All entries will be deleted, including those documenting an ongoing incident. The deletion is permanent and will itself be logged."
+        confirmLabel="Clear permanently"
         confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         onConfirm={() => void clear()}
         onClose={() => setConfirming(false)}
