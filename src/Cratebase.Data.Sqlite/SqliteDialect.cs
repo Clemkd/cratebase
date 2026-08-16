@@ -7,11 +7,11 @@ using Microsoft.Data.Sqlite;
 namespace Cratebase.Data.Sqlite;
 
 /// <summary>
-/// Dialecte SQLite. Moteur de départ : un fichier, aucun service à déployer.
+/// SQLite dialect. Starting engine: a single file, no service to deploy.
 /// </summary>
 public sealed partial class SqliteDialect : ISqlDialect, ISchemaDdl
 {
-    /// <summary>Instance partagée — le dialecte est sans état.</summary>
+    /// <summary>Shared instance — the dialect is stateless.</summary>
     public static readonly SqliteDialect Instance = new();
 
     /// <inheritdoc />
@@ -20,16 +20,16 @@ public sealed partial class SqliteDialect : ISqlDialect, ISchemaDdl
     /// <inheritdoc />
     public IReadOnlyList<string> ConnectionInitializationStatements { get; } =
     [
-        // WAL : un écrivain et plusieurs lecteurs simultanés. Sans lui, toute lecture bloque
-        // l'écriture en cours, et l'application s'effondre dès une poignée de requêtes parallèles.
+        // WAL: one writer and several concurrent readers. Without it, any read blocks the write in
+        // progress, and the application collapses under a handful of parallel requests.
         "PRAGMA journal_mode = WAL;",
 
-        // Les clés étrangères sont désactivées par défaut sur SQLite. Sans ce pragma, la cascade
-        // déclarée par les champs de relation n'est jamais appliquée — et rien ne le signale.
+        // Foreign keys are disabled by default on SQLite. Without this pragma, the cascade declared
+        // by relation fields is never applied — and nothing reports it.
         "PRAGMA foreign_keys = ON;",
 
-        // SQLite n'admet qu'un écrivain : sans délai d'attente, la deuxième écriture concurrente
-        // échoue immédiatement en SQLITE_BUSY au lieu d'attendre son tour.
+        // SQLite only admits one writer: without a busy timeout, the second concurrent write fails
+        // immediately with SQLITE_BUSY instead of waiting its turn.
         "PRAGMA busy_timeout = 5000;",
 
         "PRAGMA synchronous = NORMAL;",
@@ -37,9 +37,9 @@ public sealed partial class SqliteDialect : ISqlDialect, ISchemaDdl
 
     /// <inheritdoc />
     /// <remarks>
-    /// Le produit des pages plutôt que la taille du fichier : c'est ce que la base occupe
-    /// réellement, sans le journal d'écriture ni les pages libérées mais non rendues au système.
-    /// Lire le fichier depuis le serveur donnerait un nombre plus gros et surtout non portable.
+    /// The product of the pages rather than the file size: that's what the database actually
+    /// occupies, without the write-ahead log or pages freed but not returned to the OS. Reading the
+    /// file from the server would give a bigger, and above all non-portable, number.
     /// </remarks>
     public string DatabaseSizeQuery =>
         "SELECT (SELECT * FROM pragma_page_count()) * (SELECT * FROM pragma_page_size())";
@@ -78,8 +78,8 @@ public sealed partial class SqliteDialect : ISqlDialect, ISchemaDdl
 
         return type switch
         {
-            // Toujours 0/1, jamais « true »/« false » : SQLite n'a pas de type booléen, et une
-            // colonne contenant les deux formes rend « WHERE actif = 1 » silencieusement faux.
+            // Always 0/1, never "true"/"false": SQLite has no boolean type, and a column holding
+            // both forms silently makes "WHERE active = 1" false.
             FieldType.Bool => AsBoolean(value) ? 1L : 0L,
 
             FieldType.Number => AsNumber(value),
@@ -114,15 +114,15 @@ public sealed partial class SqliteDialect : ISqlDialect, ISchemaDdl
     /// <inheritdoc />
     public string LikeExpression(string valueExpression, string patternPlaceholder, bool negated)
     {
-        // LIKE est insensible à la casse en ASCII sur SQLite, ce qui est la sémantique retenue
-        // pour « ~ ». PostgreSQL doit donc utiliser ILIKE pour s'aligner.
+        // LIKE is ASCII case-insensitive on SQLite, which is the semantics chosen for "~".
+        // PostgreSQL must therefore use ILIKE to match.
         var comparison = $"{valueExpression} LIKE {patternPlaceholder} ESCAPE '{LikePattern.EscapeCharacter}'";
 
         return negated ? $"NOT ({comparison})" : comparison;
     }
 
     /// <inheritdoc />
-    // SQLite type ses colonnes mollement : aucune adaptation n'est nécessaire.
+    // SQLite types its columns loosely: no adaptation is needed.
     public string BindParameter(FieldType type, bool multiple, string placeholder) => placeholder;
 
     /// <inheritdoc />
@@ -161,7 +161,7 @@ public sealed partial class SqliteDialect : ISqlDialect, ISchemaDdl
         return sqlite.SqliteErrorCode switch
         {
             SqliteConstraint => new CratebaseConflictException(
-                "L'opération viole une contrainte d'unicité ou d'intégrité.", sqlite),
+                "The operation violates a uniqueness or integrity constraint.", sqlite),
             _ => null,
         };
     }

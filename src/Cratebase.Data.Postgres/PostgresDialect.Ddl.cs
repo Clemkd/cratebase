@@ -8,7 +8,7 @@ namespace Cratebase.Data.Postgres;
 public sealed partial class PostgresDialect
 {
     /// <inheritdoc />
-    // PostgreSQL modifie le type en place et différe les contraintes : rien à couper.
+    // PostgreSQL alters the type in place and defers constraints: nothing to turn off.
     public IReadOnlyList<string> BeforeSchemaChange { get; } = [];
 
     /// <inheritdoc />
@@ -123,9 +123,9 @@ public sealed partial class PostgresDialect
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(column);
 
-        // PostgreSQL change le type en place. Les index survivent — mais le USING est obligatoire
-        // dès que la conversion n'est pas implicite, et il passe par le texte parce que c'est la
-        // seule représentation commune à tous les types de Cratebase.
+        // PostgreSQL changes the type in place. Indexes survive — but USING is mandatory as soon
+        // as the conversion isn't implicit, and it goes through text because that's the only
+        // representation common to every Cratebase type.
         var type = ColumnType(column.Type, column.Multiple);
         var name = QuoteIdentifier(column.Name);
 
@@ -172,8 +172,8 @@ public sealed partial class PostgresDialect
                 .Replace("'", "''", StringComparison.Ordinal) + "'",
         };
 
-        // Un littéral textuel destiné à une colonne jsonb doit être transtypé explicitement,
-        // sinon PostgreSQL refuse la valeur par défaut au moment du CREATE TABLE.
+        // A text literal destined for a jsonb column must be cast explicitly, otherwise PostgreSQL
+        // refuses the default value at CREATE TABLE time.
         return multiple || type is FieldType.Json or FieldType.GeoPoint
             ? rendered + "::jsonb"
             : rendered;

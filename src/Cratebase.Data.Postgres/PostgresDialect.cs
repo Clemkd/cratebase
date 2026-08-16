@@ -7,17 +7,17 @@ using Npgsql;
 namespace Cratebase.Data.Postgres;
 
 /// <summary>
-/// Dialecte PostgreSQL. Moteur de montée en charge.
+/// PostgreSQL dialect. The scale-up engine.
 /// </summary>
 /// <remarks>
-/// Écrit en même temps que le dialecte SQLite, bien avant d'être utilisé en production. C'est
-/// délibéré : un dialecte ajouté après coup découvre trop tard que des hypothèses du premier moteur
-/// ont essaimé partout. Le §10 du document de conception l'assume comme le prix de la promesse
-/// d'évolutivité.
+/// Written at the same time as the SQLite dialect, well before being used in production. This is
+/// deliberate: a dialect added as an afterthought discovers too late that assumptions from the
+/// first engine have spread everywhere. The design document's §10 accepts this as the price of the
+/// portability promise.
 /// </remarks>
 public sealed partial class PostgresDialect : ISqlDialect, ISchemaDdl
 {
-    /// <summary>Instance partagée — le dialecte est sans état.</summary>
+    /// <summary>Shared instance — the dialect is stateless.</summary>
     public static readonly PostgresDialect Instance = new();
 
     /// <inheritdoc />
@@ -35,9 +35,9 @@ public sealed partial class PostgresDialect : ISqlDialect, ISchemaDdl
 
     /// <inheritdoc />
     /// <remarks>
-    /// Taille de la base entière, index compris. Elle ne dit rien de l'espace disque restant :
-    /// PostgreSQL n'expose aucune capacité de volume de façon portable, et une instance gérée n'en
-    /// expose souvent aucune du tout. C'est à l'exploitant de déclarer la sienne.
+    /// Size of the whole database, indexes included. It says nothing about remaining disk space:
+    /// PostgreSQL exposes no volume capacity in a portable way, and a managed instance often
+    /// exposes none at all. Declaring one is up to the operator.
     /// </remarks>
     public string DatabaseSizeQuery => "SELECT pg_database_size(current_database())";
 
@@ -52,7 +52,7 @@ public sealed partial class PostgresDialect : ISqlDialect, ISchemaDdl
     /// <inheritdoc />
     public string ColumnType(FieldType type, bool multiple)
     {
-        // Les multi-valeurs restent du JSON, et non des tableaux natifs : voir StorageJson.
+        // Multi-values stay JSON, not native arrays: see StorageJson.
         if (multiple)
         {
             return "jsonb";
@@ -65,8 +65,9 @@ public sealed partial class PostgresDialect : ISqlDialect, ISchemaDdl
             FieldType.Date or FieldType.AutoDate => "timestamptz",
             FieldType.Json or FieldType.GeoPoint => "jsonb",
 
-            // COLLATE "C" aligne le tri sur l'ordre binaire de SQLite. Sans lui, « ORDER BY title »
-            // ne rend pas la même page selon le moteur, ce qui casse la pagination à la migration.
+            // COLLATE "C" aligns sort order with SQLite's binary order. Without it, "ORDER BY
+            // title" doesn't return the same page depending on the engine, breaking pagination
+            // across a migration.
             _ => "text COLLATE \"C\"",
         };
     }
@@ -74,8 +75,8 @@ public sealed partial class PostgresDialect : ISqlDialect, ISchemaDdl
     /// <inheritdoc />
     public object? ToStorage(FieldType type, bool multiple, object? value)
     {
-        // La valeur reste une chaîne ; c'est BindParameter qui la fait accepter par une colonne
-        // jsonb, en transtypant dans le SQL.
+        // The value stays a string; BindParameter is what makes a jsonb column accept it, by
+        // casting inside the SQL.
         if (multiple)
         {
             return StorageJson.SerializeMultiple(value);
@@ -118,8 +119,8 @@ public sealed partial class PostgresDialect : ISqlDialect, ISchemaDdl
     /// <inheritdoc />
     public string LikeExpression(string valueExpression, string patternPlaceholder, bool negated)
     {
-        // ILIKE, et non LIKE : c'est ce qui aligne PostgreSQL sur l'insensibilité à la casse de
-        // SQLite. Avec LIKE, la recherche marche en développement puis cesse en production.
+        // ILIKE, not LIKE: this is what aligns PostgreSQL with SQLite's case insensitivity. With
+        // LIKE, search works in development then stops working in production.
         var comparison = $"{valueExpression} ILIKE {patternPlaceholder} ESCAPE '{LikePattern.EscapeCharacter}'";
 
         return negated ? $"NOT ({comparison})" : comparison;
@@ -162,7 +163,7 @@ public sealed partial class PostgresDialect : ISqlDialect, ISchemaDdl
         {
             UniqueViolation or ForeignKeyViolation or CheckViolation or NotNullViolation =>
                 new CratebaseConflictException(
-                    "L'opération viole une contrainte d'unicité ou d'intégrité.", postgres),
+                    "The operation violates a uniqueness or integrity constraint.", postgres),
             _ => null,
         };
     }
@@ -193,9 +194,8 @@ public sealed partial class PostgresDialect : ISqlDialect, ISchemaDdl
         _ => Convert.ToDouble(value, CultureInfo.InvariantCulture),
     };
 
-    // La colonne est un timestamptz : le paramètre doit être un instant, pas une chaîne. On passe
-    // malgré tout par la forme canonique, pour que la troncature de précision soit la même que
-    // celle appliquée côté SQLite.
+    // The column is a timestamptz: the parameter must be an instant, not a string. The canonical
+    // form is still used as a pass-through, so precision truncation matches what SQLite applies.
     private static object? AsInstant(object? value) => value switch
     {
         null => null,

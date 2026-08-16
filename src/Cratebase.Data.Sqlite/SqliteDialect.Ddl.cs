@@ -55,8 +55,8 @@ public sealed partial class SqliteDialect
 
         foreach (var key in table.ForeignKeys)
         {
-            // ON DELETE SET DEFAULT plutôt que SET NULL : les champs de Cratebase ne sont pas
-            // nullables (voir FieldTypeInfo.ZeroValue), donc la référence tombe à la chaîne vide.
+            // ON DELETE SET DEFAULT rather than SET NULL: Cratebase's fields are not nullable
+            // (see FieldTypeInfo.ZeroValue), so the reference falls back to the empty string.
             lines.Add(
                 $"  FOREIGN KEY ({QuoteIdentifier(key.Column)}) " +
                 $"REFERENCES {QuoteIdentifier(key.TargetTable)} (\"id\") " +
@@ -88,8 +88,8 @@ public sealed partial class SqliteDialect
             .Append(' ')
             .Append(ColumnType(column.Type, column.Multiple));
 
-        // SQLite exige une valeur par défaut non nulle pour ajouter une colonne NOT NULL à une
-        // table qui contient déjà des lignes. Le type logique en fournit toujours une.
+        // SQLite requires a non-null default to add a NOT NULL column to a table that already
+        // holds rows. The logical type always provides one.
         var fallback = column.DefaultValue ?? ToStorage(
             column.Type, column.Multiple, column.Type.ZeroValue(column.Multiple));
 
@@ -126,13 +126,13 @@ public sealed partial class SqliteDialect
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(indexes);
 
-        // SQLite ne sait pas changer le type d'une colonne : il faut reconstruire la table.
-        // Procédure officielle en 12 étapes, réduite à ce dont on a besoin ici.
+        // SQLite cannot change a column's type: the table must be rebuilt. This is the official
+        // 12-step procedure, trimmed to what's needed here.
         //
-        // ⚠️ Le piège de cette manœuvre est la perte des index : ils appartiennent à la table
-        // détruite. Une contrainte d'unicité qui disparaît ne produit aucune erreur — elle laisse
-        // simplement les doublons s'installer, et on s'en aperçoit des mois plus tard. D'où la
-        // recréation systématique ci-dessous, et le test de conformité qui la vérifie.
+        // ⚠️ The trap in this maneuver is losing the indexes: they belong to the destroyed table.
+        // A uniqueness constraint that disappears produces no error — it simply lets duplicates
+        // creep in, and they're noticed months later. Hence the systematic recreation below, and
+        // the conformance test that verifies it.
         var temporary = target.Name + "_cb_rebuild";
         var statements = new List<string>();
 
@@ -175,12 +175,12 @@ public sealed partial class SqliteDialect
         [$"DROP INDEX IF EXISTS {QuoteIdentifier(indexName)}"];
 
     /// <summary>
-    /// Rend une valeur par défaut en littéral SQL.
+    /// Renders a default value as a SQL literal.
     /// </summary>
     /// <remarks>
-    /// Seul endroit du moteur où une valeur est écrite dans le texte SQL plutôt que passée en
-    /// paramètre — le DDL n'admet pas les paramètres. Elle vient du schéma, défini par un
-    /// superadmin, et l'échappement des quotes est donc la dernière ligne de défense.
+    /// The only place in the engine where a value is written into SQL text rather than passed as a
+    /// parameter — DDL doesn't admit parameters. It comes from the schema, defined by a superuser,
+    /// so quote escaping is the last line of defense.
     /// </remarks>
     private static string Literal(object? value) => value switch
     {
