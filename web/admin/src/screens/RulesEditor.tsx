@@ -17,29 +17,29 @@ interface RuleDescriptor {
 const ACTIONS: RuleDescriptor[] = [
   {
     key: 'list',
-    label: 'Lister',
-    violation: '200 avec une liste vide',
-    note: "La règle est aussi un filtre : elle retire les lignes plutôt que de refuser l'appel.",
+    label: 'List',
+    violation: '200 with an empty list',
+    note: "The rule is also a filter: it removes rows rather than refusing the call.",
   },
   {
     key: 'view',
-    label: 'Consulter',
+    label: 'View',
     violation: '404',
-    note: "404 plutôt que 403, pour ne pas divulguer l'existence de la ligne.",
+    note: "404 rather than 403, to avoid disclosing the row's existence.",
   },
   {
     key: 'create',
-    label: 'Créer',
+    label: 'Create',
     violation: '400',
-    note: "Évaluée sur l'enregistrement tel qu'il sera écrit, après valeurs par défaut et crochets.",
+    note: 'Evaluated on the record as it will be written, after default values and hooks.',
   },
-  { key: 'update', label: 'Modifier', violation: '404', note: 'Appliquée dans le WHERE de la mise à jour.' },
-  { key: 'delete', label: 'Supprimer', violation: '404', note: 'Appliquée dans le WHERE de la suppression.' },
+  { key: 'update', label: 'Update', violation: '404', note: "Applied in the update's WHERE clause." },
+  { key: 'delete', label: 'Delete', violation: '404', note: "Applied in the delete's WHERE clause." },
   {
     key: 'manage',
-    label: 'Gérer',
+    label: 'Manage',
     violation: '403',
-    note: "Qui peut changer le mot de passe ou l'adresse d'un autre compte.",
+    note: "Who can change another account's password or address.",
     authOnly: true,
   },
 ]
@@ -49,45 +49,45 @@ const STATES: Record<
   { label: string; icon: typeof Lock; tone: 'neutral' | 'danger' | 'brand'; summary: string }
 > = {
   locked: {
-    label: 'Verrouillée',
+    label: 'Locked',
     icon: Lock,
     tone: 'neutral',
-    summary: 'Super-admin uniquement — 403 pour tout le reste.',
+    summary: 'Superuser only — 403 for everything else.',
   },
   public: {
-    label: 'Ouverte à tous',
+    label: 'Open to everyone',
     icon: Globe,
     tone: 'danger',
-    summary: 'Autorisée pour tout le monde, visiteurs anonymes compris.',
+    summary: 'Allowed for everyone, anonymous visitors included.',
   },
   conditional: {
-    label: 'Conditionnelle',
+    label: 'Conditional',
     icon: SlidersHorizontal,
     tone: 'brand',
-    summary: "Autorisée quand l'expression est vraie.",
+    summary: 'Allowed when the expression is true.',
   },
 }
 
-/** Ordre des segments : du plus fermé au plus ouvert, puis le cas nuancé. */
+/** Order of the segments: from most closed to most open, then the nuanced case. */
 const STATE_ORDER: RuleState[] = ['locked', 'public', 'conditional']
 
 function stateOf(value: string | null, editing: boolean): RuleState {
   if (value === null || value === undefined) return 'locked'
   if (value !== '') return 'conditional'
 
-  // Une expression vidée en cours de saisie reste affichée comme conditionnelle, avec son
-  // avertissement : basculer l'écran sur « ouverte à tous » à la dernière touche effacée ferait
-  // passer l'ouverture totale de la collection pour un effet de frappe.
+  // An expression cleared mid-typing keeps displaying as conditional, with its warning:
+  // switching the screen to "open to everyone" on the last character deleted would make the
+  // collection's total exposure look like a typo.
   return editing ? 'conditional' : 'public'
 }
 
 /**
- * Éditeur des règles d'accès.
+ * Access rules editor.
  *
- * L'écran doit rendre visible la distinction qui décide de tout : une règle **absente** verrouille
- * la collection au super-admin, une règle **vide** l'ouvre à tout le monde. Une simple zone
- * de texte ne montre pas la différence — d'où trois états nommés et exclusifs plutôt qu'un champ
- * qu'on laisse vide.
+ * The screen must make visible the distinction that decides everything: an **absent** rule locks
+ * the collection to the superuser, an **empty** rule opens it to everyone. A plain text box
+ * doesn't show the difference — hence three named, mutually exclusive states rather than a field
+ * left blank.
  */
 export function RulesEditor({
   kind,
@@ -101,12 +101,12 @@ export function RulesEditor({
   onChange: (rules: AccessRules) => void
 }) {
   const actions = ACTIONS.filter((action) => !action.authOnly || kind === 'Auth')
-  // Le décompte vient du diagnostic partagé : l'indicateur de l'onglet « Général » et
-  // l'avertissement de cet écran doivent toujours annoncer le même nombre.
+  // The count comes from the shared diagnostic: the "General" tab's indicator and this screen's
+  // warning must always report the same number.
   const publicCount = analyseRules(kind, rules).open.length
 
-  // Règles que l'utilisateur a explicitement placées en mode conditionnel pendant cette session
-  // d'édition. Sert uniquement à ne pas requalifier une expression vidée par la frappe.
+  // Rules the user has explicitly set to conditional mode during this editing session. Only
+  // serves to avoid requalifying an expression that got cleared by typing.
   const [editing, setEditing] = useState<RuleAction[]>([])
 
   const setState = (key: RuleAction, state: RuleState) => {
@@ -119,8 +119,8 @@ export function RulesEditor({
     if (state === 'locked') return onChange({ ...rules, [key]: null })
     if (state === 'public') return onChange({ ...rules, [key]: '' })
 
-    // Passage en conditionnel : on amorce avec le test d'authentification, l'idiome le plus
-    // courant, plutôt qu'une chaîne vide qui vaudrait « ouverte à tous ».
+    // Switching to conditional: seeded with the authentication check, the most common idiom,
+    // rather than an empty string which would mean "open to everyone".
     onChange({ ...rules, [key]: rules[key] || "@request.auth.id != ''" })
   }
 
@@ -134,10 +134,9 @@ export function RulesEditor({
           <TriangleAlert size={16} className="mt-0.5 shrink-0 text-danger" aria-hidden="true" />
           <p className="text-sm text-ink">
             <strong className="font-semibold">
-              {publicCount} règle{publicCount > 1 ? 's' : ''} ouverte{publicCount > 1 ? 's' : ''} à
-              tous.
+              {publicCount} rule{publicCount > 1 ? 's' : ''} open to everyone.
             </strong>{' '}
-            N'importe qui, sans jeton, peut effectuer ces actions sur cette collection.
+            Anyone, without a token, can perform these actions on this collection.
           </p>
         </div>
       )}
@@ -172,17 +171,17 @@ export function RulesEditor({
                 />
                 <span className="text-sm font-medium text-ink">{action.label}</span>
                 <Badge tone={descriptor.tone}>{descriptor.label}</Badge>
-                <Badge>refus → {action.violation}</Badge>
+                <Badge>denied → {action.violation}</Badge>
               </div>
 
               {readOnly ? null : (
                 <SegmentedControl<RuleState>
-                  label={`État de la règle « ${action.label} »`}
+                  label={`State of the "${action.label}" rule`}
                   value={state}
                   onChange={(next) => setState(action.key, next)}
-                  // Chaque état porte son icône : le cadenas, le globe et les curseurs disent
-                  // l'ouverture avant que le mot ne soit lu, et ce sont les mêmes glyphes que la
-                  // ligne d'en-tête juste au-dessus — un seul code à apprendre pour l'écran entier.
+                  // Each state carries its own icon: the lock, the globe, and the sliders convey
+                  // openness before the word is even read, and they're the same glyphs as the
+                  // header row just above — a single code to learn for the whole screen.
                   options={STATE_ORDER.map((value) => {
                     const meta = STATES[value]
 
@@ -216,20 +215,20 @@ export function RulesEditor({
               <>
                 <Textarea
                   rows={2}
-                  aria-label={`Expression de la règle « ${action.label} »`}
+                  aria-label={`Expression for the "${action.label}" rule`}
                   aria-invalid={emptyExpression}
                   disabled={readOnly}
                   className="mt-2.5 font-mono text-xs"
                   value={value ?? ''}
                   spellCheck={false}
-                  placeholder="ex. : owner = @request.auth.id"
+                  placeholder="e.g. owner = @request.auth.id"
                   onChange={(event) => onChange({ ...rules, [action.key]: event.target.value })}
                 />
 
                 {emptyExpression && (
                   <p role="alert" className="mt-1.5 text-xs font-medium text-danger">
-                    Expression vide : enregistrée telle quelle, cette règle ouvre l'action à tous,
-                    visiteurs anonymes compris.
+                    Empty expression: saved as-is, this rule opens the action to everyone,
+                    anonymous visitors included.
                   </p>
                 )}
               </>
