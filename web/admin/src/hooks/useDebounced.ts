@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Valeur retardée : elle ne suit la source qu'après une pause.
+ * Delayed value: it only follows the source after a pause.
  *
- * Sert aux filtres saisis au clavier. Interroger le serveur à chaque touche produit une requête par
- * caractère, dont toutes sauf la dernière sont jetées ; exiger une validation par Entrée oblige
- * l'utilisateur à deviner qu'il faut le faire, ce que rien dans une zone de saisie n'indique.
+ * Used for keyboard-typed filters. Querying the server on every keystroke produces one request
+ * per character, all but the last of which are discarded; requiring an Enter to confirm forces
+ * the user to guess that they need to, something nothing in an input field indicates.
  */
 export function useDebounced<T>(value: T, delay = 350): T {
   const [settled, setSettled] = useState(value)

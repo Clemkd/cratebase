@@ -6,7 +6,7 @@ export interface StorageQuery {
   perPage: number
   collection: string
   q: string
-  /** `files`, `thumbs`, ou chaîne vide pour les deux. */
+  /** `files`, `thumbs`, or an empty string for both. */
   kind: string
   orphansOnly: boolean
 }
@@ -18,7 +18,7 @@ export interface StorageObjectsState {
   reload: () => Promise<void>
 }
 
-/** Inventaire paginé du magasin de fichiers. */
+/** Paginated inventory of the file store. */
 export function useStorageObjects(query: StorageQuery): StorageObjectsState {
   const [result, setResult] = useState<(Page<StoredObject> & { orphans: number }) | null>(null)
   const [loading, setLoading] = useState(true)

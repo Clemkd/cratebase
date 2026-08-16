@@ -16,11 +16,10 @@ export interface RecordsState {
 }
 
 /**
- * Page d'enregistrements d'une collection.
+ * Page of records from a collection.
  *
- * Le résultat précédent est conservé pendant un rechargement : vider la table à chaque frappe de
- * pagination ferait sauter la mise en page, et l'utilisateur perdrait le repère de la ligne qu'il
- * suivait.
+ * The previous result is kept during a reload: clearing the table on every pagination keystroke
+ * would make the layout jump, and the user would lose track of the row they were following.
  */
 export function useRecords(collection: string, query: RecordsQuery): RecordsState {
   const [result, setResult] = useState<Page<RecordValue> | null>(null)

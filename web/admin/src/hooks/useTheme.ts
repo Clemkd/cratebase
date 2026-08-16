@@ -18,7 +18,7 @@ function readPreference(): ThemePreference {
 
     return stored === 'dark' || stored === 'light' ? stored : 'system'
   } catch {
-    // Stockage inaccessible : la préférence système fait foi, sans plus de conséquence.
+    // Storage inaccessible: the system preference is authoritative, with no further consequence.
     return 'system'
   }
 }
@@ -32,8 +32,8 @@ function compute(preference: ThemePreference): ThemeState {
   return { preference, resolved }
 }
 
-// L'instantané est mémorisé : `useSyncExternalStore` compare par identité, donc en reconstruire un
-// à chaque lecture provoquerait une boucle de rendu.
+// The snapshot is memoized: `useSyncExternalStore` compares by identity, so rebuilding one on
+// every read would cause a render loop.
 let snapshot: ThemeState = compute(readPreference())
 
 function publish(next: ThemeState) {
@@ -42,8 +42,8 @@ function publish(next: ThemeState) {
   listeners.forEach((listener) => listener())
 }
 
-// La préférence système peut changer pendant la session — bascule automatique du système
-// d'exploitation au coucher du soleil, par exemple.
+// The system preference can change during the session — automatic switch by the operating system
+// at sunset, for example.
 darkQuery?.addEventListener('change', () => {
   if (snapshot.preference === 'system') publish(compute('system'))
 })
@@ -53,17 +53,17 @@ export function setThemePreference(next: ThemePreference) {
     if (next === 'system') globalThis.localStorage?.removeItem(STORAGE_KEY)
     else globalThis.localStorage?.setItem(STORAGE_KEY, next)
   } catch {
-    // Le thème reste appliqué pour la session, il ne survivra simplement pas au rechargement.
+    // The theme stays applied for the session, it simply won't survive a reload.
   }
 
   publish(compute(next))
 }
 
 /**
- * Thème de la console.
+ * Console theme.
  *
- * L'état vit hors de React : la classe est posée sur `<html>` avant le premier rendu par un script
- * en ligne, et plusieurs composants peuvent lire la préférence sans se désynchroniser.
+ * The state lives outside React: the class is set on `<html>` before the first render by an
+ * inline script, and several components can read the preference without going out of sync.
  */
 export function useTheme(): ThemeState & { setPreference: (next: ThemePreference) => void } {
   const state = useSyncExternalStore(

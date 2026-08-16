@@ -2,25 +2,25 @@ import { useEffect, useRef, useState } from 'react'
 import { api, type Collection, type LogEntry } from '../api'
 
 /**
- * Champs qui peuvent nommer un compte, du plus parlant au plus technique.
+ * Fields that can name an account, from most meaningful to most technical.
  *
- * L'adresse électronique vient en dernier alors qu'elle existe toujours sur une collection de
- * comptes : elle identifie sûrement, mais une console qui affiche partout des adresses en
- * divulgue plus que nécessaire à quiconque regarde l'écran par-dessus l'épaule.
+ * Email comes last even though it's always present on an accounts collection: it identifies
+ * reliably, but a console that displays addresses everywhere discloses more than necessary to
+ * anyone glancing over the screen.
  */
 const LABEL_FIELDS = ['name', 'displayName', 'fullName', 'username', 'title', 'label', 'email']
 
-/** Clé d'un auteur : deux collections peuvent porter le même identifiant. */
+/** Author key: two collections can carry the same identifier. */
 export function authorKey(collection: string, id: string): string {
   return `${collection}/${id}`
 }
 
-/** Champ qui nommera les enregistrements d'une collection, ou `null` si aucun ne convient. */
+/** Field that will name a collection's records, or `null` if none fits. */
 function labelFieldOf(collection: Collection): string | null {
   for (const candidate of LABEL_FIELDS) {
     const field = collection.fields.find((entry) => entry.name === candidate)
 
-    // Un champ multivalué ne nomme rien : il porte une liste, que rien ne garantit non vide.
+    // A multi-value field names nothing: it carries a list, which nothing guarantees is non-empty.
     if (field && !field.multiple) return field.name
   }
 
@@ -28,17 +28,17 @@ function labelFieldOf(collection: Collection): string | null {
 }
 
 /**
- * Résout les auteurs des entrées affichées vers un libellé lisible.
+ * Resolves the authors of displayed entries into a readable label.
  *
- * Résolu côté console et non côté serveur, pour deux raisons. Le journal enregistre qui a agi au
- * moment où l'action a lieu ; y recopier un nom le figerait, et une entrée vieille d'un mois
- * afficherait un nom que son propriétaire a changé depuis. Et joindre les comptes à la lecture du
- * journal ferait dépendre l'écran d'exploitation des collections qu'il observe — celui qu'on ouvre
- * précisément quand quelque chose ne va pas.
+ * Resolved on the console side and not on the server, for two reasons. The log records who acted
+ * at the moment the action happened; copying a name into it would freeze it, and an entry a
+ * month old would show a name its owner has since changed. And joining accounts at log read time
+ * would make the operations screen depend on the collections it observes — the very screen you
+ * open precisely when something is wrong.
  *
- * Une requête par collection et par page, pas une par ligne : les identifiants distincts sont
- * réunis en un seul filtre. Ce qui a déjà été résolu ne l'est pas deux fois, y compris en revenant
- * sur une page déjà vue.
+ * One request per collection per page, not one per row: distinct identifiers are gathered into a
+ * single filter. Anything already resolved isn't resolved twice, including when revisiting a page
+ * already seen.
  */
 export function useAuthors(
   entries: LogEntry[],
@@ -46,9 +46,9 @@ export function useAuthors(
 ): Map<string, string> {
   const [labels, setLabels] = useState<Map<string, string>>(new Map())
 
-  // Le cache survit aux rendus sans en provoquer : c'est `labels` qui déclenche l'affichage, ce
-  // registre ne sert qu'à ne pas redemander deux fois la même chose — y compris les échecs, sans
-  // quoi une collection illisible serait réinterrogée à chaque frappe dans la recherche.
+  // The cache survives renders without triggering them: it's `labels` that drives the display,
+  // this registry only prevents asking for the same thing twice — including failures, otherwise
+  // an unreadable collection would be re-queried on every keystroke in the search box.
   const known = useRef(new Set<string>())
 
   useEffect(() => {
@@ -75,8 +75,8 @@ export function useAuthors(
         const collection = collections.find((entry) => entry.name === name)
         const field = collection ? labelFieldOf(collection) : null
 
-        // La collection a pu être supprimée depuis, ou ne porter aucun champ qui nomme quoi que ce
-        // soit. L'identifiant abrégé reste alors le seul libellé honnête.
+        // The collection may have been deleted since, or carry no field that names anything.
+        // The shortened identifier then remains the only honest label.
         if (!collection || !field) {
           for (const id of ids) known.current.add(authorKey(name, id))
           continue
@@ -101,8 +101,8 @@ export function useAuthors(
             }
           }
         } catch {
-          // Comptes illisibles : l'écran d'exploitation continue de fonctionner avec des
-          // identifiants. Faire échouer le journal parce qu'un nom manque serait disproportionné.
+          // Accounts unreadable: the operations screen keeps working with identifiers. Failing
+          // the log because a name is missing would be disproportionate.
         }
 
         for (const id of list) known.current.add(authorKey(name, id))

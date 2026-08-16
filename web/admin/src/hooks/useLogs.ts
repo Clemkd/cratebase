@@ -10,27 +10,27 @@ import {
 } from '../api'
 import { windowStart, type LogWindow } from '../lib/logs'
 
-/** Tranche de temps désignée en cliquant une barre de l'histogramme. */
+/** Time slice designated by clicking a histogram bar. */
 export interface LogSlice {
   from: string
   to: string
-  /** Découpage à appliquer <i>à l'intérieur</i> de la tranche : un cran plus fin que celui d'où elle vient. */
+  /** Bucketing to apply <i>inside</i> the slice: one notch finer than the one it comes from. */
   granularity: LogGranularity
 }
 
 export interface LogsQuery {
   page: number
   perPage: number
-  /** Niveaux retenus. Vide : tous. */
+  /** Levels kept. Empty: all. */
   levels: LogLevel[]
   method: string
-  /** Statut HTTP exact, ou zéro pour tous. */
+  /** Exact HTTP status, or zero for all. */
   status: number
   q: string
   window: LogWindow
-  /** Tranche forée, qui prend le pas sur la fenêtre tant qu'elle est posée. */
+  /** Drilled-down slice, which takes precedence over the window whenever it's set. */
   slice: LogSlice | null
-  /** Du plus ancien au plus récent. Le défaut est l'inverse. */
+  /** Oldest to newest. The default is the reverse. */
   ascending: boolean
 }
 
@@ -43,10 +43,10 @@ export interface LogsState {
 }
 
 /**
- * Granularité de l'histogramme, déduite de la fenêtre.
+ * Histogram granularity, derived from the window.
  *
- * Décidée par le client et non laissée au serveur : c'est le client qui sait combien de barres son
- * écran peut porter, et une heure découpée à l'heure donnerait une barre unique.
+ * Decided by the client rather than left to the server: it's the client that knows how many bars
+ * its screen can carry, and an hour bucketed by the hour would give a single bar.
  */
 function granularityFor(window: LogWindow): LogGranularity {
   if (window === '1h') return 'Minute'
@@ -56,15 +56,15 @@ function granularityFor(window: LogWindow): LogGranularity {
 }
 
 /**
- * Page du journal et histogramme de la même fenêtre.
+ * Log page and histogram for the same window.
  *
- * Un seul appel pour les deux : le serveur vide son tampon d'écriture à chaque lecture du journal,
- * donc deux appels successifs ne décrivent pas le même état — l'histogramme affichait dix-neuf
- * entrées au-dessus d'un tableau qui en comptait dix-sept.
+ * A single call for both: the server drains its write buffer on every log read, so two
+ * successive calls don't describe the same state — the histogram would show nineteen entries
+ * above a table that counted seventeen.
  *
- * La borne basse est calculée à l'instant de l'appel, jamais mémorisée dans l'état : une fenêtre
- * glissante figée au montage montrerait « dernière heure » en désignant une heure révolue. Une
- * tranche forée, elle, a des bornes fixes — c'est tout l'intérêt d'en désigner une.
+ * The lower bound is computed at call time, never memoized in state: a sliding window frozen at
+ * mount would show "last hour" while pointing at an hour long past. A drilled-down slice, on the
+ * other hand, has fixed bounds — that's the whole point of designating one.
  */
 export function useLogs(query: LogsQuery): LogsState {
   const [result, setResult] = useState<Page<LogEntry> | null>(null)
@@ -74,8 +74,8 @@ export function useLogs(query: LogsQuery): LogsState {
 
   const { page, perPage, levels, method, status, q, window, slice, ascending } = query
 
-  // Les niveaux voyagent en clé de dépendance : un tableau littéral change d'identité à chaque
-  // rendu du parent, et l'effet rechargerait le journal en boucle.
+  // Levels travel as a dependency key: a literal array changes identity on every render of the
+  // parent, and the effect would reload the log in a loop.
   const levelKey = levels.join(',')
   const sliceKey = slice ? `${slice.from}|${slice.to}|${slice.granularity}` : ''
 
@@ -90,8 +90,8 @@ export function useLogs(query: LogsQuery): LogsState {
       const { stats: histogram, ...list } = await api.logs.listWithStats({
         levels,
         method: method === '' ? undefined : method,
-        // Zéro n'est pas un statut HTTP : c'est ce que portent les entrées d'application, et le
-        // filtre ne sait pas les désigner. Il vaut donc « aucun filtre ».
+        // Zero isn't an HTTP status: it's what application entries carry, and the filter has no
+        // way to designate them. So it means "no filter".
         status: status === 0 ? undefined : status,
         q: q === '' ? undefined : q,
         ...bounds,
@@ -108,7 +108,7 @@ export function useLogs(query: LogsQuery): LogsState {
     } finally {
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `levels` et `slice` passent par leur clé.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `levels` and `slice` travel via their key.
   }, [page, perPage, levelKey, method, status, q, window, sliceKey, ascending])
 
   useEffect(() => {

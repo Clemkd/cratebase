@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { api, session } from '../api'
 
-/** Une écriture annoncée par le serveur. */
+/** A write announced by the server. */
 export interface RealtimeMessage {
   action: 'create' | 'update' | 'delete'
   collection: string
@@ -10,15 +10,15 @@ export interface RealtimeMessage {
 }
 
 /**
- * Abonnement temps réel à un ou plusieurs sujets.
+ * Realtime subscription to one or more topics.
  *
- * Deux requêtes, et c'est le navigateur qui l'impose : une `EventSource` ne porte aucun en-tête,
- * donc le flux s'ouvre anonyme et l'abonnement — qui, lui, est une requête ordinaire — y attache le
- * jeton. C'est aussi ce qui permet de changer de sujets sans rouvrir le flux.
+ * Two requests, and the browser is what forces it: an `EventSource` carries no header, so the
+ * stream opens anonymous and the subscription — an ordinary request — attaches the token to it.
+ * This is also what allows changing topics without reopening the stream.
  *
- * La réaction est passée par référence plutôt que par dépendance de l'effet : un écran qui
- * recharge sa liste à chaque évènement redéfinirait sa fonction à chaque rendu, et le flux se
- * fermerait puis se rouvrirait à chaque fois.
+ * The reaction is passed by reference rather than as an effect dependency: a screen that
+ * reloads its list on every event would redefine its function on every render, and the stream
+ * would close and reopen each time.
  */
 export function useRealtime(
   topics: string[],
@@ -43,7 +43,7 @@ export function useRealtime(
         try {
           react.current(JSON.parse((event as MessageEvent<string>).data) as RealtimeMessage)
         } catch {
-          // Message illisible : on l'ignore plutôt que de casser le flux pour les suivants.
+          // Unreadable message: it's ignored rather than breaking the stream for the ones after it.
         }
       })
     }
@@ -59,8 +59,8 @@ export function useRealtime(
         if (abandoned || !session.token) return
 
         void api.realtime.subscribe(clientId, key.split(',')).catch(() => {
-          // Abonnement refusé — temps réel fermé, plafond atteint : l'écran reste utilisable, il
-          // ne se met simplement plus à jour tout seul.
+          // Subscription refused — realtime disabled, cap reached: the screen remains usable, it
+          // simply stops updating on its own.
         })
       })
 

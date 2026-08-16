@@ -1,24 +1,24 @@
 import { useCallback, useEffect, useState } from 'react'
 
-/** Vues d'une collection, telles qu'elles apparaissent dans la barre d'onglets. */
+/** Views of a collection, as they appear in the tab bar. */
 export type CollectionTab = 'records' | 'accounts' | 'general' | 'fields' | 'indexes' | 'rules'
 
-/** Vues qui composent l'éditeur de schéma. Elles partagent un même brouillon. */
+/** Views that make up the schema editor. They share a single draft. */
 export type SchemaTab = Extract<CollectionTab, 'general' | 'fields' | 'indexes' | 'rules'>
 
 export const SCHEMA_TABS: SchemaTab[] = ['general', 'fields', 'indexes', 'rules']
 
-/** Sections de l'espace d'administration. */
+/** Sections of the admin area. */
 export type AdminSection = 'settings' | 'storage' | 'superusers' | 'providers'
 
 export const ADMIN_SECTIONS: AdminSection[] = ['settings', 'storage', 'superusers', 'providers']
 
 export type Route =
   /**
-   * Tableau de bord, et racine de la console.
+   * Dashboard, and root of the console.
    *
-   * Deux adresses pour un même écran seraient une de trop : l'icône maison, le logo et l'entrée de
-   * menu mènent tous ici, donc ici est la racine.
+   * Two addresses for the same screen would be one too many: the home icon, the logo, and the
+   * menu entry all lead here, so here is the root.
    */
   | { kind: 'home' }
   | { kind: 'new'; section: SchemaTab }
@@ -27,11 +27,11 @@ export type Route =
       name: string
       tab: CollectionTab
       /**
-       * Enregistrement à mettre en avant à l'arrivée, désigné par son identifiant.
+       * Record to highlight on arrival, designated by its identifier.
        *
-       * Porté par l'adresse et non par un état d'application : c'est ce qui permet à un lien —
-       * l'auteur d'une entrée de journal, par exemple — de désigner un enregistrement précis, et à
-       * la flèche « retour » de défaire ce cadrage.
+       * Carried by the address rather than by application state: this is what lets a link — the
+       * author of a log entry, for example — designate a specific record, and lets the "back"
+       * arrow undo that framing.
        */
       focus?: string
     }
@@ -40,30 +40,29 @@ export type Route =
   | { kind: 'admin'; section: AdminSection }
 
 /**
- * Fragment d'URL de chaque vue.
+ * URL fragment for each view.
  *
- * `records` n'en a pas : c'est la vue d'arrivée, et lui donner un segment ferait deux URL pour un
- * même écran. Les segments sont en français comme le reste de l'interface ; les identifiants de
- * code restent en anglais.
+ * `records` has none: it's the landing view, and giving it a segment would create two URLs for
+ * the same screen.
  */
 const SEGMENTS: Record<CollectionTab, string> = {
   records: '',
-  accounts: 'comptes',
+  accounts: 'accounts',
   general: 'general',
-  fields: 'champs',
-  indexes: 'index',
-  rules: 'regles',
+  fields: 'fields',
+  indexes: 'indexes',
+  rules: 'rules',
 }
 
-/** Fragment d'URL de chaque section d'administration. Les paramètres sont la vue d'arrivée. */
+/** URL fragment for each admin section. Settings is the landing view. */
 const ADMIN_SEGMENTS: Record<AdminSection, string> = {
   settings: '',
-  storage: 'stockage',
-  superusers: 'super-admins',
-  providers: 'fournisseurs',
+  storage: 'storage',
+  superusers: 'superusers',
+  providers: 'providers',
 }
 
-/** Anciennes adresses, encore présentes dans des favoris. `schema` ouvrait le schéma entier. */
+/** Legacy addresses, still present in bookmarks. `schema` used to open the whole schema. */
 const ALIASES: Record<string, CollectionTab> = {
   schema: 'general',
   accounts: 'accounts',
@@ -94,25 +93,25 @@ function adminSectionFrom(segment: string | undefined): AdminSection | null {
 }
 
 function parse(hash: string): Route {
-  // La partie interrogative est détachée avant le découpage : sans cela `comptes?r=…` serait pris
-  // pour un nom de vue, et aucune vue ne s'appelle ainsi.
+  // The query part is stripped before splitting: without that, `accounts?r=…` would be taken for
+  // a view name, and no view is named that.
   const [path = '', query] = hash.replace(/^#\/?/, '').split('?')
   const segments = path.split('/').filter(Boolean)
   const focus = new URLSearchParams(query ?? '').get('r') ?? undefined
 
-  if (segments[0] === 'journaux') {
+  if (segments[0] === 'logs') {
     return { kind: 'logs' }
   }
 
-  if (segments[0] === 'fichiers') {
+  if (segments[0] === 'files') {
     return { kind: 'files' }
   }
 
-  if (segments[0] === 'administration') {
+  if (segments[0] === 'admin') {
     return { kind: 'admin', section: adminSectionFrom(segments[1]) ?? 'settings' }
   }
 
-  if (segments[0] === 'nouvelle') {
+  if (segments[0] === 'new') {
     return { kind: 'new', section: sectionFrom(segments[1]) ?? 'general' }
   }
 
@@ -131,18 +130,18 @@ function parse(hash: string): Route {
 export function routeHref(route: Route): string {
   if (route.kind === 'home') return '#/'
 
-  if (route.kind === 'logs') return '#/journaux'
+  if (route.kind === 'logs') return '#/logs'
 
-  if (route.kind === 'files') return '#/fichiers'
+  if (route.kind === 'files') return '#/files'
 
   if (route.kind === 'admin') {
     return route.section === 'settings'
-      ? '#/administration'
-      : `#/administration/${ADMIN_SEGMENTS[route.section]}`
+      ? '#/admin'
+      : `#/admin/${ADMIN_SEGMENTS[route.section]}`
   }
 
   if (route.kind === 'new') {
-    return route.section === 'general' ? '#/nouvelle' : `#/nouvelle/${SEGMENTS[route.section]}`
+    return route.section === 'general' ? '#/new' : `#/new/${SEGMENTS[route.section]}`
   }
 
   const base = `#/c/${encodeURIComponent(route.name)}`
@@ -152,11 +151,11 @@ export function routeHref(route: Route): string {
 }
 
 /**
- * Routage par fragment d'URL.
+ * Routing by URL fragment.
  *
- * Le fragment suffit ici : la console est servie en repli SPA par ASP.NET Core, et un chemin réel
- * exigerait que chaque URL profonde soit renvoyée vers `index.html` — une condition de plus à tenir
- * dans l'hôte, pour un gain nul sur une application d'administration.
+ * The fragment is enough here: the console is served as an SPA fallback by ASP.NET Core, and a
+ * real path would require every deep URL to be redirected to `index.html` — one more condition to
+ * maintain in the host, for zero benefit on an admin application.
  */
 export function useRoute(): { route: Route; navigate: (route: Route) => void } {
   const [route, setRoute] = useState<Route>(() => parse(globalThis.location?.hash ?? ''))

@@ -9,7 +9,7 @@ export interface CollectionsState {
   reload: () => Promise<void>
 }
 
-/** Catalogue des collections et moteur de stockage, rechargés à la demande. */
+/** Catalog of collections and storage engine, reloaded on demand. */
 export function useCollections(): CollectionsState {
   const [collections, setCollections] = useState<Collection[]>([])
   const [engine, setEngine] = useState('')
@@ -42,10 +42,10 @@ export function useCollections(): CollectionsState {
 export type CollectionGroup = 'data' | 'auth' | 'view' | 'system'
 
 /**
- * Groupe d'appartenance d'une collection.
+ * Group a collection belongs to.
  *
- * Une seule définition pour la colonne de navigation et pour le fil d'Ariane : deux règles
- * jumelles finiraient par diverger, et le fil contredirait alors le menu de gauche.
+ * A single definition for the navigation column and the breadcrumb: two twin rules would
+ * eventually diverge, and the breadcrumb would then contradict the left-hand menu.
  */
 export function groupOf(collection: Collection): CollectionGroup {
   if (collection.isSystem) return 'system'
@@ -55,7 +55,7 @@ export function groupOf(collection: Collection): CollectionGroup {
   return 'data'
 }
 
-/** Répartit les collections dans les groupes de la barre latérale. */
+/** Splits collections into the sidebar's groups. */
 export function groupCollections(collections: Collection[]): Record<CollectionGroup, Collection[]> {
   return {
     data: collections.filter((item) => groupOf(item) === 'data'),
@@ -68,18 +68,18 @@ export function groupCollections(collections: Collection[]): Record<CollectionGr
 const RANK: Record<CollectionGroup, number> = { data: 0, auth: 1, view: 2, system: 3 }
 
 /**
- * Ordre d'affichage de la colonne : une seule liste, du quotidien vers le moteur.
+ * Display order of the column: a single list, from everyday use toward the engine.
  *
- * L'appartenance décide du rang mais ne coupe plus la liste en sections titrées. Trois intertitres
- * en capitales, chacun suivi d'un ou deux noms, produisaient plus de lignes de décor que de
- * destinations — et une colonne de cinq collections tenait sur onze lignes. Le groupe reste lisible,
- * porté par l'icône de chaque entrée ; l'ordre, lui, fait le reste du travail en poussant les
- * collections système au bas de la liste, là où on ne les cherche pas.
+ * Group membership decides the rank but no longer splits the list into titled sections. Three
+ * capitalized subheadings, each followed by one or two names, produced more decorative lines than
+ * destinations — and a column of five collections took up eleven lines. The group stays legible,
+ * carried by each entry's icon; the ordering does the rest of the work by pushing system
+ * collections to the bottom of the list, where nobody looks for them.
  */
 export function sortCollections(collections: Collection[]): Collection[] {
   return [...collections].sort(
     (left, right) =>
       RANK[groupOf(left)] - RANK[groupOf(right)] ||
-      left.name.localeCompare(right.name, 'fr', { sensitivity: 'base' }),
+      left.name.localeCompare(right.name, 'en', { sensitivity: 'base' }),
   )
 }
