@@ -7,19 +7,18 @@ using Dapper;
 namespace Cratebase.Records;
 
 /// <summary>
-/// Moteur CRUD des enregistrements.
+/// Records CRUD engine.
 /// </summary>
 /// <remarks>
 /// <para>
-/// L'ordre d'application est celui du §7 du document de conception, et il n'est pas négociable :
-/// règle d'accès compilée d'abord, filtre client ensuite, composition par conjonction, bornes,
-/// puis une seule requête paramétrée.
+/// The order of application is the design document's §7, and it is not negotiable: access rule
+/// compiled first, client filter next, composed by conjunction, bounds applied, then a single
+/// parameterized query.
 /// </para>
 /// <para>
-/// Les écritures placent la règle dans la clause <c>WHERE</c> de l'instruction elle-même et
-/// <b>vérifient le nombre de lignes affectées</b>. C'est la contre-mesure au défaut le plus
-/// coûteux de ce genre de couche : une suppression qui traverse le périmètre, répond 204, et
-/// détruit la ligne de quelqu'un d'autre.
+/// Writes place the rule in the statement's own <c>WHERE</c> clause and <b>check the number of
+/// affected rows</b>. This is the countermeasure to this kind of layer's most costly defect: a
+/// deletion that crosses the scope, returns 204, and destroys someone else's row.
 /// </para>
 /// </remarks>
 public sealed class RecordService(
@@ -45,7 +44,7 @@ public sealed class RecordService(
 
     private ISqlDialect Dialect => _connections.Dialect;
 
-    /// <summary>Liste les enregistrements d'une collection.</summary>
+    /// <summary>Lists a collection's records.</summary>
     public async Task<PagedResult<IReadOnlyDictionary<string, object?>>> ListAsync(
         string collectionName,
         RecordQuery query,
@@ -58,8 +57,8 @@ public sealed class RecordService(
         var collection = _registry.Require(collectionName);
         var compiler = CompilerFor(collection, request);
 
-        // 1. La règle d'abord. 2. Le filtre du client ensuite. 3. Conjonction — et rien d'autre :
-        // SqlPredicate n'expose pas de disjonction, donc le filtre ne peut pas élargir la règle.
+        // 1. The rule first. 2. Then the client's filter. 3. Conjunction — and nothing else:
+        // SqlPredicate exposes no disjunction, so the filter can never widen the rule.
         var rule = RuleGuard.Compile(collection, CollectionAction.List, compiler, request.Auth, RulePrefix);
         var filter = compiler.Compile(query.Filter, Alias, FilterPrefix);
         var predicate = rule.And(filter);
@@ -108,17 +107,17 @@ public sealed class RecordService(
     }
 
     /// <summary>
-    /// Renseigne les champs de date automatique déclarés par la collection.
+    /// Sets the auto-date fields declared by the collection.
     /// </summary>
     /// <remarks>
-    /// <c>created</c> et <c>updated</c> sont posés juste avant, en dur : ce sont des champs système,
-    /// et le moteur ne peut pas dépendre d'options que quelqu'un pourrait décocher. Ceux-ci sont
-    /// déclarés par l'utilisateur — « vu le », « archivé le » — et suivent exactement la même règle,
-    /// sans quoi le type ne serait qu'une étiquette : la console laisserait le choisir et rien ne se
-    /// remplirait.
+    /// <c>created</c> and <c>updated</c> are set just before this, hardcoded: they are system
+    /// fields, and the engine cannot depend on options someone could uncheck. These are
+    /// user-declared — "viewed at", "archived at" — and follow exactly the same rule, otherwise
+    /// the type would be nothing but a label: the console would let it be chosen and nothing would
+    /// ever fill it in.
     ///
-    /// La valeur soumise est écrasée, jamais respectée : un champ dit automatique dont un client
-    /// peut poser la date ne prouve plus rien sur le moment où l'écriture a eu lieu.
+    /// The submitted value is overwritten, never honored: a field claimed to be automatic that a
+    /// client can set no longer proves anything about when the write actually happened.
     /// </remarks>
     private static void StampAutoDates(
         CollectionDefinition collection,
@@ -140,7 +139,7 @@ public sealed class RecordService(
         }
     }
 
-    /// <summary>Consulte un enregistrement.</summary>
+    /// <summary>Views a record.</summary>
     public async Task<IReadOnlyDictionary<string, object?>> ViewAsync(
         string collectionName,
         string recordId,
@@ -158,21 +157,21 @@ public sealed class RecordService(
         var row = await FetchAsync(connection, null, collection, recordId, rule, cancellationToken)
             .ConfigureAwait(false);
 
-        // 404 et non 403 : un 403 confirmerait que la ligne existe, ce qui suffit à cartographier
-        // une base par essais d'identifiants.
+        // 404, not 403: a 403 would confirm the row exists, which is enough to map a database by
+        // trying identifiers.
         return row ?? throw new CratebaseNotFoundException();
     }
 
-    /// <summary>Crée un enregistrement.</summary>
-    /// <param name="collectionName">Collection cible.</param>
-    /// <param name="data">Valeurs soumises.</param>
-    /// <param name="request">Contexte d'évaluation des règles.</param>
+    /// <summary>Creates a record.</summary>
+    /// <param name="collectionName">Target collection.</param>
+    /// <param name="data">Submitted values.</param>
+    /// <param name="request">Rule evaluation context.</param>
     /// <param name="id">
-    /// Identifiant imposé. Sert à l'import de fichiers : les objets sont rangés sous
-    /// <c>{collection}/{id}/…</c>, donc l'identifiant doit être connu <b>avant</b> l'insertion. À
-    /// laisser vide dans tous les autres cas.
+    /// Forced identifier. Used for file import: objects are stored under
+    /// <c>{collection}/{id}/…</c>, so the identifier must be known <b>before</b> insertion. Leave
+    /// empty in every other case.
     /// </param>
-    /// <param name="cancellationToken">Jeton d'annulation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task<IReadOnlyDictionary<string, object?>> CreateAsync(
         string collectionName,
         RecordData data,
@@ -187,8 +186,8 @@ public sealed class RecordService(
         var compiler = CompilerFor(collection, request);
         var rule = RuleGuard.Compile(collection, CollectionAction.Create, compiler, request.Auth, RulePrefix);
 
-        // Le corps brut est figé avant validation : la validation retire les champs système, et
-        // c'est précisément là que les crochets vont chercher le mot de passe soumis.
+        // The raw body is captured before validation: validation strips system fields, and that's
+        // exactly where hooks go looking for the submitted password.
         var submitted = new Dictionary<string, object?>(data.AsDictionary(), StringComparer.Ordinal);
 
         RecordValidator.Validate(collection, data, isCreate: true);
@@ -211,8 +210,8 @@ public sealed class RecordService(
         var writable = collection.Fields.Where(f => data.Contains(f.Name)).ToList();
         var columns = string.Join(", ", writable.Select(f => Dialect.QuoteIdentifier(f.ColumnName)));
 
-        // BindParameter, et non l'emplacement nu : une colonne JSON native exige un transtypage
-        // explicite sur PostgreSQL.
+        // BindParameter, not the bare placeholder: a native JSON column requires an explicit cast
+        // on PostgreSQL.
         var placeholders = string.Join(", ", writable.Select(f =>
             Dialect.BindParameter(f.Type, f.Multiple, $"@{ValuePrefix}_{f.ColumnName}")));
 
@@ -243,9 +242,9 @@ public sealed class RecordService(
             throw translated;
         }
 
-        // La règle de création s'évalue sur la ligne telle qu'elle vient d'être écrite, valeurs par
-        // défaut comprises — pas sur le corps brut. Une règle « owner = @request.auth.id » doit
-        // donc voir le propriétaire posé par un hook, et pas seulement celui soumis par le client.
+        // The create rule evaluates against the row exactly as it was just written, defaults
+        // included — not against the raw body. An "owner = @request.auth.id" rule must therefore
+        // see the owner set by a hook, not only the one submitted by the client.
         var created = await FetchAsync(
                 connection, transaction, collection, recordId.ToString(), rule, cancellationToken)
             .ConfigureAwait(false);
@@ -255,7 +254,7 @@ public sealed class RecordService(
             await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
 
             throw new CratebaseBadRequestException(
-                "La règle de création de cette collection interdit cet enregistrement.");
+                "This collection's create rule forbids this record.");
         }
 
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -266,7 +265,7 @@ public sealed class RecordService(
         return created;
     }
 
-    /// <summary>Modifie un enregistrement.</summary>
+    /// <summary>Updates a record.</summary>
     public async Task<IReadOnlyDictionary<string, object?>> UpdateAsync(
         string collectionName,
         string recordId,
@@ -281,9 +280,8 @@ public sealed class RecordService(
 
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        // L'état antérieur alimente le modificateur « :changed ». Il est lu sans appliquer de
-        // règle — sans risque, puisqu'il n'est jamais renvoyé et que l'écriture, elle, porte la
-        // règle dans son WHERE.
+        // The prior state feeds the ":changed" modifier. It's read without applying a rule — safe,
+        // since it's never returned and the write itself carries the rule in its WHERE.
         var original = await FetchAsync(
                 connection, null, collection, recordId, SqlPredicate.Unconstrained, cancellationToken)
             .ConfigureAwait(false);
@@ -346,9 +344,9 @@ public sealed class RecordService(
                 Dialect.ToStorage(field.Type, field.Multiple, data[field.Name]));
         }
 
-        // ⚠️ La règle est dans le WHERE de l'UPDATE, et le nombre de lignes affectées est vérifié.
-        // Contrôler l'accès par une lecture préalable ouvrirait une fenêtre entre le contrôle et
-        // l'écriture ; ici, les deux sont la même instruction.
+        // ⚠️ The rule sits in the UPDATE's WHERE, and the number of affected rows is checked.
+        // Checking access with a prior read would open a window between the check and the write;
+        // here, both are the same statement.
         var sql = $"""
                    UPDATE {Dialect.QuoteIdentifier(collection.TableName)} AS {Dialect.QuoteIdentifier(Alias)}
                    SET {assignments}
@@ -386,7 +384,7 @@ public sealed class RecordService(
         return updated;
     }
 
-    /// <summary>Supprime un enregistrement.</summary>
+    /// <summary>Deletes a record.</summary>
     public async Task DeleteAsync(
         string collectionName,
         string recordId,
@@ -399,9 +397,9 @@ public sealed class RecordService(
         var compiler = CompilerFor(collection, request);
         var rule = RuleGuard.Compile(collection, CollectionAction.Delete, compiler, request.Auth, RulePrefix);
 
-        // Les crochets passent avant la règle d'accès, comme à la création : ils protègent une
-        // invariante du moteur — le dernier super-admin — que nulle règle ne saurait
-        // exprimer, puisque c'est précisément le compte qui a le droit de tout faire.
+        // Hooks run before the access rule, as on create: they protect an engine invariant — the
+        // last superuser — that no rule could express, since that's precisely the account that has
+        // the right to do everything.
         foreach (var hook in _hooks)
         {
             await hook.BeforeDeleteAsync(collection, recordId, cancellationToken).ConfigureAwait(false);
@@ -435,9 +433,9 @@ public sealed class RecordService(
             throw translated;
         }
 
-        // Zéro ligne affectée : soit l'enregistrement n'existe pas, soit il est hors périmètre. Les
-        // deux cas rendent 404, et c'est délibéré — distinguer les deux dirait à l'appelant que la
-        // ligne existe.
+        // Zero rows affected: either the record doesn't exist, or it's out of scope. Both cases
+        // return 404, and that's deliberate — telling them apart would disclose that the row
+        // exists.
         if (affected == 0)
         {
             throw new CratebaseNotFoundException();
@@ -448,13 +446,13 @@ public sealed class RecordService(
     }
 
     /// <summary>
-    /// Prévient les crochets qu'une écriture a eu lieu.
+    /// Notifies the hooks that a write happened.
     /// </summary>
     /// <remarks>
-    /// Les exceptions sont absorbées, une par crochet : un abonné injoignable ou un envoi de
-    /// courriel en échec ne doit pas transformer une création réussie en erreur pour l'appelant.
-    /// L'écriture est faite ; la seule chose que lever ici produirait, c'est un client qui la croit
-    /// perdue et la rejoue.
+    /// Exceptions are absorbed, one hook at a time: an unreachable subscriber or a failed email
+    /// send must not turn a successful creation into an error for the caller. The write already
+    /// happened; the only thing throwing here would achieve is a client that believes it was lost
+    /// and replays it.
     /// </remarks>
     private async Task AnnounceAsync(
         CollectionDefinition collection,
@@ -472,8 +470,8 @@ public sealed class RecordService(
             }
             catch (Exception failure) when (failure is not OperationCanceledException)
             {
-                // Volontairement silencieux vis-à-vis de l'appelant : c'est au crochet de journaliser
-                // son propre échec, lui seul sait ce qu'il tentait de faire.
+                // Deliberately silent toward the caller: logging its own failure is the hook's
+                // job — only it knows what it was trying to do.
             }
         }
     }

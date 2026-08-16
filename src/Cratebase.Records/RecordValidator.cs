@@ -6,12 +6,11 @@ using Cratebase.Schema;
 namespace Cratebase.Records;
 
 /// <summary>
-/// Contrôle les valeurs d'un enregistrement contre le schéma de sa collection.
+/// Checks a record's values against its collection's schema.
 /// </summary>
 /// <remarks>
-/// La validation s'applique <b>y compris au superadmin</b>. Contourner les règles d'accès est une
-/// décision d'autorisation ; contourner la validation produirait des lignes que le moteur ne sait
-/// plus relire.
+/// Validation applies <b>even to superusers</b>. Bypassing access rules is an authorization
+/// decision; bypassing validation would produce rows the engine can no longer read back.
 /// </remarks>
 public static partial class RecordValidator
 {
@@ -19,11 +18,11 @@ public static partial class RecordValidator
     private static partial Regex EmailShape { get; }
 
     /// <summary>
-    /// Valide et normalise les valeurs soumises.
+    /// Validates and normalizes submitted values.
     /// </summary>
-    /// <param name="collection">Collection cible.</param>
-    /// <param name="data">Valeurs soumises, modifiées en place par la normalisation.</param>
-    /// <param name="isCreate">Création (les champs absents prennent leur valeur nulle) ou modification.</param>
+    /// <param name="collection">Target collection.</param>
+    /// <param name="data">Submitted values, modified in place by normalization.</param>
+    /// <param name="isCreate">Creation (absent fields take their zero value) or modification.</param>
     public static void Validate(CollectionDefinition collection, RecordData data, bool isCreate)
     {
         ArgumentNullException.ThrowIfNull(collection);
@@ -35,9 +34,9 @@ public static partial class RecordValidator
         {
             if (field.IsSystem && field.Name is not (SystemFields.Email or SystemFields.EmailVisibility))
             {
-                // id, created, updated, password, tokenKey, verified : renseignés par le moteur,
-                // jamais par le client. Les accepter permettrait d'usurper une identité en
-                // POSTant « verified: true ».
+                // id, created, updated, password, tokenKey, verified: set by the engine, never by
+                // the client. Accepting them would let identity be stolen by POSTing
+                // "verified: true".
                 data.Remove(field.Name);
                 continue;
             }
@@ -59,7 +58,7 @@ public static partial class RecordValidator
 
             if (field.Required && IsEmpty(data[field.Name]))
             {
-                messages.Add("Ce champ est obligatoire.");
+                messages.Add("This field is required.");
             }
 
             if (messages.Count > 0)
@@ -68,10 +67,10 @@ public static partial class RecordValidator
             }
         }
 
-        // Un champ soumis qui n'existe pas dans le schéma est refusé plutôt qu'ignoré : l'ignorer
-        // ferait croire à l'appelant que sa donnée a été enregistrée. Les champs d'entrée pure
-        // (confirmation de mot de passe) font exception et sont simplement retirés — les crochets
-        // les lisent dans le corps brut.
+        // A submitted field absent from the schema is refused rather than ignored: ignoring it
+        // would lead the caller to believe their data was saved. Input-only fields (password
+        // confirmation) are the exception and are simply stripped — hooks read them from the raw
+        // body.
         foreach (var submitted in data.Keys.ToList())
         {
             if (SystemFields.InputOnlyFields.Contains(submitted))
@@ -82,7 +81,7 @@ public static partial class RecordValidator
 
             if (collection.Field(submitted) is null)
             {
-                errors[submitted] = ["Ce champ n'existe pas dans cette collection."];
+                errors[submitted] = ["This field does not exist in this collection."];
             }
         }
 
@@ -100,7 +99,7 @@ public static partial class RecordValidator
 
             if (items.Count > field.MaxSelect)
             {
-                messages.Add($"Ce champ n'admet pas plus de {field.MaxSelect} valeurs.");
+                messages.Add($"This field does not admit more than {field.MaxSelect} values.");
             }
 
             foreach (var item in items)
@@ -111,12 +110,12 @@ public static partial class RecordValidator
             return items;
         }
 
-        // ⚠️ Un tableau soumis à un champ simple ne doit jamais atteindre le stockage : la
-        // conversion en texte le rendrait « System.String[] », c'est-à-dire une donnée détruite
-        // sans le moindre message. Refus explicite.
+        // ⚠️ An array submitted to a scalar field must never reach storage: converting it to text
+        // would render it "System.String[]", i.e. destroyed data with no error at all. Explicit
+        // refusal.
         if (value is not string and System.Collections.IEnumerable)
         {
-            messages.Add("Ce champ n'accepte qu'une seule valeur.");
+            messages.Add("This field only accepts a single value.");
             return string.Empty;
         }
 
@@ -138,17 +137,17 @@ public static partial class RecordValidator
 
                 if (options.IntegerOnly && number % 1 != 0)
                 {
-                    messages.Add("Ce champ n'admet que des entiers.");
+                    messages.Add("This field only admits integers.");
                 }
 
                 if (options.Min is { } min && number < min)
                 {
-                    messages.Add($"La valeur doit être supérieure ou égale à {min}.");
+                    messages.Add($"The value must be greater than or equal to {min}.");
                 }
 
                 if (options.Max is { } max && number > max)
                 {
-                    messages.Add($"La valeur doit être inférieure ou égale à {max}.");
+                    messages.Add($"The value must be less than or equal to {max}.");
                 }
 
                 return number;
@@ -160,7 +159,7 @@ public static partial class RecordValidator
 
                 if (text.Length > 0 && !EmailShape.IsMatch(text))
                 {
-                    messages.Add("Adresse de courriel invalide.");
+                    messages.Add("Invalid email address.");
                 }
 
                 return text;
@@ -172,7 +171,7 @@ public static partial class RecordValidator
 
                 if (text.Length > 0 && !Uri.TryCreate(text, UriKind.Absolute, out _))
                 {
-                    messages.Add("URL absolue attendue.");
+                    messages.Add("Absolute URL expected.");
                 }
 
                 return text;
@@ -189,7 +188,7 @@ public static partial class RecordValidator
 
                 if (!Timestamp.TryNormalize(text, out var canonical))
                 {
-                    messages.Add("Date invalide.");
+                    messages.Add("Invalid date.");
                     return text;
                 }
 
@@ -202,7 +201,7 @@ public static partial class RecordValidator
 
                 if (text.Length > 0 && !options.Values.Contains(text, StringComparer.Ordinal))
                 {
-                    messages.Add($"« {text} » n'est pas une valeur admise.");
+                    messages.Add($"\"{text}\" is not an admitted value.");
                 }
 
                 return text;
@@ -214,7 +213,7 @@ public static partial class RecordValidator
 
                 if (text.Length > 0 && !RecordId.TryParse(text, out _))
                 {
-                    messages.Add($"« {text} » n'est pas un identifiant d'enregistrement valide.");
+                    messages.Add($"\"{text}\" is not a valid record identifier.");
                 }
 
                 return text;
@@ -232,32 +231,32 @@ public static partial class RecordValidator
 
                 if (options.Min is { } min && text.Length < min)
                 {
-                    messages.Add($"Ce champ doit compter au moins {min} caractères.");
+                    messages.Add($"This field must be at least {min} characters long.");
                 }
 
                 if (options.Max is { } max && text.Length > max)
                 {
-                    messages.Add($"Ce champ ne peut dépasser {max} caractères.");
+                    messages.Add($"This field cannot exceed {max} characters.");
                 }
 
                 if (options.Pattern is { Length: > 0 } pattern && text.Length > 0)
                 {
-                    // Délai borné : un motif fourni par un administrateur peut être catastrophique
-                    // en retour sur trace, et bloquerait alors le serveur sur chaque écriture.
+                    // Bounded timeout: a pattern supplied by an administrator can backtrack
+                    // catastrophically, which would then block the server on every write.
                     try
                     {
                         if (!Regex.IsMatch(text, pattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100)))
                         {
-                            messages.Add("La valeur ne respecte pas le motif attendu.");
+                            messages.Add("The value does not match the expected pattern.");
                         }
                     }
                     catch (RegexMatchTimeoutException)
                     {
-                        messages.Add("La vérification du motif a dépassé le délai imparti.");
+                        messages.Add("Pattern matching exceeded its time limit.");
                     }
                     catch (ArgumentException)
                     {
-                        messages.Add("Le motif déclaré sur ce champ est invalide.");
+                        messages.Add("The pattern declared on this field is invalid.");
                     }
                 }
 
@@ -305,7 +304,7 @@ public static partial class RecordValidator
             case string text when double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed):
                 return parsed;
             default:
-                messages.Add("Nombre attendu.");
+                messages.Add("Number expected.");
                 return 0d;
         }
     }
