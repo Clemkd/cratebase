@@ -3,45 +3,45 @@ using Cratebase.Core;
 namespace Cratebase.Admin;
 
 /// <summary>
-/// Gravité d'une entrée de journal.
+/// Severity of a log entry.
 /// </summary>
 /// <remarks>
-/// Quatre niveaux, comme PocketBase, et pas davantage : au-delà, personne ne sait plus quel niveau
-/// choisir à l'écriture, et le filtre de l'écran des journaux cesse de vouloir dire quelque chose.
-/// L'ordre de déclaration <b>est</b> l'ordre de gravité — <see cref="LogSeverities.AtLeast"/> s'en
-/// sert pour traduire « au moins Avertissement » en liste de valeurs.
+/// Four levels, like PocketBase, no more: beyond that, nobody knows which level to pick when
+/// writing, and the log screen's filter stops meaning anything. Declaration order <b>is</b>
+/// severity order — <see cref="LogSeverities.AtLeast"/> uses it to translate "at least Warning"
+/// into a list of values.
 /// </remarks>
 public enum LogSeverity
 {
-    /// <summary>Détail de mise au point.</summary>
+    /// <summary>Debugging detail.</summary>
     Debug,
 
-    /// <summary>Déroulement normal : une requête servie.</summary>
+    /// <summary>Normal flow: a served request.</summary>
     Info,
 
-    /// <summary>Anomalie imputable à l'appelant : 4xx, refus d'accès.</summary>
+    /// <summary>Anomaly attributable to the caller: 4xx, access refusal.</summary>
     Warning,
 
-    /// <summary>Anomalie imputable au serveur : 5xx, exception non traduite.</summary>
+    /// <summary>Anomaly attributable to the server: 5xx, untranslated exception.</summary>
     Error,
 }
 
-/// <summary>Opérations sur les niveaux de gravité.</summary>
+/// <summary>Operations on severity levels.</summary>
 public static class LogSeverities
 {
-    /// <summary>Tous les niveaux, du moins grave au plus grave.</summary>
+    /// <summary>All levels, from least to most severe.</summary>
     public static IReadOnlyList<LogSeverity> All { get; } =
         [LogSeverity.Debug, LogSeverity.Info, LogSeverity.Warning, LogSeverity.Error];
 
-    /// <summary>Niveaux au moins aussi graves que celui demandé.</summary>
+    /// <summary>Levels at least as severe as the requested one.</summary>
     public static IReadOnlyList<LogSeverity> AtLeast(LogSeverity minimum) =>
         [.. All.Where(level => level >= minimum)];
 
-    /// <summary>Niveau correspondant à un statut HTTP.</summary>
+    /// <summary>Level corresponding to an HTTP status.</summary>
     /// <remarks>
-    /// Un 4xx est un avertissement et non une erreur : c'est le fonctionnement normal d'une API
-    /// publique — un filtre mal écrit, un jeton périmé. Ranger les deux au même niveau noierait les
-    /// vraies pannes sous le bruit des clients.
+    /// A 4xx is a warning, not an error: it's the normal operation of a public API — a badly
+    /// written filter, an expired token. Ranking both at the same level would drown real outages in
+    /// client noise.
     /// </remarks>
     public static LogSeverity ForStatus(int status) => status switch
     {
@@ -52,86 +52,86 @@ public static class LogSeverities
 }
 
 /// <summary>
-/// Entrée du journal.
+/// Log entry.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Les attributs d'une requête ont leur propre colonne au lieu de vivre dans <see cref="Data"/> :
-/// filtrer sur le statut ou la méthode est le geste courant de cet écran, et le faire à travers du
-/// JSON exigerait une extraction propre à chaque moteur — exactement ce que la règle R1 interdit
-/// hors des paquets <c>Cratebase.Data.*</c>.
+/// A request's attributes have their own column instead of living in <see cref="Data"/>: filtering
+/// by status or method is this screen's common gesture, and doing it through JSON would require an
+/// engine-specific extraction — exactly what rule R1 forbids outside the <c>Cratebase.Data.*</c>
+/// packages.
 /// </para>
 /// <para>
-/// Aucune propriété n'est nulle : une entrée d'application sans requête HTTP porte simplement des
-/// chaînes vides et des zéros. Le <c>NULL</c> se propagerait dans les filtres — <c>status &lt;&gt;
-/// 200</c> cesserait de ramener les lignes sans statut — pour ne rien exprimer de plus.
+/// No property is null: an application entry with no HTTP request simply carries empty strings and
+/// zeros. <c>NULL</c> would propagate into filters — <c>status &lt;&gt; 200</c> would stop matching
+/// rows with no status — to express nothing more.
 /// </para>
 /// </remarks>
 public sealed record LogEntry
 {
-    /// <summary>Identifiant. UUIDv7 : il trie déjà dans l'ordre de création.</summary>
+    /// <summary>Identifier. UUIDv7: already sorts in creation order.</summary>
     public RecordId Id { get; init; } = RecordId.New();
 
-    /// <summary>Instant d'écriture.</summary>
+    /// <summary>Write instant.</summary>
     public DateTimeOffset Created { get; init; }
 
-    /// <summary>Gravité.</summary>
+    /// <summary>Severity.</summary>
     public LogSeverity Level { get; init; } = LogSeverity.Info;
 
-    /// <summary>Message lisible.</summary>
+    /// <summary>Human-readable message.</summary>
     public string Message { get; init; } = string.Empty;
 
-    /// <summary>Méthode HTTP, pour une entrée de requête.</summary>
+    /// <summary>HTTP method, for a request entry.</summary>
     public string Method { get; init; } = string.Empty;
 
-    /// <summary>Chemin appelé, chaîne de requête comprise.</summary>
+    /// <summary>Called path, including the query string.</summary>
     public string Url { get; init; } = string.Empty;
 
-    /// <summary>Statut renvoyé. Zéro hors requête.</summary>
+    /// <summary>Returned status. Zero outside a request.</summary>
     public int Status { get; init; }
 
-    /// <summary>Durée de traitement, en millisecondes.</summary>
+    /// <summary>Processing time, in milliseconds.</summary>
     public double Duration { get; init; }
 
-    /// <summary>Collection d'authentification de l'appelant.</summary>
+    /// <summary>Caller's auth collection.</summary>
     public string AuthCollection { get; init; } = string.Empty;
 
-    /// <summary>Identifiant de l'appelant.</summary>
+    /// <summary>Caller's identifier.</summary>
     public string AuthId { get; init; } = string.Empty;
 
-    /// <summary>Adresse d'origine, si sa collecte est activée.</summary>
+    /// <summary>Origin address, if its collection is enabled.</summary>
     public string Ip { get; init; } = string.Empty;
 
-    /// <summary>Agent utilisateur.</summary>
+    /// <summary>User agent.</summary>
     public string UserAgent { get; init; } = string.Empty;
 
-    /// <summary>Référent.</summary>
+    /// <summary>Referer.</summary>
     public string Referer { get; init; } = string.Empty;
 
-    /// <summary>Détails libres : message d'erreur, filtre soumis, en-têtes retenus.</summary>
+    /// <summary>Free-form details: error message, submitted filter, retained headers.</summary>
     public IReadOnlyDictionary<string, object?> Data { get; init; } =
         new Dictionary<string, object?>(StringComparer.Ordinal);
 }
 
-/// <summary>Granularité de l'histogramme des journaux.</summary>
+/// <summary>Granularity of the log histogram.</summary>
 /// <remarks>
-/// Trois paliers seulement, et chacun correspond à une longueur de préfixe de la forme canonique —
-/// c'est ce qui rend le regroupement identique sur les deux moteurs, sans fonction de date.
+/// Only three tiers, and each corresponds to a prefix length of the canonical form — that's what
+/// makes grouping identical across both engines, with no date function.
 /// </remarks>
 public enum LogGranularity
 {
-    /// <summary>Un point par minute. Pour une fenêtre d'une heure.</summary>
+    /// <summary>One point per minute. For a one-hour window.</summary>
     Minute,
 
-    /// <summary>Un point par heure.</summary>
+    /// <summary>One point per hour.</summary>
     Hour,
 
-    /// <summary>Un point par jour.</summary>
+    /// <summary>One point per day.</summary>
     Day,
 }
 
-/// <summary>Un point de l'histogramme.</summary>
-/// <param name="Bucket">Début de la tranche, en forme canonique.</param>
-/// <param name="Level">Gravité comptée.</param>
-/// <param name="Count">Nombre d'entrées.</param>
+/// <summary>A point of the histogram.</summary>
+/// <param name="Bucket">Start of the slice, in canonical form.</param>
+/// <param name="Level">Counted severity.</param>
+/// <param name="Count">Number of entries.</param>
 public sealed record LogBucket(string Bucket, LogSeverity Level, long Count);

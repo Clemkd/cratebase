@@ -6,27 +6,27 @@ using Dapper;
 namespace Cratebase.Admin;
 
 /// <summary>
-/// Réglages persistés de l'instance.
+/// Persisted instance settings.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Une seule ligne, dont la valeur est un document JSON, plutôt qu'une colonne par réglage :
-/// ajouter un réglage deviendrait sinon une migration de schéma, sur une table que personne ne
-/// requête autrement que par sa clé. C'est le compromis de la table <c>_params</c> de PocketBase.
+/// A single row whose value is a JSON document, rather than one column per setting: adding a
+/// setting would otherwise become a schema migration, on a table nobody queries other than by its
+/// key. This is the same trade-off as PocketBase's <c>_params</c> table.
 /// </para>
 /// <para>
-/// La valeur courante est gardée en mémoire : elle est lue à chaque requête par le middleware de
-/// journalisation, et une lecture en base par requête pour trois booléens serait absurde. Le cache
-/// est écrit par <see cref="SaveAsync"/>, donc une instance ne voit pas les réglages modifiés par
-/// une autre — limite assumée tant que le déploiement de référence tient dans un conteneur.
+/// The current value is kept in memory: it's read on every request by the logging middleware, and
+/// a database read per request for three booleans would be absurd. The cache is written by
+/// <see cref="SaveAsync"/>, so one instance doesn't see settings changed by another — an accepted
+/// limit as long as the reference deployment fits in a single container.
 /// </para>
 /// </remarks>
 public sealed class SettingsStore(IDbConnectionFactory connections, IClock clock)
 {
-    /// <summary>Table portant les réglages.</summary>
+    /// <summary>Table holding the settings.</summary>
     public const string TableName = "_settings";
 
-    /// <summary>Clé de la ligne unique.</summary>
+    /// <summary>Key of the single row.</summary>
     private const string RowKey = "app";
 
     private readonly IDbConnectionFactory _connections = connections
@@ -36,10 +36,10 @@ public sealed class SettingsStore(IDbConnectionFactory connections, IClock clock
 
     private volatile AppSettings _current = new();
 
-    /// <summary>Réglages en vigueur.</summary>
+    /// <summary>Settings currently in effect.</summary>
     public AppSettings Current => _current;
 
-    /// <summary>Crée la table des réglages si elle n'existe pas.</summary>
+    /// <summary>Creates the settings table if it doesn't exist.</summary>
     public async Task EnsureTableAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -59,7 +59,7 @@ public sealed class SettingsStore(IDbConnectionFactory connections, IClock clock
             .ConfigureAwait(false);
     }
 
-    /// <summary>Relit les réglages depuis la base et met le cache à jour.</summary>
+    /// <summary>Re-reads settings from the database and refreshes the cache.</summary>
     public async Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -78,7 +78,7 @@ public sealed class SettingsStore(IDbConnectionFactory connections, IClock clock
         return _current;
     }
 
-    /// <summary>Valide, enregistre et publie de nouveaux réglages.</summary>
+    /// <summary>Validates, persists, and publishes new settings.</summary>
     public async Task<AppSettings> SaveAsync(
         AppSettings settings,
         CancellationToken cancellationToken = default)
@@ -93,9 +93,9 @@ public sealed class SettingsStore(IDbConnectionFactory connections, IClock clock
 
         var dialect = _connections.Dialect;
 
-        // Mise à jour puis insertion si rien n'a bougé : « INSERT … ON CONFLICT » s'écrit
-        // différemment selon le moteur, et cette table est écrite une fois par changement de
-        // réglage — la course n'y a aucune conséquence observable.
+        // Update, then insert if nothing changed: "INSERT ... ON CONFLICT" is written differently
+        // per engine, and this table is written once per settings change — the race has no
+        // observable consequence here.
         var updated = await connection.ExecuteAsync(new CommandDefinition(
                 $"""
                  UPDATE {dialect.QuoteIdentifier(TableName)}
@@ -139,9 +139,9 @@ public sealed class SettingsStore(IDbConnectionFactory connections, IClock clock
         }
         catch (JsonException)
         {
-            // Réglages illisibles — écrits par une version future, ou corrompus. Les valeurs par
-            // défaut laissent l'instance démarrer ; refuser le démarrage rendrait la console
-            // inaccessible, donc le problème irréparable depuis l'interface.
+            // Unreadable settings — written by a future version, or corrupted. The default values
+            // let the instance start; refusing to start would make the console unreachable, and the
+            // problem unfixable from the interface.
             return new AppSettings();
         }
     }

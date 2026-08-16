@@ -8,30 +8,30 @@ using Dapper;
 namespace Cratebase.Admin;
 
 /// <summary>
-/// Journal des requêtes et des erreurs.
+/// Request and error log.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Écriture tamponnée.</b> Journaliser sur le chemin de la requête ajouterait une écriture
-/// synchrone à chaque appel — sur SQLite, où les écritures sont sérialisées, le journal deviendrait
-/// le goulot de l'API qu'il observe. Les entrées passent donc par un canal borné, qu'un service de
-/// fond vide par lots. C'est le compromis de PocketBase, pour la même raison.
+/// <b>Buffered writes.</b> Logging on the request path would add a synchronous write to every
+/// call — on SQLite, where writes are serialized, the log would become the API's own bottleneck,
+/// the very thing it observes. Entries therefore go through a bounded channel, drained in batches
+/// by a background service. It's PocketBase's trade-off, for the same reason.
 /// </para>
 /// <para>
-/// <b>Le canal est borné et perd plutôt que d'attendre.</b> Un tampon illimité transformerait une
-/// base bloquée en épuisement mémoire ; une écriture bloquante ferait attendre les requêtes
-/// utiles. Les pertes sont comptées et affichées dans la console : un journal qui ment sur sa
-/// complétude est pire qu'un journal incomplet.
+/// <b>The channel is bounded and drops rather than waits.</b> An unbounded buffer would turn a
+/// stalled database into memory exhaustion; a blocking write would make useful requests wait.
+/// Drops are counted and shown in the console: a log that lies about its completeness is worse
+/// than an incomplete log.
 /// </para>
 /// <para>
-/// La table vit dans la base principale, et non dans un fichier séparé comme chez PocketBase :
-/// deux bases obligeraient à répondre « où sont les journaux ? » différemment selon le moteur, et
-/// PostgreSQL n'a pas de second fichier à ouvrir.
+/// The table lives in the main database, not in a separate file like PocketBase: two databases
+/// would force "where are the logs?" to be answered differently depending on the engine, and
+/// PostgreSQL has no second file to open.
 /// </para>
 /// </remarks>
 public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : IDisposable
 {
-    /// <summary>Table portant les entrées.</summary>
+    /// <summary>Table holding the entries.</summary>
     public const string TableName = "_logs";
 
     private const int BufferCapacity = 4096;
@@ -58,16 +58,16 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
             SingleReader = true,
         });
 
-    // Un seul écrivain à la fois : le service de fond et la consultation de l'écran des journaux
-    // peuvent demander une purge du tampon en même temps.
+    // Only one writer at a time: the background service and the log screen's own query can both
+    // request a buffer flush at the same time.
     private readonly SemaphoreSlim _writing = new(1, 1);
 
     private long _dropped;
 
-    /// <summary>Entrées perdues faute de place dans le tampon, depuis le démarrage.</summary>
+    /// <summary>Entries lost for lack of buffer space, since startup.</summary>
     public long Dropped => Interlocked.Read(ref _dropped);
 
-    /// <summary>Crée la table du journal si elle n'existe pas.</summary>
+    /// <summary>Creates the log table if it doesn't exist.</summary>
     public async Task EnsureTableAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -99,8 +99,8 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
              )
              """,
 
-            // La fenêtre temporelle est le premier critère de toute consultation, et la purge par
-            // rétention balaie exactement la même colonne.
+            // The time window is the first criterion of every query, and retention-based purging
+            // sweeps that exact same column.
             $"""
              CREATE INDEX IF NOT EXISTS {dialect.QuoteIdentifier("idx_logs_created")}
                ON {dialect.QuoteIdentifier(TableName)} ({dialect.QuoteIdentifier("created")})
@@ -121,7 +121,7 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
     }
 
     /// <summary>
-    /// Dépose une entrée dans le tampon. Ne touche jamais la base, donc ne bloque jamais l'appelant.
+    /// Enqueues an entry into the buffer. Never touches the database, so never blocks the caller.
     /// </summary>
     public void Record(LogEntry entry)
     {
@@ -135,7 +135,7 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
         }
     }
 
-    /// <summary>Écrit une entrée d'application.</summary>
+    /// <summary>Writes an application entry.</summary>
     public void Record(
         LogSeverity level,
         string message,
@@ -148,12 +148,12 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
         });
 
     /// <summary>
-    /// Vide le tampon dans la base. Rend le nombre d'entrées écrites.
+    /// Flushes the buffer into the database. Returns the number of entries written.
     /// </summary>
     /// <remarks>
-    /// Appelée par le service de fond à intervalle régulier, et par la consultation du journal :
-    /// sans cela, l'écran afficherait toujours l'état d'il y a quelques secondes, et un
-    /// administrateur qui vient de provoquer une erreur ne la trouverait pas.
+    /// Called by the background service at regular intervals, and by the log screen's query:
+    /// without this, the screen would always show the state from a few seconds ago, and an
+    /// administrator who just triggered an error wouldn't find it.
     /// </remarks>
     public async Task<int> FlushAsync(CancellationToken cancellationToken = default)
     {
@@ -193,8 +193,8 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
 
         var sql = $"INSERT INTO {dialect.QuoteIdentifier(TableName)} ({columns}) VALUES ({placeholders})";
 
-        // Un lot, une transaction : sur SQLite, c'est la différence entre une synchronisation de
-        // disque par entrée et une seule pour tout le lot.
+        // One batch, one transaction: on SQLite, that's the difference between one disk sync per
+        // entry and a single one for the whole batch.
         await using var transaction = await connection
             .BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -227,7 +227,7 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Consulte le journal.</summary>
+    /// <summary>Queries the log.</summary>
     public async Task<PagedResult<LogEntry>> QueryAsync(
         LogQuery query,
         CancellationToken cancellationToken = default)
@@ -249,9 +249,9 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
         var selection = string.Join(", ", Columns.Select(column =>
             $"{dialect.QuoteIdentifier(column)} AS {dialect.QuoteIdentifier(column)}"));
 
-        // Le tri porte sur « created » et non sur l'identifiant : les deux coïncident tant que les
-        // entrées sont produites par un seul processus, mais deux instances derrière un répartiteur
-        // n'ont pas la même horloge de génération — l'ordre visible doit rester celui des instants.
+        // Sorting is done on "created", not on the identifier: the two coincide as long as entries
+        // come from a single process, but two instances behind a load balancer don't share the same
+        // generation clock — the visible order must stay the order of the instants.
         var order = normalized.Ascending ? "ASC" : "DESC";
         var offset = (normalized.Page - 1) * normalized.PerPage;
 
@@ -274,7 +274,7 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
             [.. rows.Select(Materialize)]);
     }
 
-    /// <summary>Charge une entrée, ou rend <see langword="null"/>.</summary>
+    /// <summary>Loads an entry, or returns <see langword="null"/>.</summary>
     public async Task<LogEntry?> GetAsync(RecordId id, CancellationToken cancellationToken = default)
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -298,14 +298,14 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
     }
 
     /// <summary>
-    /// Compte les entrées par tranche de temps et par niveau.
+    /// Counts entries by time slice and level.
     /// </summary>
     /// <remarks>
-    /// Le découpage se fait sur le <b>préfixe textuel</b> de l'instant, pas avec une fonction de
-    /// date : la forme canonique est de longueur fixe, donc ses 13 premiers caractères désignent
-    /// l'heure et ses 10 premiers le jour, à l'identique sur les deux moteurs. Une fonction de
-    /// troncature aurait exigé une méthode de dialecte de plus, donc une entrée de plus dans la
-    /// suite de conformité, pour un résultat que la convention de format donne déjà.
+    /// Bucketing is done on the instant's <b>text prefix</b>, not with a date function: the
+    /// canonical form has fixed length, so its first 13 characters designate the hour and its first
+    /// 10 the day, identically across both engines. A truncation function would have required one
+    /// more dialect method, hence one more entry in the conformance suite, for a result the format
+    /// convention already gives for free.
     /// </remarks>
     public async Task<IReadOnlyList<LogBucket>> StatsAsync(
         LogQuery query,
@@ -316,8 +316,8 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
 
         var dialect = _connections.Dialect;
         var (where, parameters) = Predicate(query);
-        // 2026-08-13T14:05:09.123Z : dix caractères pour le jour, treize pour l'heure, seize pour
-        // la minute.
+        // 2026-08-13T14:05:09.123Z: ten characters for the day, thirteen for the hour, sixteen for
+        // the minute.
         var length = granularity switch
         {
             LogGranularity.Minute => 16,
@@ -345,7 +345,7 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
         return [.. rows.Select(row => new LogBucket(row.Bucket, ParseLevel(row.Level), row.Count))];
     }
 
-    /// <summary>Nombre total d'entrées conservées.</summary>
+    /// <summary>Total number of retained entries.</summary>
     public async Task<long> CountAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -356,13 +356,13 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
             .ConfigureAwait(false);
     }
 
-    /// <summary>Supprime les entrées plus anciennes que la rétention. Rend le nombre supprimé.</summary>
+    /// <summary>Deletes entries older than the retention period. Returns the count deleted.</summary>
     public async Task<int> PurgeAsync(int retentionDays, CancellationToken cancellationToken = default)
     {
         if (retentionDays <= 0)
         {
-            // Zéro signifie « conserver sans limite ». Traiter cette valeur comme une date de
-            // coupure au présent viderait le journal à chaque passage du service de fond.
+            // Zero means "keep without limit". Treating this value as a cutoff date at the present
+            // moment would empty the log on every pass of the background service.
             return 0;
         }
 
@@ -378,11 +378,11 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
             .ConfigureAwait(false);
     }
 
-    /// <summary>Vide le journal.</summary>
+    /// <summary>Clears the log.</summary>
     public async Task<int> ClearAsync(CancellationToken cancellationToken = default)
     {
-        // Le tampon part avec le reste : garder des entrées en attente les ferait réapparaître
-        // quelques secondes après une purge que l'administrateur croit terminée.
+        // The buffer goes with the rest: leaving pending entries would make them reappear a few
+        // seconds after a purge the administrator believes is finished.
         while (_pending.Reader.TryRead(out _))
         {
         }
@@ -404,13 +404,13 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
         var parameters = new DynamicParameters();
         var conditions = new List<string>();
 
-        // Un ensemble complet ne restreint rien : le laisser passer ferait payer un `IN` à quatre
-        // valeurs pour un filtre qui n'écarte aucune ligne.
+        // A full set restricts nothing: letting it through would pay for a four-value `IN` on a
+        // filter that discards no row.
         if (query.Levels.Count > 0 && query.Levels.Count < LogSeverities.All.Count)
         {
-            // Les niveaux sont stockés par leur nom : c'est donc ici, en C#, que se décide
-            // l'ensemble retenu. Stocker le rang en base aurait décalé tout l'historique le jour où
-            // un niveau s'insère au milieu.
+            // Levels are stored by name: this is therefore where, in C#, the retained set is
+            // decided. Storing the rank in the database would have shifted the entire history the
+            // day a level gets inserted in the middle.
             var levels = query.Levels.Distinct().Select(level => level.ToString()).ToArray();
 
             conditions.Add($"{dialect.QuoteIdentifier("level")} IN @levels");
@@ -491,9 +491,9 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
         }
         catch (JsonException)
         {
-            // Une entrée écrite par une version antérieure ne doit pas rendre l'écran des journaux
-            // inutilisable : la charge est rendue telle quelle, à charge de l'humain de la lire.
-            return new Dictionary<string, object?>(StringComparer.Ordinal) { ["brut"] = json };
+            // An entry written by an earlier version must not make the log screen unusable: the
+            // payload is returned as-is, leaving it to the human to read.
+            return new Dictionary<string, object?>(StringComparer.Ordinal) { ["raw"] = json };
         }
     }
 
@@ -538,12 +538,12 @@ public sealed class LogStore(IDbConnectionFactory connections, IClock clock) : I
     }
 }
 
-/// <summary>Mise en forme des tranches de l'histogramme.</summary>
+/// <summary>Formatting of histogram slices.</summary>
 public static class LogBuckets
 {
     /// <summary>
-    /// Rend un début de tranche en instant. Le préfixe canonique est complété par des zéros,
-    /// puisqu'il désigne le début de l'heure ou du jour.
+    /// Renders a slice start as an instant. The canonical prefix is completed with zeros, since it
+    /// designates the start of the hour or the day.
     /// </summary>
     public static DateTimeOffset ToInstant(string bucket)
     {

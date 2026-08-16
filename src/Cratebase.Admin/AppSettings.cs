@@ -3,85 +3,85 @@ using Cratebase.Core;
 namespace Cratebase.Admin;
 
 /// <summary>
-/// Réglages du journal.
+/// Log settings.
 /// </summary>
 public sealed record LogSettings
 {
-    /// <summary>Les requêtes de l'API sont-elles journalisées ?</summary>
+    /// <summary>Are API requests logged?</summary>
     public bool Enabled { get; init; } = true;
 
     /// <summary>
-    /// Durée de conservation, en jours. Zéro conserve sans limite.
+    /// Retention period, in days. Zero keeps entries without limit.
     /// </summary>
     /// <remarks>
-    /// Sept jours par défaut : assez pour instruire un incident du week-end, assez peu pour qu'une
-    /// instance oubliée ne remplisse pas son disque de traces que personne ne lira.
+    /// Seven days by default: enough to investigate a weekend incident, little enough that a
+    /// forgotten instance doesn't fill its disk with traces nobody will read.
     /// </remarks>
     public int RetentionDays { get; init; } = 7;
 
-    /// <summary>Gravité minimale effectivement écrite.</summary>
+    /// <summary>Minimum severity actually written.</summary>
     public LogSeverity MinLevel { get; init; } = LogSeverity.Info;
 
     /// <summary>
-    /// L'adresse d'origine est-elle conservée ?
+    /// Is the origin address retained?
     /// </summary>
     /// <remarks>
-    /// Réglable, et pas seulement décoratif : une adresse IP est une donnée personnelle au sens du
-    /// RGPD. Une instance qui n'en a pas l'usage doit pouvoir cesser d'en collecter sans renoncer
-    /// au journal tout entier.
+    /// Configurable, not merely decorative: an IP address is personal data under GDPR. An instance
+    /// that has no use for it must be able to stop collecting it without giving up the log
+    /// altogether.
     /// </remarks>
     public bool LogIp { get; init; } = true;
 }
 
 /// <summary>
-/// Réglages de l'instance, modifiables depuis la console.
+/// Instance settings, editable from the console.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ce qui atterrit ici doit être <b>honoré par le moteur</b>. Un écran de réglages qui affiche des
-/// interrupteurs sans effet est pire qu'un écran absent : il fait croire à un contrôle qui n'existe
-/// pas. Les secrets — identifiants OAuth2, chaîne de connexion — restent en configuration d'hôte
-/// et n'apparaissent jamais ici : une table que la console sait lire finit dans une sauvegarde.
+/// Whatever lands here must be <b>honored by the engine</b>. A settings screen that shows toggles
+/// with no effect is worse than no screen at all: it fakes a control that doesn't exist. Secrets —
+/// OAuth2 client secrets, connection string — stay in host configuration and never appear here: a
+/// table the console can read ends up in a backup.
 /// </para>
 /// </remarks>
-/// <summary>Réglages du temps réel.</summary>
+/// <summary>Realtime settings.</summary>
 public sealed record RealtimeSettings
 {
-    /// <summary>Nombre de flux simultanés au-delà duquel une nouvelle connexion est refusée.</summary>
+    /// <summary>Number of simultaneous streams beyond which a new connection is refused.</summary>
     public const int MaxClientsCeiling = 10_000;
 
-    /// <summary>Le temps réel est-il ouvert ?</summary>
+    /// <summary>Is realtime open?</summary>
     public bool Enabled { get; init; } = true;
 
     /// <summary>
-    /// Flux simultanés admis.
+    /// Simultaneous streams admitted.
     /// </summary>
     /// <remarks>
-    /// Une borne, et non un réglage de confort : chaque flux retient une connexion et une file de
-    /// messages pour toute sa durée. Sans plafond, un client qui rouvre son flux en boucle épuise
-    /// les connexions du serveur sans jamais rien demander d'illégitime.
+    /// A hard limit, not a convenience setting: every stream holds a connection and a message queue
+    /// for its whole duration. Without a ceiling, a client that keeps reopening its stream exhausts
+    /// the server's connections without ever asking for anything illegitimate.
     /// </remarks>
     public int MaxClients { get; init; } = 200;
 }
 
 public sealed record AppSettings
 {
-    /// <summary>Nom de l'instance, affiché par la console.</summary>
+    /// <summary>Instance name, shown by the console.</summary>
     public string AppName { get; init; } = "Cratebase";
 
-    /// <summary>URL publique de l'instance. Sert à composer les adresses de retour OAuth2.</summary>
+    /// <summary>Public URL of the instance. Used to compose OAuth2 redirect URLs.</summary>
     public string AppUrl { get; init; } = string.Empty;
 
-    /// <summary>Réglages du journal.</summary>
+    /// <summary>Log settings.</summary>
     public LogSettings Logs { get; init; } = new();
 
-    /// <summary>Réglages du temps réel.</summary>
+    /// <summary>Realtime settings.</summary>
     public RealtimeSettings Realtime { get; init; } = new();
 
     /// <summary>
-    /// Valide et normalise les réglages soumis.
+    /// Validates and normalizes the submitted settings.
     /// </summary>
-    /// <exception cref="CratebaseValidationException">Un réglage est hors de ses bornes.</exception>
+    /// <exception cref="CratebaseValidationException">A setting is out of bounds.</exception>
     public AppSettings Validated()
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
@@ -90,29 +90,29 @@ public sealed record AppSettings
 
         if (name.Length == 0)
         {
-            errors["appName"] = ["Le nom de l'instance est obligatoire."];
+            errors["appName"] = ["The instance name is required."];
         }
         else if (name.Length > 100)
         {
-            errors["appName"] = ["Le nom ne peut pas dépasser 100 caractères."];
+            errors["appName"] = ["The name cannot exceed 100 characters."];
         }
 
         if (url.Length > 0 &&
             (!Uri.TryCreate(url, UriKind.Absolute, out var parsed) ||
              parsed.Scheme is not ("http" or "https")))
         {
-            errors["appUrl"] = ["L'URL doit être absolue et en http ou https, par exemple https://exemple.org."];
+            errors["appUrl"] = ["The URL must be absolute and use http or https, e.g. https://example.org."];
         }
 
         if (Logs.RetentionDays is < 0 or > 365)
         {
-            errors["logs.retentionDays"] = ["La rétention va de 0 (illimitée) à 365 jours."];
+            errors["logs.retentionDays"] = ["Retention ranges from 0 (unlimited) to 365 days."];
         }
 
         if (Realtime.MaxClients is < 1 || Realtime.MaxClients > RealtimeSettings.MaxClientsCeiling)
         {
             errors["realtime.maxClients"] =
-                [$"Le nombre de flux va de 1 à {RealtimeSettings.MaxClientsCeiling}."];
+                [$"The number of streams ranges from 1 to {RealtimeSettings.MaxClientsCeiling}."];
         }
 
         if (errors.Count > 0)
