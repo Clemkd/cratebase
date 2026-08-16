@@ -2,101 +2,112 @@
 
 **Français** · [English](./README.en.md)
 
-Cratebase est un backend applicatif open source en ASP.NET Core 10, livré en **un seul conteneur**,
-qui contient :
+![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-embarqué-003B57?logo=sqlite&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-supporté-4169E1?logo=postgresql&logoColor=white)
+![Statut](https://img.shields.io/badge/statut-développement%20actif-orange)
 
-- des **collections définies à l'exécution**, avec CRUD automatique et règles d'accès par collection ;
-- une base **SQLite embarquée — ou PostgreSQL**, au choix par configuration ;
-- l'**authentification** : comptes locaux, jetons révocables, rôles et dérogations, OAuth2 (Google,
-  Facebook, Microsoft, GitHub), double authentification TOTP ;
-- les **fichiers** sur disque local — ou S3 —, vignettes et fichiers protégés compris ;
-- le **temps réel** : flux SSE par collection, règles d'accès réévaluées à la diffusion ;
-- une **console d'administration** React : collections, enregistrements, journaux, réglages ;
-- une **API REST** utilisable depuis n'importe quel client.
+Backend applicatif open source en **ASP.NET Core 10**, livré en un seul conteneur : collections
+définies à l'exécution, authentification complète, fichiers, temps réel et console
+d'administration React — le tout utilisable comme serveur autonome ou comme librairie dans une
+application existante.
 
-> Conception détaillée, correspondance avec PocketBase et catalogue des défaillances silencieuses :
-> [`CONCEPTION.md`](./CONCEPTION.md).
+## Pourquoi Cratebase
 
-> ⚠️ **Développement actif.** Les paquets publiés (`dotnet new cratebase`, `@cratebase/client`) ne
-> sont pas encore là. La sauvegarde **physique** depuis la console est
-> écartée et non repoussée : elle serait forcément spécifique au moteur (`VACUUM INTO` d'un côté,
-> `pg_dump` de l'autre). L'**export logique**, lui, est planifié —
-> [`docs/SAUVEGARDE.md`](./docs/SAUVEGARDE.md), et [`docs/MIGRATION.md`](./docs/MIGRATION.md) pour
-> déplacer une instance déjà peuplée. Tout le reste ci-dessus existe.
+Cratebase reprend le modèle de [PocketBase](https://pocketbase.io), backend « tout-en-un » très
+apprécié pour démarrer vite. Mais PocketBase est indissociable de SQLite : le jour où
+l'application dépasse ce qu'un fichier encaisse, il n'y a pas de migration, il y a une réécriture.
 
-## Pourquoi pas PocketBase ?
+**Cratebase existe pour que ce jour-là ne coûte rien.** SQLite au démarrage, PostgreSQL à
+l'échelle, disque local ou S3 pour les fichiers — le même code applicatif tourne sur les deux,
+prouvé par une suite de tests exécutée sur chaque combinaison. Le détail de cette architecture et
+la correspondance complète avec PocketBase sont dans [`CONCEPTION.md`](./CONCEPTION.md).
 
-[PocketBase](https://pocketbase.io) est excellent, et Cratebase lui reprend son modèle. La
-différence tient en une phrase : **Cratebase se migre, PocketBase se remplace.**
+> [!WARNING]
+> **Développement actif.** Les paquets publiés (`dotnet new cratebase`, `@cratebase/client`) ne
+> sont pas encore disponibles. La sauvegarde physique depuis la console n'est pas prévue (elle
+> serait spécifique à chaque moteur) ; l'export logique est planifié — voir
+> [`docs/SAUVEGARDE.md`](./docs/SAUVEGARDE.md) et [`docs/MIGRATION.md`](./docs/MIGRATION.md).
+> Tout le reste décrit ci-dessous existe et fonctionne.
 
-PocketBase est indissociable de SQLite. Le jour où l'application dépasse ce qu'un fichier encaisse —
-plusieurs écrivains, plusieurs instances, une base gérée par l'hébergeur — il n'y a pas de
-migration : il y a une réécriture, et les clients déjà déployés la subissent.
+## Sommaire
 
-Cratebase est écrit pour que ce jour-là ne coûte rien :
+- [Fonctionnalités](#fonctionnalités)
+- [Démarrage rapide](#démarrage-rapide)
+- [La console d'administration](#la-console-dadministration)
+- [Utiliser Cratebase comme librairie](#utiliser-cratebase-comme-librairie)
+- [Configuration](#configuration)
+- [Conteneur Docker](#conteneur-docker)
+- [Tests](#tests)
+- [Structure du projet](#structure-du-projet)
 
-| Axe | Départ | À l'échelle | Ce qu'on change |
-| --- | --- | --- | --- |
-| Base | SQLite (fichier) | PostgreSQL | une chaîne de connexion |
-| Fichiers | disque local | S3, MinIO, R2, B2 | quatre variables |
-| Instances | une | N derrière un répartiteur | rien |
+## Fonctionnalités
 
-La même suite de bout en bout est jouée sur SQLite comme sur PostgreSQL, sur disque local comme sur
-S3.
+- **Collections dynamiques** — définies à l'exécution, CRUD automatique et règles d'accès par
+  collection, sans code généré.
+- **SQLite ou PostgreSQL**, au choix par simple chaîne de connexion.
+- **Authentification** — comptes locaux, jetons révocables, rôles et dérogations, OAuth2 (Google,
+  Facebook, Microsoft, GitHub), double authentification TOTP.
+- **Fichiers** — disque local ou S3 (MinIO, R2, B2), vignettes générées, fichiers protégés.
+- **Temps réel** — flux SSE par collection, règles d'accès réévaluées à chaque diffusion.
+- **Console d'administration React** — collections, fichiers, journaux, réglages d'instance.
+- **API REST** utilisable depuis n'importe quel client.
+- **Librairie ou serveur** — s'ajoute à une application ASP.NET Core existante ou tourne seule.
 
-En contrepartie, PocketBase a ce que Cratebase n'a pas : les sauvegardes depuis la console, un
-binaire unique à télécharger et un écosystème de SDK déjà publiés.
-
-## Démarrer
+## Démarrage rapide
 
 ```bash
 dotnet run --project src/Cratebase.App --urls http://localhost:8090
 ```
 
-L'API et la console sont sur http://localhost:8090. Pour travailler sur la console avec le
+L'API et la console sont servies sur http://localhost:8090. Pour travailler sur la console avec
 rechargement à chaud, dans un second terminal :
 
 ```bash
 cd web/admin && npm install && npm run dev
 ```
 
-Le premier super-admin est créé au démarrage **uniquement si la base n'en contient aucun**,
-depuis la configuration :
+Le premier super-admin est créé au démarrage **uniquement si la base n'en contient aucun** :
 
 ```bash
-Cratebase__Superuser__Email=admin@exemple.fr Cratebase__Superuser__Password=un-mot-de-passe-solide dotnet run --project src/Cratebase.App
+Cratebase__Superuser__Email=admin@exemple.fr \
+Cratebase__Superuser__Password=un-mot-de-passe-solide \
+dotnet run --project src/Cratebase.App
 ```
 
-En développement, `appsettings.Development.json` en pose déjà un (`admin@cratebase.local`). **Ne
-jamais écrire de mot de passe dans un fichier versionné en production** : passer par les variables
-d'environnement.
+En développement, `appsettings.Development.json` en pose déjà un (`admin@cratebase.local`).
 
-## La console
+> [!CAUTION]
+> Ne jamais écrire de mot de passe dans un fichier versionné en production : toujours passer par
+> les variables d'environnement.
 
-Trois destinations, dans une colonne repliable en rail d'icônes :
+## La console d'administration
+
+Quatre destinations, dans une colonne repliable en rail d'icônes :
 
 - **Collections** — enregistrements, comptes, schéma et règles d'accès de chaque collection.
-- **Fichiers** — inventaire du magasin : ce qui est stocké, quel enregistrement le référence, et ce
-  qui ne sert plus. Les objets orphelins sont isolables et supprimables ; les fichiers encore
-  référencés ne le sont pas depuis là.
-- **Journaux** — requêtes servies, refus d'accès et évènements d'administration. Les filtres sont
-  posés sous l'en-tête de la colonne qu'ils restreignent ; cliquer une barre de l'histogramme ouvre
-  la tranche correspondante et la redécoupe d'un cran plus fin.
-- **Administration** — aperçu de l'instance, paramètres, stockage, super-admins,
-  fournisseurs d'identité.
+- **Fichiers** — inventaire du magasin : ce qui est stocké, quel enregistrement le référence, et
+  ce qui ne sert plus. Les objets orphelins sont isolables et supprimables.
+- **Journaux** — requêtes servies, refus d'accès et évènements d'administration, avec filtres et
+  histogramme cliquable pour affiner la période.
+- **Administration** — aperçu de l'instance, paramètres, stockage, super-admins, fournisseurs
+  d'identité.
 
-**Administration → Stockage** montre la configuration du magasin et l'éprouve — écriture, relecture,
-URL signée réellement suivie, suppression — mais ne l'écrit pas : ce qui porte un secret reste en
-configuration d'hôte. L'écran donne les variables exactes à poser et dit si elles sont bonnes.
+**Administration → Stockage** éprouve la configuration du magasin de fichiers (écriture,
+relecture, URL signée, suppression) sans jamais l'écrire : ce qui porte un secret reste en
+configuration d'hôte.
 
-Deux garanties tenues par le moteur et non par l'interface : **le dernier super-admin ne
-peut pas être supprimé** — sans lui l'instance n'est plus administrable par personne — et **changer
-un mot de passe ferme les sessions ouvertes** de ce compte, y compris celles d'un voleur.
+Deux garanties tenues par le moteur, pas par l'interface :
 
-## Depuis votre application
+- le **dernier super-admin** ne peut pas être supprimé ;
+- **changer un mot de passe ferme toutes les sessions ouvertes** de ce compte, y compris celles
+  d'un voleur.
 
-Cratebase est aussi une librairie : on l'ajoute à une application ASP.NET Core existante et on
-continue d'écrire ses propres endpoints.
+## Utiliser Cratebase comme librairie
+
+Cratebase s'ajoute à une application ASP.NET Core existante, sans renoncer à ses propres
+endpoints :
 
 ```csharp
 builder.AddCratebase(o => o.UseSqlite("Data Source=./data/cratebase.db"));
@@ -111,19 +122,19 @@ await app.Services.InitializeCratebaseAsync();
 await app.RunAsync();
 ```
 
-Pour intervenir sur les écritures, implémenter `IRecordMutationHook` et l'enregistrer :
+Pour intervenir sur les écritures, un point d'extension unique :
 
 ```csharp
 builder.Services.AddSingleton<IRecordMutationHook, MonCrochet>();
 ```
 
-L'ordre est imposé : **validation, puis crochets, puis règle de création**. Un crochet voit donc des
+L'ordre est imposé : **validation → crochets → règle de création**. Un crochet voit donc des
 données déjà validées, et la règle d'accès voit l'enregistrement tel qu'il sera écrit.
 
 ## Configuration
 
 Tout passe par la configuration ASP.NET Core, donc par variables d'environnement en production
-(`Cratebase__Superuser__Email` — double souligné pour la hiérarchie).
+(double souligné pour la hiérarchie, ex. `Cratebase__Superuser__Email`).
 
 | Clé | Effet |
 | --- | --- |
@@ -131,27 +142,28 @@ Tout passe par la configuration ASP.NET Core, donc par variables d'environnement
 | `Cratebase:DataDirectory` | Racine des données : base et fichiers. |
 | `Cratebase:Superuser:Email` / `Password` | Premier super-admin, si la base n'en a aucun. |
 | `Cratebase:S3:Bucket` / `AccessKey` / `SecretKey` / `Endpoint` | Bascule sur S3. Sans elles, disque local. |
-| `Cratebase:S3:PublicEndpoint` | Hôte vu par le **navigateur**, s'il diffère de celui vu par l'API. |
+| `Cratebase:S3:PublicEndpoint` | Hôte vu par le navigateur, s'il diffère de celui vu par l'API. |
 | `Cratebase:OAuth2:{google\|facebook\|microsoft\|github}:ClientId` / `ClientSecret` | Active un fournisseur externe. |
 
-Le reste — nom de l'instance, URL publique, journalisation, rétention — se règle depuis la console
-(**Administration → Paramètres**) et vit dans la base : ce qui porte un secret ou nomme un moteur
-reste en configuration d'hôte, le reste est modifiable à chaud.
+Le reste (nom de l'instance, URL publique, journalisation, rétention) se règle depuis la console
+**Administration → Paramètres** et vit dans la base : modifiable à chaud, sans redéploiement.
 
-> ⚠️ `PublicEndpoint` n'est pas une commodité. Une URL présignée est signée *pour un hôte donné* :
-> si l'API signe pour `http://minio:9000` et que le navigateur appelle `https://fichiers.exemple.fr`,
-> **tous les liens sont rejetés**. C'est le piège le plus coûteux du stockage objet.
+> [!WARNING]
+> `PublicEndpoint` n'est pas une commodité. Une URL présignée est signée *pour un hôte donné* : si
+> l'API signe pour `http://minio:9000` et que le navigateur appelle
+> `https://fichiers.exemple.fr`, **tous les liens sont rejetés**. C'est le piège le plus coûteux
+> du stockage objet.
 
-## Conteneur
+## Conteneur Docker
 
 ```bash
 docker compose up --build
 ```
 
-Une image, un volume. Passer à PostgreSQL revient à décommenter le service dans `compose.yaml` et à
-poser `ConnectionStrings__Postgres` — l'image ne change pas.
+Une image, un volume. Passer à PostgreSQL revient à décommenter le service dans `compose.yaml` et
+à poser `ConnectionStrings__Postgres` — l'image ne change pas.
 
-## Vérifier
+## Tests
 
 ```bash
 dotnet test Cratebase.slnx
@@ -163,26 +175,25 @@ dotnet test Cratebase.slnx
 pwsh tests/smoke.ps1
 ```
 
-145 assertions contre une instance en cours d'exécution. Elles couvrent le chemin nominal **et** les
-chemins hostiles : injection, champ hors schéma, tri non autorisé, règle verrouillée, élévation de
-privilèges à l'inscription, rejeu d'un défi de double authentification, traversée de répertoire.
+145 assertions contre une instance en cours d'exécution, chemin nominal **et** chemins hostiles :
+injection, champ hors schéma, tri non autorisé, règle verrouillée, élévation de privilèges à
+l'inscription, rejeu d'un défi TOTP, traversée de répertoire.
 
 ```bash
-pwsh tests/postgres.ps1
-pwsh tests/minio.ps1
+pwsh tests/postgres.ps1   # même suite, rejouée sur PostgreSQL 18
+pwsh tests/minio.ps1      # même suite, rejouée sur MinIO
 ```
 
-La même suite, rejouée sur PostgreSQL 18 puis sur MinIO, chacun démarré en conteneur. Docker requis.
+Docker requis pour ces deux derniers scripts.
 
-<details>
-<summary><b>Organisation du dépôt</b></summary>
+## Structure du projet
 
-```
+```text
 src/
   Cratebase.Core            abstractions — zéro dépendance externe
   Cratebase.Expressions     langage de filtre — produit un arbre, jamais du SQL
   Cratebase.Data{,.Sqlite,.Postgres}
-                            dialecte SQL, compilation, transactions
+                             dialecte SQL, compilation, transactions
   Cratebase.Schema          collections dynamiques, DDL, migrations
   Cratebase.Records         moteur CRUD, règles, crochets de mutation
   Cratebase.Auth            comptes, jetons révocables, RBAC, OAuth2, TOTP
@@ -190,9 +201,14 @@ src/
   Cratebase.Storage{,.S3}   IObjectStore, disque local, vignettes SkiaSharp
   Cratebase.Server          câblage DI et endpoints — AddCratebase() / MapCratebase()
   Cratebase.App             l'application exécutable
-web/admin/                  console d'administration React-TS
-tests/                      tests unitaires, smoke.ps1, postgres.ps1, minio.ps1
-CONCEPTION.md               le plan
+web/admin/                   console d'administration React-TS
+tests/                       tests unitaires, smoke.ps1, postgres.ps1, minio.ps1
+CONCEPTION.md                conception détaillée et correspondance avec PocketBase
 ```
 
-</details>
+## Documentation complémentaire
+
+- [`CONCEPTION.md`](./CONCEPTION.md) — architecture détaillée, arbitrages et catalogue des
+  défaillances silencieuses évitées.
+- [`docs/SAUVEGARDE.md`](./docs/SAUVEGARDE.md) — export logique (planifié).
+- [`docs/MIGRATION.md`](./docs/MIGRATION.md) — déplacer une instance déjà peuplée.
