@@ -23,18 +23,17 @@ import {
 } from '../ui'
 
 /**
- * Paramètres de l'instance.
+ * Instance settings.
  *
- * Ne sont exposés ici que les réglages que le moteur honore réellement. Le moteur de base, le
- * stockage et les secrets des fournisseurs n'y figurent donc pas : ils appartiennent à la
- * configuration d'hôte, et les afficher en lecture-écriture ferait croire qu'un redéploiement n'est
- * pas nécessaire.
+ * Only the settings the engine actually honors are exposed here. The database engine, storage,
+ * and provider secrets therefore don't appear here: they belong to the host configuration, and
+ * displaying them as read-write would suggest a redeploy isn't necessary.
  */
 export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) => void }) {
   const toast = useToast()
 
-  // Deux copies : celle du serveur et celle en cours de saisie. Leur comparaison suffit à savoir
-  // s'il y a quelque chose à enregistrer, sans drapeau « modifié » à maintenir à chaque champ.
+  // Two copies: the server's and the one being edited. Comparing them is enough to know whether
+  // there's something to save, without a "dirty" flag to maintain on every field.
   const [saved, setSaved] = useState<AppSettings | null>(null)
   const [draft, setDraft] = useState<AppSettings | null>(null)
   const [saving, setSaving] = useState(false)
@@ -58,7 +57,7 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
   }, [load])
 
   if (error) return <ErrorBlock message={error} onRetry={() => void load()} />
-  if (!draft || !saved) return <LoadingBlock label="Lecture des réglages…" />
+  if (!draft || !saved) return <LoadingBlock label="Loading settings…" />
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved)
 
@@ -67,9 +66,9 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
     setErrors({})
 
     try {
-      // La charge est complète parce que l'écran connaît tous les réglages qu'elle porte ; le
-      // serveur, lui, accepte le partiel — c'est ce qui permettra à un futur écran d'en modifier un
-      // seul sans réinitialiser les autres.
+      // The payload is complete because the screen knows every setting it carries; the server,
+      // for its part, accepts a partial one — that's what will let a future screen change a
+      // single one without resetting the others.
       const result = await api.settings.update({
         appName: draft.appName,
         appUrl: draft.appUrl,
@@ -79,7 +78,7 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
       setSaved(result)
       setDraft(result)
       onSaved(result)
-      toast.success('Réglages enregistrés.')
+      toast.success('Settings saved.')
     } catch (failure) {
       setErrors(validationErrors(failure))
       toast.error(describeFailure(failure))
@@ -102,7 +101,7 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
             setErrors({})
           }}
         >
-          Annuler
+          Cancel
         </Button>
         <Button
           variant="primary"
@@ -111,16 +110,16 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
           disabled={!dirty}
           onClick={() => void submit()}
         >
-          Enregistrer
+          Save
         </Button>
       </PageActions>
 
-      <Panel title="Identité" description="Ce que la console et les messages du moteur affichent.">
+      <Panel title="Identity" description="What the console and the engine's messages display.">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
-            label="Nom de l'instance"
+            label="Instance name"
             error={first('appName')}
-            hint="Affiché en tête de la colonne de navigation."
+            hint="Displayed at the top of the navigation column."
             required
           >
             <Input
@@ -131,15 +130,15 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
           </Field>
 
           <Field
-            label="URL publique"
+            label="Public URL"
             error={first('appUrl')}
-            hint="Adresse par laquelle les clients atteignent l'instance. Laissée vide, rien ne la devine."
+            hint="Address at which clients reach the instance. Left empty, nothing guesses it."
           >
             <Input
               value={draft.appUrl}
               inputMode="url"
               spellCheck={false}
-              placeholder="https://exemple.org"
+              placeholder="https://example.org"
               className="font-mono text-xs"
               onChange={(event) => setDraft({ ...draft, appUrl: event.target.value })}
             />
@@ -148,13 +147,13 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
       </Panel>
 
       <Panel
-        title="Journal"
-        description="Ce qui est écrit, et pendant combien de temps c'est conservé."
+        title="Logs"
+        description="What gets written, and for how long it's kept."
       >
         <div className="space-y-4">
           <Checkbox
-            label="Journaliser les requêtes de l'API"
-            hint="Décoché, plus aucune requête n'est enregistrée — les entrées déjà écrites restent consultables."
+            label="Log API requests"
+            hint="Unchecked, no more requests are recorded — entries already written remain viewable."
             checked={draft.logs.enabled}
             onChange={(event) =>
               setDraft({ ...draft, logs: { ...draft.logs, enabled: event.target.checked } })
@@ -163,8 +162,8 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
-              label="Gravité minimale"
-              hint="Les requêtes servies sont des informations ; les 4xx des avertissements, les 5xx des erreurs."
+              label="Minimum severity"
+              hint="Served requests are information; 4xx are warnings, 5xx are errors."
             >
               <Select<LogLevel>
                 value={draft.logs.minLevel}
@@ -184,9 +183,9 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
             </Field>
 
             <Field
-              label="Rétention (jours)"
+              label="Retention (days)"
               error={first('logs.retentionDays')}
-              hint="Zéro conserve sans limite. Au-delà, les entrées plus anciennes sont supprimées chaque heure."
+              hint="Zero retains indefinitely. Beyond that, older entries are deleted every hour."
             >
               <Input
                 type="number"
@@ -204,8 +203,8 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
           </div>
 
           <Checkbox
-            label="Conserver l'adresse d'origine"
-            hint="Une adresse IP est une donnée personnelle : à décocher si l'instance n'en a pas l'usage."
+            label="Retain origin address"
+            hint="An IP address is personal data: uncheck if the instance has no use for it."
             checked={draft.logs.logIp}
             disabled={!draft.logs.enabled}
             onChange={(event) =>
@@ -216,13 +215,13 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
       </Panel>
 
       <Panel
-        title="Temps réel"
-        description="Flux d'évènements poussés aux clients abonnés, la console comprise."
+        title="Realtime"
+        description="Event stream pushed to subscribed clients, the console included."
       >
         <div className="space-y-4">
           <Checkbox
-            label="Diffuser les écritures aux abonnés"
-            hint="Décoché, les flux ouverts se taisent au lieu d'être coupés, et aucun nouveau ne s'ouvre."
+            label="Broadcast writes to subscribers"
+            hint="Unchecked, open streams go quiet instead of being cut off, and no new one opens."
             checked={draft.realtime.enabled}
             onChange={(event) =>
               setDraft({
@@ -233,9 +232,9 @@ export function AdminSettings({ onSaved }: { onSaved: (settings: AppSettings) =>
           />
 
           <Field
-            label="Flux simultanés"
+            label="Concurrent streams"
             error={first('realtime.maxClients')}
-            hint="Chaque flux retient une connexion pour toute sa durée : sans plafond, un client qui rouvre en boucle épuise le serveur."
+            hint="Each stream holds a connection for its whole duration: without a cap, a client that keeps reopening exhausts the server."
           >
             <Input
               type="number"

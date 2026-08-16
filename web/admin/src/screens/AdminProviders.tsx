@@ -20,15 +20,15 @@ import {
 } from '../ui'
 
 /**
- * Fournisseurs d'identité externes.
+ * External identity providers.
  *
- * En lecture seule, et c'est un choix : un identifiant client et son secret se déclarent dans la
- * configuration de l'hôte — variables d'environnement <code>Cratebase__OAuth2__…</code> — et non
- * dans une table que la console sait lire et qu'une sauvegarde emporte. PocketBase les stocke en
- * base ; Cratebase préfère qu'une fuite de la base ne livre aucun secret exploitable.
+ * Read-only, and that's a deliberate choice: a client ID and its secret are declared in the host
+ * configuration — <code>Cratebase__OAuth2__…</code> environment variables — rather than in a
+ * table the console can read and a backup would carry off. PocketBase stores them in the
+ * database; Cratebase prefers that a database leak deliver no usable secret.
  *
- * L'écran reste utile : il dit ce que le moteur a effectivement chargé, ce qui est la seule façon
- * de vérifier qu'une variable d'environnement a bien été prise en compte.
+ * The screen still earns its keep: it reports what the engine actually loaded, which is the only
+ * way to verify that an environment variable was indeed picked up.
  */
 export function AdminProviders() {
   const [providers, setProviders] = useState<OAuthProvider[] | null>(null)
@@ -53,16 +53,16 @@ export function AdminProviders() {
   }, [reload])
 
   if (error) return <ErrorBlock message={error} onRetry={() => void reload()} />
-  if (!providers) return <LoadingBlock label="Lecture des fournisseurs…" />
+  if (!providers) return <LoadingBlock label="Loading providers…" />
 
   return (
     <div className="space-y-4">
       <PageActions>
-        <Tooltip content="Recharger">
+        <Tooltip content="Reload">
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Recharger les fournisseurs"
+            aria-label="Reload providers"
             loading={loading}
             onClick={() => void reload()}
           >
@@ -74,18 +74,18 @@ export function AdminProviders() {
       {providers.length === 0 ? (
         <EmptyState
           icon={<KeyRound size={28} aria-hidden="true" />}
-          title="Aucun fournisseur configuré"
-          description="Renseignez Cratebase__OAuth2__Google__ClientId et …__ClientSecret dans l'environnement de l'hôte, puis redémarrez : le fournisseur apparaîtra ici et sur l'écran de connexion."
+          title="No provider configured"
+          description="Set Cratebase__OAuth2__Google__ClientId and …__ClientSecret in the host environment, then restart: the provider will appear here and on the login screen."
         />
       ) : (
         <Card className="overflow-hidden">
-          <Table bare caption="Fournisseurs d'identité configurés">
+          <Table bare caption="Configured identity providers">
             <THead>
               <tr>
-                <Th>Fournisseur</Th>
-                <Th className="w-24">État</Th>
-                <Th>Point d'autorisation</Th>
-                <Th className="w-40">Portées</Th>
+                <Th>Provider</Th>
+                <Th className="w-24">State</Th>
+                <Th>Authorization endpoint</Th>
+                <Th className="w-40">Scopes</Th>
                 <Th className="w-20">PKCE</Th>
               </tr>
             </THead>
@@ -99,7 +99,7 @@ export function AdminProviders() {
                   </Td>
                   <Td>
                     <Badge tone={provider.enabled ? 'success' : 'neutral'} dot>
-                      {provider.enabled ? 'activé' : 'inactif'}
+                      {provider.enabled ? 'enabled' : 'inactive'}
                     </Badge>
                   </Td>
                   <Td className="max-w-0">
@@ -112,7 +112,7 @@ export function AdminProviders() {
                   </Td>
                   <Td>
                     <Badge tone={provider.usePkce ? 'success' : 'warning'}>
-                      {provider.usePkce ? 'oui' : 'non'}
+                      {provider.usePkce ? 'yes' : 'no'}
                     </Badge>
                   </Td>
                 </Tr>
@@ -122,12 +122,12 @@ export function AdminProviders() {
         </Card>
       )}
 
-      <Panel title="Où se configurent-ils ?">
+      <Panel title="Where are they configured?">
         <div className="space-y-2 text-sm text-ink-muted">
           <p>
-            Les identifiants clients sont lus au démarrage depuis la configuration de l'hôte, jamais
-            depuis la base. Un secret absent de la base est un secret qu'aucune sauvegarde, aucune
-            réplication et aucun export ne peut divulguer.
+            Client identifiers are read at startup from the host configuration, never from the
+            database. A secret absent from the database is a secret that no backup, no
+            replication, and no export can leak.
           </p>
           <pre className="overflow-x-auto rounded-[var(--radius-control)] border border-border-subtle bg-surface-sunken px-3 py-2 font-mono text-[11px] leading-relaxed text-ink">
             {[
