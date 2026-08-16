@@ -6,16 +6,16 @@ using Shouldly;
 namespace Cratebase.UnitTests;
 
 /// <summary>
-/// Les réglages sont écrits par un PATCH partiel. La règle qui compte : ce que la charge ne
-/// mentionne pas ne bouge pas — sans quoi un écran qui n'enverrait que le nom de l'instance
-/// remettrait la rétention et la collecte d'adresse à leurs valeurs par défaut, en silence.
+/// Settings are written through a partial PATCH. The rule that matters: whatever the payload
+/// doesn't mention doesn't move — otherwise a screen that only sends the instance name would reset
+/// retention and address collection to their defaults, silently.
 /// </summary>
 public class AdminSettingsTests
 {
     private static readonly AppSettings Current = new()
     {
         AppName = "Production",
-        AppUrl = "https://exemple.org",
+        AppUrl = "https://example.org",
         Logs = new LogSettings
         {
             Enabled = true,
@@ -26,7 +26,7 @@ public class AdminSettingsTests
     };
 
     [Fact]
-    public void Une_charge_vide_ne_change_rien()
+    public void An_empty_payload_changes_nothing()
     {
         var result = new SettingsRequest().Apply(Current);
 
@@ -34,19 +34,19 @@ public class AdminSettingsTests
     }
 
     [Fact]
-    public void Un_champ_fourni_ne_reinitialise_pas_les_autres()
+    public void A_supplied_field_does_not_reset_the_others()
     {
-        var result = new SettingsRequest { AppName = "Recette" }.Apply(Current);
+        var result = new SettingsRequest { AppName = "Staging" }.Apply(Current);
 
-        result.AppName.ShouldBe("Recette");
-        result.AppUrl.ShouldBe("https://exemple.org");
+        result.AppName.ShouldBe("Staging");
+        result.AppUrl.ShouldBe("https://example.org");
         result.Logs.RetentionDays.ShouldBe(30);
         result.Logs.MinLevel.ShouldBe(LogSeverity.Warning);
         result.Logs.LogIp.ShouldBeFalse();
     }
 
     [Fact]
-    public void Un_sous_objet_partiel_ne_reinitialise_pas_ses_voisins()
+    public void A_partial_sub_object_does_not_reset_its_siblings()
     {
         var result = new SettingsRequest
         {
@@ -60,10 +60,10 @@ public class AdminSettingsTests
     }
 
     [Fact]
-    public void Un_booleen_pose_a_faux_est_bien_appliqué()
+    public void A_boolean_set_to_false_is_correctly_applied()
     {
-        // Le piège classique de la fusion partielle : `false ?? défaut` doit rendre false, et non
-        // retomber sur la valeur en place parce que le test porterait sur la véracité.
+        // The classic partial-merge trap: `false ?? default` must yield false, not fall back to
+        // the current value because the test would be on truthiness.
         var result = new SettingsRequest
         {
             Logs = new LogSettingsRequest { Enabled = false },
@@ -73,7 +73,7 @@ public class AdminSettingsTests
     }
 
     [Fact]
-    public void Le_nom_est_obligatoire()
+    public void The_name_is_required()
     {
         var failure = Should.Throw<CratebaseValidationException>(
             () => (Current with { AppName = "   " }).Validated());
@@ -82,22 +82,22 @@ public class AdminSettingsTests
     }
 
     [Fact]
-    public void La_retention_reste_dans_ses_bornes()
+    public void Retention_stays_within_bounds()
     {
         var failure = Should.Throw<CratebaseValidationException>(
             () => (Current with { Logs = Current.Logs with { RetentionDays = 900 } }).Validated());
 
         failure.Errors.ShouldContainKey("logs.retentionDays");
 
-        // Zéro est licite : c'est la conservation illimitée.
+        // Zero is valid: it means unlimited retention.
         Should.NotThrow(() => (Current with { Logs = Current.Logs with { RetentionDays = 0 } }).Validated());
     }
 
     [Theory]
-    [InlineData("exemple.org")]
-    [InlineData("ftp://exemple.org")]
+    [InlineData("example.org")]
+    [InlineData("ftp://example.org")]
     [InlineData("javascript:alert(1)")]
-    public void Une_url_publique_doit_etre_absolue_et_http(string url)
+    public void A_public_url_must_be_absolute_and_http(string url)
     {
         var failure = Should.Throw<CratebaseValidationException>(
             () => (Current with { AppUrl = url }).Validated());
@@ -106,26 +106,26 @@ public class AdminSettingsTests
     }
 
     [Fact]
-    public void Le_nom_et_l_url_sont_normalises()
+    public void The_name_and_url_are_normalized()
     {
-        var result = (Current with { AppName = "  Production  ", AppUrl = "https://exemple.org/" })
+        var result = (Current with { AppName = "  Production  ", AppUrl = "https://example.org/" })
             .Validated();
 
         result.AppName.ShouldBe("Production");
 
-        // La barre finale est retirée : sans cela, une URL composée par concaténation produirait
-        // « https://exemple.org//api ».
-        result.AppUrl.ShouldBe("https://exemple.org");
+        // The trailing slash is stripped: without this, a URL built by concatenation would produce
+        // "https://example.org//api".
+        result.AppUrl.ShouldBe("https://example.org");
     }
 
     [Fact]
-    public void Une_url_vide_reste_acceptee()
+    public void An_empty_url_stays_accepted()
     {
         Should.NotThrow(() => (Current with { AppUrl = "" }).Validated());
     }
 }
 
-/// <summary>Correspondance entre statut HTTP et gravité, et découpage des tranches.</summary>
+/// <summary>Mapping between HTTP status and severity, and bucket splitting.</summary>
 public class LogSeverityTests
 {
     [Theory]
@@ -136,13 +136,13 @@ public class LogSeverityTests
     [InlineData(404, LogSeverity.Warning)]
     [InlineData(500, LogSeverity.Error)]
     [InlineData(503, LogSeverity.Error)]
-    public void Un_statut_donne_une_gravite(int status, LogSeverity expected)
+    public void A_status_yields_a_severity(int status, LogSeverity expected)
     {
         LogSeverities.ForStatus(status).ShouldBe(expected);
     }
 
     [Fact]
-    public void Le_filtre_de_niveau_est_inclusif()
+    public void The_level_filter_is_inclusive()
     {
         LogSeverities.AtLeast(LogSeverity.Warning)
             .ShouldBe([LogSeverity.Warning, LogSeverity.Error]);
@@ -154,7 +154,7 @@ public class LogSeverityTests
     [InlineData("2026-08-13", "2026-08-13T00:00:00.000Z")]
     [InlineData("2026-08-13T14", "2026-08-13T14:00:00.000Z")]
     [InlineData("2026-08-13T14:05", "2026-08-13T14:05:00.000Z")]
-    public void Une_tranche_se_relit_en_instant(string bucket, string expected)
+    public void A_bucket_reads_back_as_an_instant(string bucket, string expected)
     {
         Timestamp.Normalize(LogBuckets.ToInstant(bucket)).ShouldBe(expected);
     }
