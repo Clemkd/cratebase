@@ -4,14 +4,14 @@ using Shouldly;
 namespace Cratebase.UnitTests;
 
 /// <summary>
-/// La normalisation des dates est le point de portabilité le plus exposé : SQLite compare les
-/// instants comme des chaînes, PostgreSQL les compare temporellement. Les deux ne coïncident que
-/// si la forme textuelle est strictement canonique.
+/// Date normalization is the most exposed portability point: SQLite compares instants as strings,
+/// PostgreSQL compares them temporally. The two only coincide if the text form is strictly
+/// canonical.
 /// </summary>
 public class TimestampTests
 {
     [Fact]
-    public void La_forme_canonique_a_une_longueur_fixe()
+    public void The_canonical_form_has_a_fixed_length()
     {
         var value = Timestamp.Normalize(new DateTimeOffset(2026, 8, 13, 14, 5, 9, 123, TimeSpan.Zero));
 
@@ -20,7 +20,7 @@ public class TimestampTests
     }
 
     [Fact]
-    public void Un_instant_a_fuseau_est_ramene_en_utc()
+    public void An_instant_with_a_timezone_is_brought_back_to_utc()
     {
         var paris = new DateTimeOffset(2026, 8, 13, 16, 5, 9, 123, TimeSpan.FromHours(2));
 
@@ -28,17 +28,17 @@ public class TimestampTests
     }
 
     [Fact]
-    public void Les_zeros_de_tete_sont_conserves()
+    public void Leading_zeros_are_kept()
     {
-        // Sans eux, « 2026-8-3T4:05 » trie avant « 2026-12-... » en comparaison textuelle : les
-        // filtres de plage deviennent faux sur SQLite, et seulement sur SQLite.
+        // Without them, "2026-8-3T4:05" sorts before "2026-12-..." under text comparison: range
+        // filters become wrong on SQLite, and only on SQLite.
         var value = Timestamp.Normalize(new DateTimeOffset(2026, 1, 2, 3, 4, 5, 6, TimeSpan.Zero));
 
         value.ShouldBe("2026-01-02T03:04:05.006Z");
     }
 
     [Fact]
-    public void Lordre_lexicographique_suit_lordre_chronologique()
+    public void Lexicographic_order_follows_chronological_order()
     {
         var instants = new[]
         {
@@ -58,7 +58,7 @@ public class TimestampTests
     [InlineData("2026-08-13T16:05:09.123+02:00", "2026-08-13T14:05:09.123Z")]
     [InlineData("2026-08-13T14:05:09Z", "2026-08-13T14:05:09.000Z")]
     [InlineData("2026-08-13", "2026-08-13T00:00:00.000Z")]
-    public void Les_formes_client_admises_sont_ramenees_a_la_forme_canonique(string raw, string expected)
+    public void Accepted_client_forms_are_brought_back_to_the_canonical_form(string raw, string expected)
     {
         Timestamp.TryNormalize(raw, out var canonical).ShouldBeTrue();
         canonical.ShouldBe(expected);
@@ -68,22 +68,22 @@ public class TimestampTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("pas une date")]
+    [InlineData("not a date")]
     [InlineData("2026-13-45")]
-    public void Les_valeurs_non_temporelles_sont_refusees(string? raw) =>
+    public void Non_temporal_values_are_rejected(string? raw) =>
         Timestamp.TryNormalize(raw, out _).ShouldBeFalse();
 
     [Fact]
-    public void Le_cycle_ecriture_lecture_preserve_linstant()
+    public void The_write_read_cycle_preserves_the_instant()
     {
-        // 2028 est bissextile : le 29 février est le cas limite qui vaut d'être couvert.
+        // 2028 is a leap year: February 29 is the edge case worth covering.
         var origin = new DateTimeOffset(2028, 2, 29, 23, 59, 59, 999, TimeSpan.Zero);
 
         Timestamp.Parse(Timestamp.Normalize(origin)).ShouldBe(origin);
     }
 
     [Fact]
-    public void Une_date_sans_fuseau_est_interpretee_en_utc()
+    public void A_date_with_no_timezone_is_interpreted_as_utc()
     {
         var unspecified = new DateTime(2026, 8, 13, 14, 5, 9, DateTimeKind.Unspecified);
 

@@ -3,17 +3,17 @@ using Cratebase.Data;
 
 namespace Cratebase.UnitTests;
 
-/// <summary>Horloge figée, pour rendre les macros de date déterministes.</summary>
+/// <summary>Frozen clock, to make date macros deterministic.</summary>
 public sealed class FixedClock(DateTimeOffset now) : IClock
 {
     public DateTimeOffset UtcNow { get; } = now;
 
-    /// <summary>13 août 2026, 14 h 05 min 09,123 s UTC.</summary>
+    /// <summary>August 13, 2026, 14:05:09.123 UTC.</summary>
     public static FixedClock Default =>
         new(new DateTimeOffset(2026, 8, 13, 14, 5, 9, 123, TimeSpan.Zero));
 }
 
-/// <summary>Schéma de test : une collection « posts » aux champs représentatifs.</summary>
+/// <summary>Test schema: a "posts" collection with representative fields.</summary>
 public sealed class FakeResolver : IQueryFieldResolver
 {
     private readonly Dictionary<string, ResolvedField> _fields = new(StringComparer.Ordinal)
@@ -33,13 +33,13 @@ public sealed class FakeResolver : IQueryFieldResolver
     {
         field = null!;
 
-        // Le double de test ne traverse pas les relations : un chemin à plusieurs segments est
-        // refusé, exactement comme le ferait le résolveur réel pour un champ inconnu.
+        // The test double doesn't traverse relations: a multi-segment path is refused, exactly as
+        // the real resolver would for an unknown field.
         return segments.Count == 1 && _fields.TryGetValue(segments[0], out field!);
     }
 }
 
-/// <summary>Appelant authentifié, pour les règles portant sur <c>@request.auth.*</c>.</summary>
+/// <summary>Authenticated caller, for rules involving <c>@request.auth.*</c>.</summary>
 public sealed class FakeUser(RecordId id, params string[] permissions) : ICurrentUser
 {
     public bool IsAuthenticated => true;
@@ -55,7 +55,7 @@ public sealed class FakeUser(RecordId id, params string[] permissions) : ICurren
     public IReadOnlyDictionary<string, object?> Fields { get; init; } =
         new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["email"] = "a@exemple.fr",
+            ["email"] = "a@example.com",
             ["verified"] = true,
             ["role"] = "editor",
         };

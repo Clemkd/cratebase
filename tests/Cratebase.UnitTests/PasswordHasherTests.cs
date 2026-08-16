@@ -7,54 +7,54 @@ namespace Cratebase.UnitTests;
 public class PasswordHasherTests
 {
     [Fact]
-    public void Un_mot_de_passe_se_verifie_contre_son_condensat()
+    public void A_password_verifies_against_its_hash()
     {
-        var hash = PasswordHasher.Hash("motdepasse-solide");
+        var hash = PasswordHasher.Hash("solid-password");
 
-        PasswordHasher.Verify("motdepasse-solide", hash).ShouldBeTrue();
-        PasswordHasher.Verify("motdepasse-solidE", hash).ShouldBeFalse();
+        PasswordHasher.Verify("solid-password", hash).ShouldBeTrue();
+        PasswordHasher.Verify("solid-passworD", hash).ShouldBeFalse();
         PasswordHasher.Verify("", hash).ShouldBeFalse();
         PasswordHasher.Verify(null, hash).ShouldBeFalse();
     }
 
     [Fact]
-    public void Deux_condensats_du_meme_mot_de_passe_different()
+    public void Two_hashes_of_the_same_password_differ()
     {
-        // Sel aléatoire : sans lui, deux comptes ayant le même mot de passe se reconnaissent au
-        // simple examen de la table.
-        var first = PasswordHasher.Hash("motdepasse-solide");
-        var second = PasswordHasher.Hash("motdepasse-solide");
+        // Random salt: without it, two accounts with the same password would be recognizable by
+        // simply inspecting the table.
+        var first = PasswordHasher.Hash("solid-password");
+        var second = PasswordHasher.Hash("solid-password");
 
         first.ShouldNotBe(second);
-        PasswordHasher.Verify("motdepasse-solide", first).ShouldBeTrue();
-        PasswordHasher.Verify("motdepasse-solide", second).ShouldBeTrue();
+        PasswordHasher.Verify("solid-password", first).ShouldBeTrue();
+        PasswordHasher.Verify("solid-password", second).ShouldBeTrue();
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    [InlineData("pas du base64 !")]
+    [InlineData("not base64 !")]
     [InlineData("YWJj")]
-    public void Un_condensat_illisible_ne_valide_jamais(string? hash) =>
-        PasswordHasher.Verify("motdepasse-solide", hash).ShouldBeFalse();
+    public void An_unreadable_hash_never_verifies(string? hash) =>
+        PasswordHasher.Verify("solid-password", hash).ShouldBeFalse();
 
     [Fact]
-    public void Le_cout_est_stocke_avec_le_condensat()
+    public void The_cost_is_stored_with_the_hash()
     {
-        // C'est ce qui permet d'augmenter le coût demain sans rendre invérifiables les mots de
-        // passe d'hier.
-        PasswordHasher.NeedsRehash(PasswordHasher.Hash("motdepasse-solide")).ShouldBeFalse();
+        // That's what allows raising the cost tomorrow without making yesterday's passwords
+        // unverifiable.
+        PasswordHasher.NeedsRehash(PasswordHasher.Hash("solid-password")).ShouldBeFalse();
         PasswordHasher.NeedsRehash(null).ShouldBeTrue();
         PasswordHasher.NeedsRehash("YWJj").ShouldBeTrue();
     }
 
     [Fact]
-    public void Le_cout_de_derivation_est_perceptible()
+    public void The_derivation_cost_is_perceptible()
     {
-        // Un hachage instantané est un hachage trop faible. On ne mesure pas une valeur cible —
-        // ce serait instable en intégration continue — seulement qu'un coût existe.
+        // An instant hash is a hash that's too weak. We don't measure a target value — that would
+        // be unstable in continuous integration — only that a cost exists.
         var stopwatch = Stopwatch.StartNew();
-        PasswordHasher.Hash("motdepasse-solide");
+        PasswordHasher.Hash("solid-password");
         stopwatch.Stop();
 
         stopwatch.ElapsedMilliseconds.ShouldBeGreaterThan(5);

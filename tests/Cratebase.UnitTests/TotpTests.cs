@@ -4,13 +4,13 @@ using Shouldly;
 namespace Cratebase.UnitTests;
 
 /// <summary>
-/// Vecteurs de test de la RFC 6238, seule preuve valable qu'une implémentation TOTP est correcte.
-/// Un code qui « a l'air de marcher » entre deux appels de la même implémentation ne prouve rien —
-/// il faut qu'il coïncide avec ce que produira l'application d'authentification de l'utilisateur.
+/// RFC 6238 test vectors, the only valid proof that a TOTP implementation is correct. A code that
+/// "seems to work" between two calls of the same implementation proves nothing — it must coincide
+/// with what the user's authenticator app will produce.
 /// </summary>
 public class TotpTests
 {
-    // « 12345678901234567890 » en ASCII, encodé en base32 : le secret de la RFC.
+    // "12345678901234567890" in ASCII, base32-encoded: the RFC's secret.
     private const string RfcSecret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
 
     [Theory]
@@ -20,7 +20,7 @@ public class TotpTests
     [InlineData(1234567890L, "005924")]
     [InlineData(2000000000L, "279037")]
     [InlineData(20000000000L, "353130")]
-    public void Les_vecteurs_de_la_rfc_sont_reproduits(long unixSeconds, string expected)
+    public void The_rfc_vectors_are_reproduced(long unixSeconds, string expected)
     {
         var moment = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
 
@@ -28,7 +28,7 @@ public class TotpTests
     }
 
     [Fact]
-    public void Un_code_est_accepte_dans_sa_fenetre()
+    public void A_code_is_accepted_within_its_window()
     {
         var moment = DateTimeOffset.FromUnixTimeSeconds(1111111109);
         var code = Totp.Compute(RfcSecret, moment);
@@ -37,18 +37,18 @@ public class TotpTests
     }
 
     [Fact]
-    public void La_tolerance_couvre_une_fenetre_de_part_et_dautre()
+    public void The_tolerance_covers_one_window_on_either_side()
     {
         var moment = DateTimeOffset.FromUnixTimeSeconds(1111111109);
 
-        // Saisie tardive : le code de la fenêtre précédente doit encore passer.
+        // Late entry: the previous window's code must still pass.
         var previous = Totp.Compute(RfcSecret, moment, windowOffset: -1);
         var next = Totp.Compute(RfcSecret, moment, windowOffset: 1);
 
         Totp.Verify(previous, RfcSecret, moment).ShouldBeTrue();
         Totp.Verify(next, RfcSecret, moment).ShouldBeTrue();
 
-        // Deux fenêtres d'écart : refusé. Élargir multiplierait la surface de force brute.
+        // Two windows apart: refused. Widening it would multiply the brute-force surface.
         var distant = Totp.Compute(RfcSecret, moment, windowOffset: 3);
         Totp.Verify(distant, RfcSecret, moment).ShouldBeFalse();
     }
@@ -59,11 +59,11 @@ public class TotpTests
     [InlineData("12345")]
     [InlineData("1234567")]
     [InlineData("abcdef")]
-    public void Un_code_malforme_est_refuse(string? code) =>
+    public void A_malformed_code_is_rejected(string? code) =>
         Totp.Verify(code, RfcSecret, DateTimeOffset.UnixEpoch).ShouldBeFalse();
 
     [Fact]
-    public void Deux_secrets_sont_distincts()
+    public void Two_secrets_are_distinct()
     {
         var first = Totp.NewSecret();
         var second = Totp.NewSecret();
@@ -74,9 +74,9 @@ public class TotpTests
     }
 
     [Fact]
-    public void Luri_dinscription_porte_les_parametres_attendus()
+    public void The_enrollment_uri_carries_the_expected_parameters()
     {
-        var uri = Totp.ProvisioningUri(RfcSecret, "membre@exemple.fr", "Cratebase");
+        var uri = Totp.ProvisioningUri(RfcSecret, "member@example.com", "Cratebase");
 
         uri.ShouldStartWith("otpauth://totp/");
         uri.ShouldContain($"secret={RfcSecret}");
@@ -87,6 +87,6 @@ public class TotpTests
     }
 
     [Fact]
-    public void Un_secret_invalide_est_rejete() =>
-        Should.Throw<ArgumentException>(() => Totp.Compute("pas du base32 !", DateTimeOffset.UnixEpoch));
+    public void An_invalid_secret_is_rejected() =>
+        Should.Throw<ArgumentException>(() => Totp.Compute("not base32 !", DateTimeOffset.UnixEpoch));
 }
