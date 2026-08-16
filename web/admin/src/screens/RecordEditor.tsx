@@ -24,14 +24,14 @@ import {
 import { FieldControl } from './FieldControl'
 
 /**
- * Création et modification d'un enregistrement.
+ * Creating and editing a record.
  *
- * Panneau latéral plutôt que page : la table reste visible derrière, donc on garde le contexte de
- * la ligne qu'on est en train de corriger.
+ * A side panel rather than a page: the table stays visible behind it, so the context of the row
+ * being fixed is preserved.
  *
- * Le panneau est ordonné du plus au moins saisi : les champs du projet, puis le mot de passe pour
- * une collection de comptes, puis ce que le moteur a posé — replié, parce qu'on ne l'ouvre que pour
- * diagnostiquer.
+ * The panel is ordered from most to least frequently edited: the project's own fields, then the
+ * password for an accounts collection, then what the engine has set — collapsed, since it's only
+ * opened to diagnose something.
  */
 export function RecordEditor({
   collection,
@@ -60,8 +60,8 @@ export function RecordEditor({
   const [saving, setSaving] = useState(false)
   const [engineOpen, setEngineOpen] = useState(false)
 
-  // Le panneau est monté en permanence pour que `<dialog>` conserve son nœud : les valeurs sont
-  // donc réinitialisées à chaque ouverture, sinon on éditerait la ligne précédente.
+  // The panel stays permanently mounted so `<dialog>` keeps its node: values are therefore reset
+  // on every open, otherwise the previous row would still be the one being edited.
   useEffect(() => {
     if (!open) return
 
@@ -100,14 +100,14 @@ export function RecordEditor({
       if (recordId === null) await api.records.create(collection.name, payload)
       else await api.records.update(collection.name, recordId, payload)
 
-      toast.success(recordId === null ? 'Enregistrement créé.' : 'Enregistrement modifié.')
+      toast.success(recordId === null ? 'Record created.' : 'Record updated.')
       onSaved()
     } catch (error) {
       const fieldErrors = validationErrors(error)
 
       setErrors(fieldErrors)
-      // Le détail générique n'est affiché en tête que si aucune erreur ne peut être posée sur un
-      // champ : sinon il ferait doublon avec les messages déjà visibles.
+      // The generic detail is only shown at the top if no error can be attached to a field:
+      // otherwise it would duplicate the messages already visible.
       setFailure(Object.keys(fieldErrors).length > 0 ? null : describeFailure(error))
     } finally {
       setSaving(false)
@@ -120,12 +120,12 @@ export function RecordEditor({
       onClose={onClose}
       side="right"
       title={
-        isCreation ? `Nouvel enregistrement — ${collection.name}` : 'Modifier un enregistrement'
+        isCreation ? `New record — ${collection.name}` : 'Edit record'
       }
       description={
         recordId ? (
-          // L'identifiant est ce qu'on vient chercher ici pour le reporter ailleurs — dans une
-          // requête, un ticket, un filtre. Il se copie donc d'un clic.
+          // The identifier is what you come here to fetch in order to reuse it elsewhere — in a
+          // request, a ticket, a filter. It's therefore copyable in one click.
           <span className="flex items-center gap-1">
             <code className="truncate font-mono">{recordId}</code>
             <CopyButton value={recordId} className="size-6" size="icon" />
@@ -140,7 +140,7 @@ export function RecordEditor({
             onClick={onClose}
             disabled={saving}
           >
-            Annuler
+            Cancel
           </Button>
           <Button
             variant="primary"
@@ -154,7 +154,7 @@ export function RecordEditor({
             onClick={() => void save()}
             loading={saving}
           >
-            {isCreation ? 'Créer' : 'Enregistrer'}
+            {isCreation ? 'Create' : 'Save'}
           </Button>
         </>
       }
@@ -164,9 +164,9 @@ export function RecordEditor({
 
         {fileFields.length > 0 && (
           <p className="rounded-[var(--radius-card)] border border-border-subtle bg-surface-sunken px-4 py-3 text-xs text-ink-muted">
-            Champs fichier ({fileFields.map((field) => field.name).join(', ')}) : le téléversement
-            passe par l'API en <code className="font-mono">multipart/form-data</code>, la console ne
-            le propose pas encore. Les valeurs existantes sont conservées.
+            File fields ({fileFields.map((field) => field.name).join(', ')}): uploading goes
+            through the API via <code className="font-mono">multipart/form-data</code>, which the
+            console doesn't yet offer. Existing values are preserved.
           </p>
         )}
 
@@ -197,17 +197,16 @@ export function RecordEditor({
           <fieldset className="space-y-4 rounded-[var(--radius-card)] border border-border-subtle p-4">
             <legend className="flex items-center gap-1.5 px-1 text-xs font-semibold text-ink">
               <KeyRound size={13} aria-hidden="true" />
-              {isCreation ? 'Mot de passe' : 'Changer le mot de passe'}
+              {isCreation ? 'Password' : 'Change password'}
             </legend>
 
             {!isCreation && (
               <p className="text-xs text-ink-muted">
-                Laisser vide pour ne pas y toucher. Un changement révoque les sessions ouvertes du
-                compte.
+                Leave blank to leave it unchanged. A change revokes the account's open sessions.
               </p>
             )}
 
-            <Field label="Mot de passe" required={isCreation} error={errors.password?.join(' ')}>
+            <Field label="Password" required={isCreation} error={errors.password?.join(' ')}>
               <Input
                 type="password"
                 autoComplete="new-password"
@@ -229,8 +228,8 @@ export function RecordEditor({
 
         {record !== null && readOnly.length > 0 && (
           <Disclosure
-            title="Champs posés par le moteur"
-            description="En lecture seule : horodatages, identifiants, drapeaux internes."
+            title="Fields set by the engine"
+            description="Read-only: timestamps, identifiers, internal flags."
             open={engineOpen}
             onToggle={() => setEngineOpen((current) => !current)}
           >
@@ -242,7 +241,7 @@ export function RecordEditor({
   )
 }
 
-/** Champs renseignés par le moteur : affichés pour le diagnostic, jamais saisissables. */
+/** Fields set by the engine: shown for diagnostics, never editable. */
 function EngineFields({ fields, record }: { fields: FieldDefinition[]; record: RecordValue }) {
   return (
     <dl className="divide-y divide-border-subtle">
