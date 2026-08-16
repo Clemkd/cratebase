@@ -11,16 +11,17 @@ builder.AddCratebase(options =>
 {
     options.DataDirectory = dataDirectory;
 
-    // Le seul endroit du produit où un moteur est nommé. Basculer sur PostgreSQL est
-    // exactement ce changement-ci, et rien d'autre.
+    // The only place in the product where an engine is named. Switching to PostgreSQL is exactly
+    // this change, and nothing else.
     var postgres = builder.Configuration.GetConnectionString("Postgres");
 
     if (!string.IsNullOrWhiteSpace(postgres))
     {
         options.UsePostgres(postgres);
 
-        // PostgreSQL ne rend pas l'espace restant de son volume, et une instance gérée n'en expose
-        // souvent aucun. La jauge du tableau de bord n'existe donc que si l'exploitant la déclare.
+        // PostgreSQL doesn't return its volume's remaining space, and a managed instance often
+        // exposes none at all. The dashboard's gauge therefore only exists if the operator declares
+        // it.
         options.DatabaseCapacityBytes =
             builder.Configuration.GetValue<long>("Cratebase:Postgres:CapacityBytes");
     }
@@ -31,8 +32,8 @@ builder.AddCratebase(options =>
             ?? $"Data Source={Path.Combine(dataDirectory, "cratebase.db")}");
     }
 
-    // Même logique pour les fichiers : disque local par défaut, S3 dès que la configuration en
-    // décrit un. Aucun autre changement n'est nécessaire.
+    // Same logic for files: local disk by default, S3 as soon as configuration describes one. No
+    // other change is needed.
     var s3 = builder.Configuration.GetSection("Cratebase:S3");
 
     if (s3.Exists() && !string.IsNullOrWhiteSpace(s3["Bucket"]))
@@ -46,7 +47,7 @@ builder.AddCratebase(options =>
             PublicEndpoint = s3["PublicEndpoint"],
             Region = s3["Region"] ?? "us-east-1",
             ForcePathStyle = s3.GetValue("ForcePathStyle", true),
-            // Aucune limite ne se lit sur un seau : celle-ci est déclarée, ou absente.
+            // No limit can be read from a bucket: this one is either declared, or absent.
             CapacityBytes = s3.GetValue<long>("CapacityBytes"),
         });
     }
@@ -55,8 +56,8 @@ builder.AddCratebase(options =>
         options.UseLocalFiles(Path.Combine(dataDirectory, "storage"));
     }
 
-    // Fournisseurs externes : Cratebase__OAuth2__Google__ClientId, etc. Un fournisseur dont les
-    // identifiants manquent reste simplement absent de la liste des méthodes d'authentification.
+    // External providers: Cratebase__OAuth2__Google__ClientId, etc. A provider whose credentials
+    // are missing simply stays absent from the list of authentication methods.
     foreach (var provider in OAuth2Presets.All.Keys)
     {
         var section = builder.Configuration.GetSection($"Cratebase:OAuth2:{provider}");
@@ -71,10 +72,10 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
-// Avant tout endpoint : sans elle, chaque requête est anonyme.
+// Before any endpoint: without it, every request is anonymous.
 app.UseCratebaseAuthentication();
 
-// Après elle : le journal nomme l'auteur de chaque requête.
+// After it: the log names the author of every request.
 app.UseCratebaseRequestLog();
 
 app.MapCratebase();
@@ -84,9 +85,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-// La SPA est servie par ASP.NET Core, et non par nginx : c'est ce qui tient la promesse
-// « un seul conteneur ». MapStaticAssets apporte l'empreinte de contenu et la compression
-// au moment de la publication.
+// The SPA is served by ASP.NET Core, not by nginx: that's what keeps the "single container"
+// promise. MapStaticAssets brings content hashing and compression at publish time.
 app.UseDefaultFiles();
 app.MapStaticAssets();
 app.MapFallbackToFile("index.html");
@@ -96,5 +96,5 @@ await app.Services.BootstrapSuperuserAsync(app.Configuration, app.Logger);
 
 await app.RunAsync();
 
-/// <summary>Point d'entrée, exposé pour les tests d'intégration.</summary>
+/// <summary>Entry point, exposed for integration tests.</summary>
 public partial class Program;

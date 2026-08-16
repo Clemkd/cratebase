@@ -3,17 +3,17 @@ using Cratebase.Auth;
 namespace Cratebase.App;
 
 /// <summary>
-/// Création du premier super-admin au démarrage.
+/// Creates the first superuser at startup.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Une base fraîchement créée n'a aucun compte, et toutes les collections système sont verrouillées :
-/// sans amorçage, l'installation n'est administrable par personne.
+/// A freshly created database has no accounts, and every system collection is locked: without
+/// bootstrapping, the installation would be administrable by nobody.
 /// </para>
 /// <para>
-/// L'amorçage ne s'applique <b>que si aucun super-admin n'existe</b>. Sans cette garde, un
-/// mot de passe laissé dans les variables d'environnement réinitialiserait le compte à chaque
-/// redémarrage — y compris après que l'administrateur l'a changé.
+/// Bootstrapping applies <b>only if no superuser exists</b>. Without this guard, a password left
+/// in environment variables would reset the account on every restart — even after the administrator
+/// has changed it.
 /// </para>
 /// </remarks>
 public static partial class SuperuserBootstrapExtensions
@@ -21,24 +21,24 @@ public static partial class SuperuserBootstrapExtensions
     [LoggerMessage(
         EventId = 10,
         Level = LogLevel.Warning,
-        Message = "Aucun super-admin n'existe et aucun n'est configuré. Poser " +
-                  "Cratebase:Superuser:Email et Cratebase:Superuser:Password pour en créer un au " +
-                  "prochain démarrage.")]
+        Message = "No superuser exists and none is configured. Set " +
+                  "Cratebase:Superuser:Email and Cratebase:Superuser:Password to create one on " +
+                  "the next startup.")]
     private static partial void LogNoSuperuser(ILogger logger);
 
     [LoggerMessage(
         EventId = 11,
         Level = LogLevel.Information,
-        Message = "Super-admin initial créé : {Email}")]
+        Message = "Initial superuser created: {Email}")]
     private static partial void LogSuperuserCreated(ILogger logger, string email);
 
-    /// <summary>Clé de configuration de l'adresse.</summary>
+    /// <summary>Configuration key for the address.</summary>
     public const string EmailKey = "Cratebase:Superuser:Email";
 
-    /// <summary>Clé de configuration du mot de passe.</summary>
+    /// <summary>Configuration key for the password.</summary>
     public const string PasswordKey = "Cratebase:Superuser:Password";
 
-    /// <summary>Crée le premier super-admin si la base n'en a aucun.</summary>
+    /// <summary>Creates the first superuser if the database has none.</summary>
     public static async Task BootstrapSuperuserAsync(
         this IServiceProvider services,
         IConfiguration configuration,
