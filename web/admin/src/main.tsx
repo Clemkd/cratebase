@@ -6,7 +6,7 @@ import './index.css'
 const root = document.getElementById('root')
 
 if (!root) {
-  throw new Error("L'élément racine est introuvable.")
+  throw new Error('Root element not found.')
 }
 
 createRoot(root).render(

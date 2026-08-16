@@ -1,8 +1,8 @@
 /**
- * Client HTTP de la console.
+ * HTTP client for the console.
  *
- * Ancêtre de `@cratebase/client`, le SDK public : même forme d'erreur, même conventions. Ce qui est
- * ici finira extrait, donc rien de propre à la console ne doit s'y glisser.
+ * Ancestor of `@cratebase/client`, the public SDK: same error shape, same conventions. What lives
+ * here will eventually be extracted, so nothing console-specific should creep in.
  */
 
 export class ApiError extends Error {
@@ -31,15 +31,15 @@ export class ApiError extends Error {
     return this.status === 409
   }
 
-  /** Premier message d'erreur de validation, pour un affichage compact. */
+  /** First validation error message, for a compact display. */
   get firstValidationMessage(): string | undefined {
     if (!this.errors) return undefined
     const [field, messages] = Object.entries(this.errors)[0] ?? []
-    return field && messages?.[0] ? `${field} : ${messages[0]}` : undefined
+    return field && messages?.[0] ? `${field}: ${messages[0]}` : undefined
   }
 }
 
-/** Message lisible d'un échec, quelle qu'en soit la nature. */
+/** Human-readable message for a failure, whatever its nature. */
 export function describeFailure(failure: unknown): string {
   if (failure instanceof ApiError) {
     return failure.firstValidationMessage ?? failure.detail
@@ -52,17 +52,17 @@ export function describeFailure(failure: unknown): string {
   return String(failure)
 }
 
-/** Erreurs de validation portées par un échec, indexées par champ. */
+/** Validation errors carried by a failure, indexed by field. */
 export function validationErrors(failure: unknown): Record<string, string[]> {
   return failure instanceof ApiError ? (failure.errors ?? {}) : {}
 }
 
 /**
- * Session courante.
+ * Current session.
  *
- * `sessionStorage` et non `localStorage` : le jeton disparaît à la fermeture de l'onglet, ce qui
- * limite la fenêtre d'exploitation sur un poste partagé. Le jeton étant révocable côté serveur, la
- * déconnexion le détruit vraiment — ici comme en base.
+ * `sessionStorage` and not `localStorage`: the token disappears when the tab closes, which limits
+ * the exposure window on a shared machine. Since the token is revocable server-side, signing out
+ * truly destroys it — here as well as in the database.
  */
 const TOKEN_KEY = 'cratebase.token'
 
@@ -81,11 +81,11 @@ export const session = {
   },
 
   /**
-   * S'abonne à l'expiration du jeton.
+   * Subscribes to token expiry.
    *
-   * Un 401 peut survenir sur n'importe quel appel — jeton révoqué depuis un autre onglet, droits
-   * retirés. Le traiter dans chaque écran laisserait forcément un chemin oublié, donc la purge et
-   * le retour à la connexion sont déclenchés ici, une seule fois, pour tout le monde.
+   * A 401 can happen on any call — token revoked from another tab, permissions withdrawn.
+   * Handling it in every screen would inevitably leave a path uncovered, so the purge and the
+   * return to the login screen are triggered here, once, for everyone.
    */
   onExpired(listener: ExpiryListener): () => void {
     expiryListeners.add(listener)
@@ -110,8 +110,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const payload: unknown = await response.json().catch(() => null)
 
   if (!response.ok) {
-    // Un 401 sur un appel porteur d'un jeton signifie que ce jeton ne vaut plus rien : on le purge
-    // avant de propager, sinon l'écran suivant le renverrait pour se faire refuser à son tour.
+    // A 401 on a call carrying a token means that token is no longer valid: purge it before
+    // propagating, otherwise the next screen would resend it and get refused in turn.
     if (response.status === 401 && token) {
       session.token = null
       expiryListeners.forEach((listener) => listener())
@@ -134,7 +134,7 @@ function toApiError(status: number, payload: unknown): ApiError {
 
   return new ApiError(
     status,
-    problem.detail ?? problem.title ?? `Erreur HTTP ${status}`,
+    problem.detail ?? problem.title ?? `HTTP error ${status}`,
     problem.errors,
   )
 }
@@ -202,11 +202,11 @@ export interface Collection {
   updated: string
 }
 
-/** Charge utile d'un champ telle que le serveur l'attend. */
+/** Field payload as expected by the server. */
 export interface FieldPayload {
   /**
-   * ⚠️ Omis pour un champ nouveau, renvoyé tel quel pour un champ existant. C'est ce qui distingue
-   * un renommage — qui préserve les données — d'un remplacement, qui les détruit.
+   * ⚠️ Omitted for a new field, sent back as-is for an existing field. This is what distinguishes
+   * a rename — which preserves the data — from a replacement, which destroys it.
    */
   id?: string
   name: string
@@ -216,7 +216,7 @@ export interface FieldPayload {
   options: FieldOptions
 }
 
-/** Charge utile d'une collection telle que le serveur l'attend. */
+/** Collection payload as expected by the server. */
 export interface CollectionPayload {
   name: string
   type: CollectionKind
@@ -251,7 +251,7 @@ export interface Health {
 
 export type LogLevel = 'Debug' | 'Info' | 'Warning' | 'Error'
 
-/** Niveaux du plus bas au plus grave. L'ordre sert au filtre « au moins ce niveau ». */
+/** Levels from lowest to most severe. The order backs the "at least this level" filter. */
 export const LOG_LEVELS: LogLevel[] = ['Debug', 'Info', 'Warning', 'Error']
 
 export interface LogEntry {
@@ -261,9 +261,9 @@ export interface LogEntry {
   message: string
   method: string
   url: string
-  /** Zéro pour une entrée d'application, qui ne répond à aucune requête. */
+  /** Zero for an application entry, which doesn't answer any request. */
   status: number
-  /** Durée de traitement, en millisecondes. */
+  /** Processing duration, in milliseconds. */
   duration: number
   authCollection: string
   authId: string
@@ -277,13 +277,13 @@ export interface LogListParams {
   page?: number
   perPage?: number
   /**
-   * Niveaux retenus. Vide ou absent : tous.
+   * Levels to keep. Empty or absent: all.
    *
-   * Un ensemble et non une borne basse : « les avertissements sans les erreurs » est une question
-   * d'exploitation courante, qu'une gravité minimale ne sait pas poser.
+   * A set rather than a lower bound: "warnings without errors" is a common operational question
+   * that a minimum severity cannot express.
    */
   levels?: LogLevel[]
-  /** Fragment cherché dans le message ou l'URL. */
+  /** Fragment searched for in the message or URL. */
   q?: string
   method?: string
   status?: number
@@ -307,7 +307,7 @@ export interface LogStats {
   items: LogBucket[]
 }
 
-/** Un objet du magasin, replacé dans le modèle de collections. */
+/** An object from the store, mapped back into the collection model. */
 export interface StoredObject {
   key: string
   collection: string
@@ -316,7 +316,7 @@ export interface StoredObject {
   size: number
   contentType: string
   isThumb: boolean
-  /** Aucun enregistrement ne référence ce fichier. */
+  /** No record references this file. */
   orphan: boolean
 }
 
@@ -325,18 +325,18 @@ export interface StorageObjectsParams {
   perPage?: number
   collection?: string
   q?: string
-  /** `files`, `thumbs`, ou vide pour les deux. */
+  /** `files`, `thumbs`, or empty for both. */
   kind?: string
-  /** Ne montrer que les objets qu'aucun enregistrement ne référence. */
+  /** Show only objects that no record references. */
   orphans?: boolean
 }
 
 /**
- * Description du magasin de fichiers.
+ * Description of the file store.
  *
- * Aucune clé secrète n'y figure : le magasin est décidé par la configuration de l'hôte, et la
- * console le lit sans jamais pouvoir l'écrire. `accessKeyHint` ne porte que les quatre derniers
- * caractères de la clé d'accès — assez pour reconnaître laquelle est en service.
+ * No secret key appears here: the store is decided by the host configuration, and the console
+ * only ever reads it, never writes it. `accessKeyHint` only carries the last four characters of
+ * the access key — enough to recognize which one is active.
  */
 export interface Storage {
   kind: 'local' | 's3'
@@ -354,11 +354,11 @@ export interface Storage {
 }
 
 /**
- * Occupation mesurée de l'instance.
+ * Measured usage of the instance.
  *
- * Une capacité à zéro signifie « inconnue » et non « nulle » : ni PostgreSQL ni S3 n'exposent de
- * limite de façon portable, et l'écran doit alors montrer un volume sans jauge plutôt qu'une jauge
- * inventée.
+ * A capacity of zero means "unknown", not "none": neither PostgreSQL nor S3 expose a limit in a
+ * portable way, so the screen must then show a volume without a gauge rather than an invented
+ * gauge.
  */
 export interface Usage {
   host: { available: boolean; path: string; totalBytes: number; freeBytes: number }
@@ -404,10 +404,10 @@ export interface AppSettings {
 }
 
 /**
- * Réglages soumis.
+ * Submitted settings.
  *
- * Partiel de bout en bout : le serveur laisse en place ce que la charge ne mentionne pas. Envoyer
- * l'objet complet remettrait à leur valeur par défaut les réglages qu'un écran ne connaît pas.
+ * Partial end to end: the server leaves in place whatever the payload doesn't mention. Sending
+ * the full object would reset to default any settings a given screen doesn't know about.
  */
 export interface SettingsPayload {
   realtime?: Partial<RealtimeSettings>
@@ -465,7 +465,7 @@ function toQuery(params: RecordListParams): string {
   return query ? `?${query}` : ''
 }
 
-/** Assemble une chaîne de requête en ignorant ce qui est vide. */
+/** Assembles a query string, skipping anything empty. */
 function toSearch(params: Record<string, string | number | undefined>): string {
   const entries = Object.entries(params)
     .filter((entry): entry is [string, string | number] => entry[1] !== undefined && entry[1] !== '')
@@ -477,11 +477,11 @@ function toSearch(params: Record<string, string | number | undefined>): string {
 }
 
 /**
- * Chaîne de requête du journal.
+ * Log query string.
  *
- * Les niveaux voyagent séparés par des virgules sous un seul `level` : `URLSearchParams` sait
- * répéter une clé, mais une adresse à quatre `level=` est illisible dans une barre de navigation —
- * or c'est là qu'on la relit quand on partage un lien de journal.
+ * Levels travel comma-separated under a single `level` key: `URLSearchParams` can repeat a key,
+ * but an address with four `level=` entries is unreadable in an address bar — and that's exactly
+ * where it gets read again when sharing a log link.
  */
 function logSearch(
   params: LogListParams & { granularity?: LogGranularity; stats?: number },
@@ -497,14 +497,14 @@ function logSearch(
 export const api = {
   health: () => request<Health>('/health'),
 
-  /** État de l'instance : moteur, stockage, version, volumétrie. Réservé au super-admin. */
+  /** Instance state: engine, storage, version, usage. Reserved for superusers. */
   instance: () => request<Instance>('/instance'),
 
   /**
-   * Occupation du disque, de la base et des fichiers.
+   * Disk, database, and file usage.
    *
-   * Séparée de `/instance` parce qu'elle coûte réellement : elle interroge le moteur et parcourt le
-   * magasin. Un écran qui ne veut que le nom de l'instance n'a pas à payer ce prix.
+   * Separate from `/instance` because it genuinely costs something: it queries the engine and
+   * walks the store. A screen that only wants the instance name shouldn't have to pay that price.
    */
   usage: () => request<Usage>('/usage'),
 
@@ -519,11 +519,11 @@ export const api = {
     list: (params: LogListParams = {}) => request<Page<LogEntry>>(`/logs${logSearch(params)}`),
 
     /**
-     * Page et histogramme en un seul appel.
+     * Page and histogram in a single call.
      *
-     * ⚠️ Indissociables volontairement : deux appels distincts vident chacun le tampon d'écriture
-     * du serveur, donc le second voit des entrées que le premier n'avait pas — et le graphique
-     * annonce un total que le tableau sous lui ne montre pas.
+     * ⚠️ Deliberately inseparable: two distinct calls would each drain the server's write buffer,
+     * so the second would see entries the first didn't — and the chart would report a total the
+     * table below it doesn't show.
      */
     listWithStats: (params: LogListParams & { granularity?: LogGranularity } = {}) =>
       request<Page<LogEntry> & { stats: LogStats }>(
@@ -540,22 +540,21 @@ export const api = {
 
   files: {
     /**
-     * Jeton de lecture de fichier, valable deux minutes.
+     * File read token, valid for two minutes.
      *
-     * Une balise `<img>` et une navigation ne portent pas d'en-tête `Authorization` : c'est ce
-     * jeton, et lui seul, qui autorise l'aperçu d'un fichier protégé et le téléchargement d'une
-     * archive.
+     * An `<img>` tag and a navigation don't carry an `Authorization` header: it's this token, and
+     * only this token, that authorizes previewing a protected file and downloading an archive.
      */
     token: async () => (await request<{ token: string }>('/files/token', { method: 'POST' })).token,
   },
 
   realtime: {
     /**
-     * Déclare les sujets suivis par un flux.
+     * Declares the topics a stream follows.
      *
-     * Remplace la liste, ne l'étend pas : changer d'écran doit pouvoir tout désabonner en une
-     * requête. C'est aussi cet appel qui attache le jeton au flux, qu'une `EventSource` ne peut
-     * pas porter.
+     * Replaces the list rather than extending it: switching screens must be able to unsubscribe
+     * everything in a single request. This call is also what attaches the token to the stream,
+     * which an `EventSource` cannot carry.
      */
     subscribe: (clientId: string, subscriptions: string[]) =>
       request<void>('/realtime', {
@@ -565,7 +564,7 @@ export const api = {
   },
 
   storage: {
-    /** Magasin actif et volumétrie. */
+    /** Active store and usage. */
     get: () => request<Storage>('/storage'),
 
     objects: (params: StorageObjectsParams = {}) =>
@@ -586,18 +585,18 @@ export const api = {
         body: JSON.stringify({ keys }),
       }),
 
-    /** Éprouve le magasin de bout en bout : écriture, relecture, URL signée, suppression. */
+    /** Exercises the store end to end: write, read back, signed URL, delete. */
     check: () => request<StorageProbe>('/storage/check', { method: 'POST' }),
 
     /**
-     * Adresse de l'archive, munie d'un jeton de courte durée.
+     * Archive URL, carrying a short-lived token.
      *
-     * Une URL confiée au navigateur, et non un appel `fetch` : lui seul sait écrire le flux sur le
-     * disque au fur et à mesure et reprendre un téléchargement interrompu. Le rapatrier en mémoire
-     * pour en faire un objet téléchargeable ferait tenir une archive entière dans l'onglet.
+     * A URL handed to the browser, not a `fetch` call: only the browser knows how to stream the
+     * download to disk incrementally and resume an interrupted download. Pulling it into memory to
+     * turn it into a downloadable object would try to fit an entire archive inside the tab.
      *
-     * D'où le jeton en paramètre : une navigation ne porte pas d'en-tête `Authorization`. C'est le
-     * même mécanisme que les fichiers protégés, avec la même durée de vie de deux minutes.
+     * Hence the token as a parameter: a navigation doesn't carry an `Authorization` header. It's
+     * the same mechanism as protected files, with the same two-minute lifetime.
      */
     archive: async (options: { collection?: string; thumbs?: boolean } = {}) => {
       const token = await api.files.token()
@@ -611,10 +610,10 @@ export const api = {
   },
 
   auth: {
-    /** Collection portant les super-admins. */
+    /** Collection holding the superusers. */
     superusers: '_superusers',
 
-    /** Collection portant les rôles et leurs permissions. */
+    /** Collection holding the roles and their permissions. */
     roles: '_roles',
 
     login: async (identity: string, password: string) => {
@@ -633,13 +632,13 @@ export const api = {
       try {
         await request<void>(`/collections/${api.auth.superusers}/auth-logout`, { method: 'POST' })
       } finally {
-        // Le jeton local part même si l'appel échoue : sinon une coupure réseau laisserait
-        // l'utilisateur persuadé d'être déconnecté avec un jeton encore actif dans son onglet.
+        // The local token is cleared even if the call fails: otherwise a network outage would
+        // leave the user believing they're signed out while a token is still active in their tab.
         session.token = null
       }
     },
 
-    /** Pose les rôles et permissions d'un compte. Réservé au super-admin. */
+    /** Sets the roles and permissions of an account. Reserved for superusers. */
     grant: (collection: string, id: string, roles: string[], permissions: string[]) =>
       request<void>(`/collections/${collection}/records/${id}/grants`, {
         method: 'POST',

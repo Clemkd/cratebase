@@ -30,14 +30,14 @@ import {
   useToast,
 } from './ui'
 
-/** Ce que chaque section d'administration promet, en une phrase. */
+/** What each admin section promises, in one sentence. */
 const ADMIN_DESCRIPTIONS: Record<AdminSection, string> = {
-  settings: "Réglages honorés par le moteur. Le reste appartient à la configuration de l'hôte.",
+  settings: 'Settings honored by the engine. Everything else belongs to the host configuration.',
   storage:
-    "Magasin des fichiers : configuration en vigueur, test de connexion, extraction. Lu, jamais écrit.",
+    'File store: active configuration, connection test, export. Read, never written.',
   superusers:
-    "Comptes qui administrent l'instance. Ils passent outre toutes les règles d'accès des collections.",
-  providers: "Fournisseurs OAuth2 chargés au démarrage depuis la configuration de l'hôte.",
+    'Accounts that administer the instance. They bypass every access rule on every collection.',
+  providers: 'OAuth2 providers loaded at startup from the host configuration.',
 }
 
 export function App() {
@@ -61,9 +61,8 @@ function Authenticated() {
     }
 
     try {
-      // Le jeton en session peut avoir été révoqué côté serveur — déconnexion depuis un autre
-      // onglet, droits retirés. On le vérifie au chargement plutôt que de faire confiance à sa
-      // présence.
+      // The session token may have been revoked server-side — signed out from another tab,
+      // permissions withdrawn. It's verified on load rather than trusted just because it's present.
       setIdentity(await api.auth.me())
     } catch {
       session.token = null
@@ -77,12 +76,12 @@ function Authenticated() {
     void verify()
   }, [verify])
 
-  // Un 401 sur n'importe quel appel purge le jeton : il ne reste qu'à ramener l'écran de connexion.
+  // A 401 on any call purges the token: all that's left is to bring back the login screen.
   useEffect(
     () =>
       session.onExpired(() => {
         setIdentity((current) => {
-          if (current) toast.error('Session expirée. Reconnectez-vous.')
+          if (current) toast.error('Session expired. Please sign in again.')
           return null
         })
       }),
@@ -92,7 +91,7 @@ function Authenticated() {
   if (checking) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-canvas">
-        <LoadingBlock label="Vérification de la session…" />
+        <LoadingBlock label="Verifying session…" />
       </div>
     )
   }
@@ -105,10 +104,10 @@ function Authenticated() {
 }
 
 /**
- * Pastilles portées par les onglets d'une collection.
+ * Badges carried by a collection's tabs.
  *
- * Calculées sur la définition enregistrée : elles disent l'état de ce qui est en base, pas celui du
- * brouillon en cours — c'est l'onglet « Général » qui montre le second.
+ * Computed from the saved definition: they report the state of what's in the database, not the
+ * state of the in-progress draft — that's what the "General" tab shows.
  */
 function useTabBadges(collection: Collection | null) {
   return useMemo(() => {
@@ -136,8 +135,8 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
   const { collections, engine, loading, error, reload } = useCollections()
   const { route, navigate } = useRoute()
 
-  // Le nom de l'instance est réglable : il nomme la colonne de navigation et l'onglet du
-  // navigateur, ce qui est la seule façon de distinguer deux consoles ouvertes côte à côte.
+  // The instance name is configurable: it names the navigation column and the browser tab, which
+  // is the only way to tell two consoles apart when they're open side by side.
   const [appName, setAppName] = useState('Cratebase')
 
   useEffect(() => {
@@ -145,12 +144,12 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
       .get()
       .then((settings) => setAppName(settings.appName))
       .catch(() => {
-        // Réglages illisibles : la console reste utilisable sous son nom par défaut.
+        // Settings unreadable: the console remains usable under its default name.
       })
   }, [])
 
   useEffect(() => {
-    globalThis.document.title = `${appName} — administration`
+    globalThis.document.title = `${appName} — Admin`
   }, [appName])
 
   const superusers = collections.find((item) => item.name === api.auth.superusers) ?? null
@@ -162,9 +161,9 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
 
   const badges = useTabBadges(selected)
 
-  // Une seule barre d'onglets pour toute la collection : les quatre vues du schéma y siègent au
-  // même rang que les enregistrements. Deux barres empilées — l'une pour la collection, l'autre
-  // pour le schéma — obligeaient à retenir laquelle commande quoi.
+  // A single tab bar for the whole collection: the four schema views sit at the same rank as
+  // records. Two stacked bars — one for the collection, one for the schema — forced you to
+  // remember which controlled what.
   const tabs: CollectionTab[] =
     selected?.kind === 'Auth'
       ? ['records', 'accounts', ...SCHEMA_TABS]
@@ -186,9 +185,9 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
       )
     }
     if (tab === 'rules' && badges.openRules > 0) {
-      return <Badge tone="danger">{badges.openRules} ouverte{badges.openRules > 1 ? 's' : ''}</Badge>
+      return <Badge tone="danger">{badges.openRules} open</Badge>
     }
-    if (tab === 'general' && selected.isSystem) return <Badge>lecture seule</Badge>
+    if (tab === 'general' && selected.isSystem) return <Badge>read-only</Badge>
 
     return undefined
   }
@@ -215,13 +214,13 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
       {route.kind === 'new' && (
         <Page
           wide
-          title="Nouvelle collection"
-          description="Le moteur crée la table et expose son API CRUD dès l'enregistrement."
+          title="New collection"
+          description="The engine creates the table and exposes its CRUD API as soon as it's saved."
         >
           <div className="space-y-4">
             <Tabs
               name="collection-vue"
-              label="Sections de la nouvelle collection"
+              label="Sections of the new collection"
               active={route.section}
               onChange={(section) => navigate({ kind: 'new', section })}
               tabs={SCHEMA_TABS.map((tab) => ({ id: tab, label: TAB_LABELS[tab] }))}
@@ -233,8 +232,8 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
                 collections={collections}
                 section={route.section}
                 onNavigate={(tab) => {
-                  // Une collection qui n'existe pas encore n'a ni enregistrements ni comptes :
-                  // seules les vues du schéma sont atteignables.
+                  // A collection that doesn't exist yet has neither records nor accounts: only
+                  // the schema views are reachable.
                   const section = SCHEMA_TABS.find((entry) => entry === tab)
 
                   if (section) navigate({ kind: 'new', section })
@@ -254,8 +253,8 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
       {route.kind === 'home' && (
         <Page
           wide
-          title="Tableau de bord"
-          description="Ce que sert ce processus, et ce qu'il occupe : moteur, stockage, volumétrie."
+          title="Dashboard"
+          description="What this process serves, and what it uses: engine, storage, volume."
         >
           <Dashboard onOpenLogs={() => navigate({ kind: 'logs' })} />
         </Page>
@@ -264,8 +263,8 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
       {route.kind === 'files' && (
         <Page
           wide
-          title="Fichiers"
-          description="Inventaire du magasin : ce qui est stocké, qui le référence, et ce qui ne sert plus."
+          title="Files"
+          description="Inventory of the store: what's stored, what references it, and what no longer serves any purpose."
         >
           <StorageBrowser collections={collections} />
         </Page>
@@ -274,8 +273,8 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
       {route.kind === 'logs' && (
         <Page
           wide
-          title="Journaux"
-          description="Requêtes servies par l'API, refus d'accès et évènements d'administration."
+          title="Logs"
+          description="Requests served by the API, access denials, and administration events."
         >
           <LogsBrowser collections={collections} />
         </Page>
@@ -299,7 +298,7 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
                 onSignedOut={onSignedOut}
               />
             ) : (
-              <LoadingBlock label="Chargement des super-admins…" />
+              <LoadingBlock label="Loading superusers…" />
             ))}
 
           {route.section === 'providers' && <AdminProviders />}
@@ -307,17 +306,17 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
       )}
 
       {route.kind === 'collection' && !loading && collections.length === 0 && !error && (
-          <Page title="Console" description="Aucune collection n'existe encore dans cette base.">
+          <Page title="Console" description="No collection exists yet in this database.">
             <EmptyState
-              title="Aucune collection"
-              description="Créez-en une : le moteur crée la table et expose son API CRUD immédiatement."
+              title="No collections"
+              description="Create one: the engine creates the table and exposes its CRUD API immediately."
               action={
                 <Button
                   variant="primary"
                   icon={<Plus size={15} aria-hidden="true" />}
                   onClick={() => navigate({ kind: 'new', section: 'general' })}
                 >
-                  Nouvelle collection
+                  New collection
                 </Button>
               }
             />
@@ -331,20 +330,20 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
           meta={
             <>
               <Badge tone={selected.kind === 'Auth' ? 'brand' : 'neutral'}>
-                {selected.kind === 'Auth' ? 'collection de comptes' : 'collection de données'}
+                {selected.kind === 'Auth' ? 'accounts collection' : 'data collection'}
               </Badge>
               <Badge>
-                {selected.fields.length} champ{selected.fields.length > 1 ? 's' : ''}
+                {selected.fields.length} field{selected.fields.length > 1 ? 's' : ''}
               </Badge>
               <Badge>{selected.indexes.length} index</Badge>
-              {selected.isSystem && <Badge tone="warning">collection système</Badge>}
+              {selected.isSystem && <Badge tone="warning">system collection</Badge>}
             </>
           }
         >
           <div className="space-y-4">
             <Tabs
               name="collection-vue"
-              label={`Vues de la collection ${selected.name}`}
+              label={`Views of the ${selected.name} collection`}
               active={activeTab}
               onChange={(tab) => navigate({ kind: 'collection', name: selected.name, tab })}
               tabs={tabs.map((tab) => ({ id: tab, label: TAB_LABELS[tab], badge: badgeFor(tab) }))}
@@ -367,8 +366,8 @@ function Console({ identity, onSignedOut }: { identity: Identity; onSignedOut: (
               />
             </TabPanel>
 
-            {/* Un seul montage pour les quatre vues du schéma : le brouillon leur est commun, donc
-                passer de « Champs » à « Règles » ne doit pas repartir de la définition enregistrée. */}
+            {/* A single mount for the four schema views: the draft is shared between them, so
+                switching from "Fields" to "Rules" must not restart from the saved definition. */}
             {schemaSection && (
               <TabPanel name="collection-vue" id={schemaSection} active={activeTab}>
                 <CollectionEditor
