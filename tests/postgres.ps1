@@ -1,9 +1,9 @@
-# Rejoue la suite de bout en bout sur PostgreSQL.
+# Replays the end-to-end suite against PostgreSQL.
 #
-# C'est LE test qui vaut promesse : la même suite, la même application, l'autre moteur. Tant qu'il
-# passe, « passer à PostgreSQL » reste un changement de configuration. Le jour où il casse, la
-# promesse du §1 du document de conception a cessé d'être vraie — bien avant qu'un utilisateur s'en
-# aperçoive en production.
+# This is THE test that stands as a promise: the same suite, the same application, the other
+# engine. As long as it passes, "switching to PostgreSQL" stays a configuration change. The day
+# it breaks, the promise of §1 of the design document has stopped being true — well before any
+# user notices it in production.
 #
 #   pwsh tests/postgres.ps1
 
@@ -36,9 +36,9 @@ for ($i = 0; $i -lt 60; $i++) {
     Start-Sleep -Milliseconds 1000
 }
 
-# Base vierge à chaque exécution : un schéma résiduel masquerait une régression du DDL.
+# Fresh database on every run: a leftover schema would mask a DDL regression.
 docker exec $Container psql -U cratebase -d cratebase -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' | Out-Null
-Write-Host "  base remise a neuf" -ForegroundColor Green
+Write-Host "  database reset" -ForegroundColor Green
 
 Write-Host "`n== Application ==" -ForegroundColor Cyan
 
@@ -52,8 +52,8 @@ $env:ASPNETCORE_ENVIRONMENT = 'Development'
 $env:ConnectionStrings__Postgres =
     "Host=127.0.0.1;Port=$PostgresPort;Database=cratebase;Username=cratebase;Password=cratebase"
 
-# 127.0.0.1 et non « localhost » : sur un poste où localhost se résout d'abord en ::1, une
-# application liée en IPv4 seule paraît injoignable jusqu'au délai d'expiration.
+# 127.0.0.1, not "localhost": on a machine where localhost resolves to ::1 first, an application
+# bound to IPv4 only looks unreachable until the request times out.
 Start-Process -FilePath 'dotnet' -WindowStyle Hidden -ArgumentList @(
     'run', '--project', (Join-Path $root 'src\Cratebase.App'),
     '--no-launch-profile', '--urls', "http://127.0.0.1:$AppPort"
@@ -65,10 +65,10 @@ for ($i = 0; $i -lt 90; $i++) {
     catch { Start-Sleep -Milliseconds 1000 }
 }
 
-if (-not $health) { throw "L'application n'a pas demarre." }
-if ($health.engine -ne 'postgres') { throw "Moteur inattendu : $($health.engine)" }
+if (-not $health) { throw "The application did not start." }
+if ($health.engine -ne 'postgres') { throw "Unexpected engine: $($health.engine)" }
 
-Write-Host "  moteur confirme : $($health.engine)" -ForegroundColor Green
+Write-Host "  engine confirmed: $($health.engine)" -ForegroundColor Green
 
 & (Join-Path $PSScriptRoot 'smoke.ps1') -BaseUrl "http://127.0.0.1:$AppPort"
 exit $LASTEXITCODE
