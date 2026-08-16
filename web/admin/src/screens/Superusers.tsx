@@ -32,7 +32,7 @@ import {
   useToast,
 } from '../ui'
 
-/** Longueur minimale imposée par le moteur. Répétée ici pour l'annoncer avant l'échec. */
+/** Minimum length enforced by the engine. Repeated here to announce it before the failure. */
 const MIN_PASSWORD = 8
 
 interface PasswordFormProps {
@@ -43,21 +43,21 @@ interface PasswordFormProps {
   busy: boolean
   errors: Record<string, string[]>
   /**
-   * ⚠️ L'adresse est **absente** de la charge quand le formulaire ne la demande pas.
+   * ⚠️ The address is **absent** from the payload when the form doesn't ask for it.
    *
-   * L'envoyer vide reviendrait à demander au moteur d'effacer l'adresse du compte : il refuse, et
-   * un changement de mot de passe parfaitement valide échoue en « l'adresse est obligatoire ».
+   * Sending it empty would amount to asking the engine to clear the account's address: it
+   * refuses, and a perfectly valid password change fails with "address is required".
    */
   onSubmit: (values: { email?: string; password: string; password_confirm: string }) => void
   onClose: () => void
 }
 
 /**
- * Formulaire de mot de passe, partagé par la création et le changement.
+ * Password form, shared by creation and changing.
  *
- * La confirmation est soumise au serveur plutôt que vérifiée ici seulement : c'est le moteur qui
- * porte la règle, et deux vérifications divergentes finiraient par accepter d'un côté ce que
- * l'autre refuse. La comparaison locale ne sert qu'à éviter un aller-retour.
+ * The confirmation is submitted to the server rather than checked only here: it's the engine
+ * that owns the rule, and two diverging checks would eventually accept on one side what the
+ * other refuses. The local comparison only serves to avoid a round trip.
  */
 function PasswordForm({
   title,
@@ -106,11 +106,11 @@ function PasswordForm({
             onClick={onClose}
             disabled={busy}
           >
-            Annuler
+            Cancel
           </Button>
-          {/* `form` relie le bouton au formulaire alors qu'il est rendu dans le pied de la modale,
-              hors de celui-ci : c'est ce qui fait qu'« Entrée » dans un champ et le clic sur le
-              bouton empruntent le même chemin de validation. */}
+          {/* `form` links the button to the form even though it's rendered in the modal's
+              footer, outside of it: that's what makes "Enter" in a field and clicking the
+              button take the same validation path. */}
           <Button
             type="submit"
             form={formId}
@@ -132,7 +132,7 @@ function PasswordForm({
     >
       <form id={formId} onSubmit={submit} className="space-y-4">
         {withEmail && (
-          <Field label="Adresse de courriel" error={first('email')} required>
+          <Field label="Email address" error={first('email')} required>
             <Input
               type="email"
               value={email}
@@ -144,9 +144,9 @@ function PasswordForm({
         )}
 
         <Field
-          label="Mot de passe"
+          label="Password"
           error={first('password')}
-          hint={`${MIN_PASSWORD} caractères au minimum.`}
+          hint={`At least ${MIN_PASSWORD} characters.`}
           required
         >
           <Input
@@ -159,7 +159,7 @@ function PasswordForm({
 
         <Field
           label="Confirmation"
-          error={mismatch ? 'La confirmation ne correspond pas au mot de passe.' : first('password_confirm')}
+          error={mismatch ? "The confirmation doesn't match the password." : first('password_confirm')}
           required
         >
           <Input
@@ -176,12 +176,12 @@ function PasswordForm({
 }
 
 /**
- * Comptes super-admins.
+ * Superuser accounts.
  *
- * Écran distinct du navigateur de comptes ordinaire, et pas un cas particulier de celui-ci : un
- * super-admin **passe outre toutes les règles d'accès**, donc ses rôles et ses permissions
- * ne décident de rien. Les afficher — et pire, les rendre modifiables — laisserait croire à un
- * réglage de droits qui n'existe pas à ce niveau.
+ * A screen distinct from the ordinary account browser, not a special case of it: a superuser
+ * **bypasses every access rule**, so their roles and permissions decide nothing. Displaying them
+ * — and worse, making them editable — would suggest a rights setting that doesn't exist at this
+ * level.
  */
 export function Superusers({
   collection,
@@ -190,7 +190,7 @@ export function Superusers({
 }: {
   collection: Collection
   identity: Identity
-  /** Appelé quand l'administrateur change son propre mot de passe : sa session vient de tomber. */
+  /** Called when the admin changes their own password: their session has just dropped. */
   onSignedOut: () => void
 }) {
   const toast = useToast()
@@ -217,7 +217,7 @@ export function Superusers({
 
     try {
       await api.records.create(collection.name, values)
-      toast.success('Super-admin créé.')
+      toast.success('Superuser created.')
       setCreating(false)
       await reload()
     } catch (failure) {
@@ -242,20 +242,20 @@ export function Superusers({
       setChanging(null)
 
       if (!mine) {
-        toast.success('Mot de passe changé. Les sessions de ce compte sont fermées.')
+        toast.success('Password changed. This account\'s sessions are closed.')
         await reload()
         return
       }
 
-      // Changer son propre mot de passe révoque ses propres jetons : la console tient une session
-      // qui ne vaut plus rien. On la referme tout de suite plutôt que d'attendre le premier 401,
-      // qui tomberait au milieu d'un autre écran sans que rien n'explique pourquoi.
-      toast.success('Mot de passe changé. Reconnectez-vous.')
+      // Changing your own password revokes your own tokens: the console holds a session that's
+      // no longer valid. It's closed right away rather than waiting for the first 401, which
+      // would land in the middle of another screen with nothing explaining why.
+      toast.success('Password changed. Please sign in again.')
 
       try {
         await api.auth.logout()
       } catch {
-        // Le jeton est déjà révoqué côté serveur : l'échec est le résultat attendu.
+        // The token is already revoked server-side: the failure is the expected outcome.
       }
 
       session.token = null
@@ -275,12 +275,12 @@ export function Superusers({
 
     try {
       await api.records.remove(collection.name, String(removing.id))
-      toast.success('Super-admin supprimé.')
+      toast.success('Superuser deleted.')
       setRemoving(null)
       await reload()
     } catch (failure) {
-      // Le refus du dernier compte remonte ici en 409 : le message du moteur dit pourquoi, et il
-      // vaut mieux que n'importe quelle reformulation locale.
+      // The refusal to delete the last account surfaces here as a 409: the engine's message
+      // says why, and it's better than any local rewording.
       toast.error(describeFailure(failure))
     } finally {
       setBusy(false)
@@ -290,11 +290,11 @@ export function Superusers({
   return (
     <div className="space-y-4">
       <PageActions>
-        <Tooltip content="Recharger">
+        <Tooltip content="Reload">
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Recharger la liste"
+            aria-label="Reload list"
             onClick={() => void reload()}
           >
             <RotateCw size={16} aria-hidden="true" />
@@ -309,16 +309,16 @@ export function Superusers({
             setCreating(true)
           }}
         >
-          Nouveau super-admin
+          New superuser
         </Button>
       </PageActions>
 
       <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] border border-border-subtle bg-surface-sunken px-4 py-3">
         <ShieldCheck size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-brand" />
         <p className="text-xs text-ink-muted">
-          Un super-admin passe outre <strong className="text-ink">toutes</strong> les règles
-          d'accès : ni rôle ni permission ne s'applique à lui. Le dernier compte ne peut pas être
-          supprimé — sans lui, plus personne ne pourrait administrer l'instance.
+          A superuser bypasses <strong className="text-ink">every</strong> access rule: neither
+          role nor permission applies to them. The last account can't be deleted — without it, no
+          one could administer the instance anymore.
         </p>
       </div>
 
@@ -328,12 +328,12 @@ export function Superusers({
 
       {items.length > 0 && (
         <Card className="overflow-hidden">
-          <Table bare caption="Comptes super-admins">
+          <Table bare caption="Superuser accounts">
             <THead>
               <tr>
-                <Th>Adresse</Th>
-                <Th className="w-40">Créé le</Th>
-                <Th className="w-40">Modifié le</Th>
+                <Th>Address</Th>
+                <Th className="w-40">Created</Th>
+                <Th className="w-40">Updated</Th>
                 <Th className="w-28">
                   <span className="sr-only">Actions</span>
                 </Th>
@@ -350,9 +350,9 @@ export function Superusers({
                     <Td>
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-ink">{String(account.email ?? '—')}</span>
-                        {/* Repérer son propre compte évite la fausse manœuvre la plus coûteuse de
-                            cet écran : se supprimer, ou se déconnecter sans l'avoir voulu. */}
-                        {mine && <Badge tone="brand">votre compte</Badge>}
+                        {/* Marking your own account avoids the costliest mistake on this
+                            screen: deleting yourself, or signing out without meaning to. */}
+                        {mine && <Badge tone="brand">your account</Badge>}
                       </span>
                       <span className="block font-mono text-xs text-ink-faint">{id}</span>
                     </Td>
@@ -362,12 +362,12 @@ export function Superusers({
 
                     <Td>
                       <span className="flex items-center gap-1">
-                        <Tooltip content="Changer le mot de passe">
+                        <Tooltip content="Change password">
                           <Button
                             variant="ghost"
                             size="icon"
                             className="size-8"
-                            aria-label={`Changer le mot de passe de ${String(account.email ?? id)}`}
+                            aria-label={`Change password for ${String(account.email ?? id)}`}
                             onClick={() => {
                               setErrors({})
                               setChanging(account)
@@ -377,12 +377,12 @@ export function Superusers({
                           </Button>
                         </Tooltip>
 
-                        <Tooltip content="Supprimer">
+                        <Tooltip content="Delete">
                           <Button
                             variant="ghost"
                             size="icon"
                             className="size-8 hover:text-danger"
-                            aria-label={`Supprimer ${String(account.email ?? id)}`}
+                            aria-label={`Delete ${String(account.email ?? id)}`}
                             onClick={() => setRemoving(account)}
                           >
                             <Trash2 size={15} aria-hidden="true" />
@@ -399,19 +399,19 @@ export function Superusers({
           {result && result.totalPages > 1 && (
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-surface-sunken px-4 py-2.5 text-xs text-ink-muted">
               <span className="tabular-nums">
-                {formatCount(result.totalItems)} {plural(result.totalItems, 'compte', 'comptes')}
+                {formatCount(result.totalItems)} {plural(result.totalItems, 'account', 'accounts')}
               </span>
 
               <div className="flex items-center gap-2">
                 <Button size="sm" disabled={result.page <= 1} onClick={() => setPage(result.page - 1)}>
-                  Précédent
+                  Previous
                 </Button>
                 <Button
                   size="sm"
                   disabled={result.page >= result.totalPages}
                   onClick={() => setPage(result.page + 1)}
                 >
-                  Suivant
+                  Next
                 </Button>
               </div>
             </div>
@@ -422,9 +422,9 @@ export function Superusers({
       {creating && (
         <PasswordForm
           withEmail
-          title="Nouveau super-admin"
-          description="Le compte peut administrer toute l'instance dès sa création."
-          submitLabel="Créer le compte"
+          title="New superuser"
+          description="The account can administer the whole instance as soon as it's created."
+          submitLabel="Create account"
           busy={busy}
           errors={errors}
           onSubmit={(values) => void create(values)}
@@ -435,13 +435,13 @@ export function Superusers({
       {changing && (
         <PasswordForm
           withEmail={false}
-          title="Changer le mot de passe"
+          title="Change password"
           description={
             String(changing.id) === identity.id
-              ? "C'est votre compte : vos sessions seront fermées et vous devrez vous reconnecter."
-              : `Les sessions ouvertes de ${String(changing.email ?? '')} seront fermées.`
+              ? 'This is your account: your sessions will be closed and you\'ll need to sign in again.'
+              : `The open sessions of ${String(changing.email ?? '')} will be closed.`
           }
-          submitLabel="Changer le mot de passe"
+          submitLabel="Change password"
           busy={busy}
           errors={errors}
           onSubmit={(values) => void changePassword(changing, values)}
@@ -452,19 +452,19 @@ export function Superusers({
       <ConfirmDialog
         open={removing !== null}
         busy={busy}
-        title="Supprimer ce super-admin ?"
+        title="Delete this superuser?"
         message={
           <>
-            Le compte <strong className="text-ink">{String(removing?.email ?? '')}</strong> et ses
-            sessions seront détruits. L'opération est définitive.
+            The account <strong className="text-ink">{String(removing?.email ?? '')}</strong> and
+            its sessions will be destroyed. This operation is permanent.
             {String(removing?.id ?? '') === identity.id && (
               <strong className="mt-2 block text-danger">
-                C'est le compte avec lequel vous êtes connecté.
+                This is the account you're currently signed in with.
               </strong>
             )}
           </>
         }
-        confirmLabel="Supprimer le compte"
+        confirmLabel="Delete account"
         confirmIcon={<Trash2 size={15} aria-hidden="true" />}
         onConfirm={() => void remove()}
         onClose={() => setRemoving(null)}
