@@ -151,7 +151,7 @@ const ALL_TYPES: FieldType[] = [
   'Date', 'AutoDate', 'Select', 'File', 'Relation', 'Json', 'GeoPoint',
 ]
 
-/** Types multi-valués, dérivés de `supportsMultiple` pour ne pas tenir deux listes. */
+/** Multi-value types, derived from `supportsMultiple` to avoid maintaining two lists. */
 const MULTIPLE_TYPES: FieldType[] = ALL_TYPES.filter(supportsMultiple)
 
 /**
