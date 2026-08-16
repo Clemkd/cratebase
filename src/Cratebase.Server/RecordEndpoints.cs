@@ -10,11 +10,11 @@ using Microsoft.AspNetCore.Routing;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Endpoints CRUD des enregistrements. Compatibles avec l'API de PocketBase.
+/// Record CRUD endpoints. Compatible with PocketBase's API.
 /// </summary>
 public static class RecordEndpoints
 {
-    /// <summary>Publie <c>/collections/{collection}/records</c>.</summary>
+    /// <summary>Publishes <c>/collections/{collection}/records</c>.</summary>
     public static IEndpointRouteBuilder MapRecordEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -73,8 +73,8 @@ public static class RecordEndpoints
         {
             var definition = registry.Require(collection);
 
-            // L'identifiant est produit ici, avant l'écriture : les objets se rangent sous
-            // {collection}/{id}/…, donc il faut le connaître pour importer les fichiers.
+            // The identifier is produced here, before the write: objects are filed under
+            // {collection}/{id}/…, so it must be known in order to import files.
             var recordId = RecordId.New();
             var (data, uploaded) = await ReadBodyAsync(
                     http, definition, recordId, store, null, cancellationToken)
@@ -93,8 +93,8 @@ public static class RecordEndpoints
             }
             catch
             {
-                // L'écriture a échoué après l'import : sans ce rattrapage, les octets resteraient
-                // sur le stockage sans aucune ligne pour les désigner.
+                // The write failed after the import: without this rollback, the bytes would stay on
+                // storage with no row to name them.
                 await uploaded.RollbackAsync(store, cancellationToken).ConfigureAwait(false);
                 throw;
             }
@@ -117,9 +117,9 @@ public static class RecordEndpoints
                 throw new CratebaseNotFoundException();
             }
 
-            // L'état antérieur sert aux modificateurs « + » et « - » sur les champs de fichiers.
-            // Il est lu avec les droits de l'appelant : s'il ne peut pas consulter la ligne, les
-            // modificateurs ne s'appliquent pas et l'écriture est un remplacement complet.
+            // The prior state is used by the "+" and "-" modifiers on file fields. It's read with
+            // the caller's own rights: if they can't view the row, the modifiers don't apply and the
+            // write becomes a full replacement.
             IReadOnlyDictionary<string, object?>? original = null;
 
             try
@@ -167,8 +167,8 @@ public static class RecordEndpoints
 
             await records.DeleteAsync(collection, id, context, cancellationToken).ConfigureAwait(false);
 
-            // Après la ligne, les octets. L'ordre compte : supprimer les fichiers d'abord laisserait
-            // une ligne pointant sur du vide si la suppression en base échouait ensuite.
+            // Row first, then bytes. The order matters: deleting the files first would leave a row
+            // pointing at nothing if the database deletion then failed.
             await store.DeletePrefixAsync(ObjectKey.PrefixFor(collection, id), cancellationToken)
                 .ConfigureAwait(false);
 
@@ -220,12 +220,12 @@ public static class RecordEndpoints
     }
 
     /// <summary>
-    /// Restreint un enregistrement aux champs demandés.
+    /// Restricts a record to the requested fields.
     /// </summary>
     /// <remarks>
-    /// La projection s'applique <b>après</b> la requête et ne peut que retirer des champs. La
-    /// faire participer à la construction du <c>SELECT</c> permettrait à un client de demander une
-    /// colonne masquée en la nommant.
+    /// The projection applies <b>after</b> the query and can only remove fields. Letting it
+    /// participate in building the <c>SELECT</c> would let a client request a hidden column by
+    /// naming it.
     /// </remarks>
     private static IReadOnlyDictionary<string, object?> ProjectOne(
         IReadOnlyDictionary<string, object?> record,

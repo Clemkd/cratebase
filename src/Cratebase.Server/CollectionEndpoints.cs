@@ -7,10 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Cratebase.Server;
 
-/// <summary>Endpoints de diagnostic.</summary>
+/// <summary>Diagnostic endpoints.</summary>
 public static class HealthEndpoints
 {
-    /// <summary>Publie <c>/health</c>.</summary>
+    /// <summary>Publishes <c>/health</c>.</summary>
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -27,43 +27,43 @@ public static class HealthEndpoints
 }
 
 /// <summary>
-/// Description d'une collection telle que soumise par la console d'administration.
+/// Description of a collection as submitted by the administration console.
 /// </summary>
 /// <remarks>
-/// Un type d'entrée distinct de <see cref="CollectionDefinition"/> : le client ne fournit ni les
-/// identifiants de champ, ni les dates, ni le drapeau système. Accepter la définition complète en
-/// entrée permettrait à un appelant de se déclarer collection système, donc indestructible.
+/// A separate input type from <see cref="CollectionDefinition"/>: the client supplies neither field
+/// identifiers, nor dates, nor the system flag. Accepting the full definition as input would let a
+/// caller declare itself a system collection, hence indestructible.
 /// </remarks>
 public sealed record CollectionRequest
 {
-    /// <summary>Nom de la collection.</summary>
+    /// <summary>Collection name.</summary>
     public string Name { get; init; } = string.Empty;
 
-    /// <summary>Nature.</summary>
+    /// <summary>Kind.</summary>
     public CollectionKind Type { get; init; } = CollectionKind.Base;
 
-    /// <summary>Champs déclarés par l'utilisateur.</summary>
+    /// <summary>Fields declared by the user.</summary>
     public IReadOnlyList<FieldRequest> Fields { get; init; } = [];
 
-    /// <summary>Index déclarés.</summary>
+    /// <summary>Declared indexes.</summary>
     public IReadOnlyList<CollectionIndex> Indexes { get; init; } = [];
 
-    /// <summary>Règles d'accès.</summary>
+    /// <summary>Access rules.</summary>
     public AccessRules Rules { get; init; } = AccessRules.Locked;
 
-    /// <summary>Convertit en définition, en conservant les identifiants de champ existants.</summary>
+    /// <summary>Converts to a definition, preserving existing field identifiers.</summary>
     public CollectionDefinition ToDefinition(CollectionDefinition? existing)
     {
         var fields = Fields.Select(field =>
         {
-            // ⚠️ L'identifiant renvoyé par le client fait autorité, et l'appariement par nom n'est
-            // qu'un repli.
+            // ⚠️ The identifier returned by the client is authoritative, and matching by name is
+            // only a fallback.
             //
-            // C'est LE point qui rend le renommage possible. Apparier par nom rendrait « title »
-            // → « titre » indiscernable d'une suppression suivie d'un ajout : le planificateur
-            // émettrait DROP COLUMN puis ADD COLUMN, et la colonne repartirait vide. La console
-            // renvoie donc les identifiants qu'elle a reçus, et un champ sans identifiant est un
-            // champ réellement nouveau.
+            // This is THE point that makes renaming possible. Matching by name would make "title"
+            // → "titre" indistinguishable from a deletion followed by an addition: the planner
+            // would emit DROP COLUMN then ADD COLUMN, and the column would come back empty. The
+            // console therefore sends back the identifiers it received, and a field with no
+            // identifier is a genuinely new field.
             var id = field.Id ?? existing?.Field(field.Name)?.Id ?? RecordId.New();
 
             return field.ToDefinition(id);
@@ -82,31 +82,31 @@ public sealed record CollectionRequest
     }
 }
 
-/// <summary>Champ tel que soumis.</summary>
+/// <summary>A field as submitted.</summary>
 public sealed record FieldRequest
 {
     /// <summary>
-    /// Identifiant du champ. Absent pour un champ nouveau, renvoyé tel quel pour un champ existant
-    /// — c'est ce qui permet de distinguer un renommage d'un remplacement.
+    /// Field identifier. Absent for a new field, sent back as-is for an existing one — that's what
+    /// distinguishes a rename from a replacement.
     /// </summary>
     public RecordId? Id { get; init; }
 
-    /// <summary>Nom.</summary>
+    /// <summary>Name.</summary>
     public string Name { get; init; } = string.Empty;
 
-    /// <summary>Type logique.</summary>
+    /// <summary>Logical type.</summary>
     public FieldType Type { get; init; } = FieldType.Text;
 
-    /// <summary>Valeur obligatoire ?</summary>
+    /// <summary>Is a value required?</summary>
     public bool Required { get; init; }
 
-    /// <summary>Nombre maximal de valeurs.</summary>
+    /// <summary>Maximum number of values.</summary>
     public int MaxSelect { get; init; } = 1;
 
-    /// <summary>Options propres au type.</summary>
+    /// <summary>Type-specific options.</summary>
     public FieldOptions Options { get; init; } = FieldOptions.None;
 
-    /// <summary>Convertit en définition.</summary>
+    /// <summary>Converts to a definition.</summary>
     public FieldDefinition ToDefinition(RecordId id) => new()
     {
         Id = id,
@@ -119,14 +119,14 @@ public sealed record FieldRequest
 }
 
 /// <summary>
-/// Endpoints d'administration des collections.
+/// Collection administration endpoints.
 /// </summary>
 /// <remarks>
-/// Tous réservés au super-admin : créer une collection, c'est créer une table.
+/// All reserved for the superuser: creating a collection means creating a table.
 /// </remarks>
 public static class CollectionEndpoints
 {
-    /// <summary>Publie <c>/collections</c>.</summary>
+    /// <summary>Publishes <c>/collections</c>.</summary>
     public static IEndpointRouteBuilder MapCollectionEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -207,7 +207,7 @@ public static class CollectionEndpoints
         }
 
         throw user.IsAuthenticated
-            ? new CratebaseForbiddenException("Réservé aux super-admins.")
+            ? new CratebaseForbiddenException("Reserved for superusers.")
             : new CratebaseUnauthenticatedException();
     }
 }

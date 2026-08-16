@@ -11,15 +11,15 @@ using Microsoft.AspNetCore.Routing;
 namespace Cratebase.Server;
 
 /// <summary>
-/// Service des fichiers.
+/// File serving.
 /// </summary>
 /// <remarks>
-/// Routes compatibles avec PocketBase : <c>/api/files/{collection}/{recordId}/{fichier}</c>, avec
-/// <c>?thumb=</c>, <c>?download=1</c> et <c>?token=</c>.
+/// Routes compatible with PocketBase: <c>/api/files/{collection}/{recordId}/{file}</c>, with
+/// <c>?thumb=</c>, <c>?download=1</c>, and <c>?token=</c>.
 /// </remarks>
 public static class FileEndpoints
 {
-    /// <summary>Publie les routes de fichiers.</summary>
+    /// <summary>Publishes the file routes.</summary>
     public static IEndpointRouteBuilder MapFileEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -57,10 +57,9 @@ public static class FileEndpoints
             var definition = registry.Require(collection);
             var field = FieldOwning(definition, fileName, recordId, store, cancellationToken);
 
-            // Un fichier protégé n'est servi qu'aux appelants qui satisfont la règle de
-            // consultation de son enregistrement. Sans ce contrôle, publier l'URL suffirait à
-            // contourner la règle — et les vignettes sont un chemin d'accès à part entière, donc
-            // elles passent par le même contrôle.
+            // A protected file is only served to callers who satisfy its record's view rule.
+            // Without this check, publishing the URL would be enough to bypass the rule — and
+            // thumbnails are a full access path of their own, so they go through the same check.
             if (await field.ConfigureAwait(false) is { Options.Protected: true })
             {
                 var caller = await ResolveFileCallerAsync(http, tokens, auth, user, cancellationToken)
@@ -76,7 +75,7 @@ public static class FileEndpoints
                     Query = context.Query,
                 };
 
-                // Lève 404 si la règle refuse : même sémantique que la consultation directe.
+                // Throws 404 if the rule refuses: same semantics as a direct view.
                 await records.ViewAsync(collection, recordId, context, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -112,10 +111,10 @@ public static class FileEndpoints
         IObjectStore store,
         CancellationToken cancellationToken)
     {
-        // On ne sait pas de quel champ vient le fichier sans lire l'enregistrement. Si un seul
-        // champ de type fichier est protégé, on applique le contrôle ; sinon on sert directement.
-        // C'est volontairement conservateur : mieux vaut contrôler un fichier public que servir un
-        // fichier protégé.
+        // There's no way to know which field the file belongs to without reading the record. If
+        // exactly one file-type field is protected, the check applies; otherwise the file is served
+        // directly. This is deliberately conservative: better to check a public file than serve a
+        // protected one unchecked.
         await Task.CompletedTask.ConfigureAwait(false);
 
         var fileFields = collection.Fields.Where(f => f.Type is FieldType.File).ToList();
@@ -135,8 +134,8 @@ public static class FileEndpoints
             return user;
         }
 
-        // Un fichier est chargé par une balise <img>, qui ne porte pas d'en-tête Authorization :
-        // d'où le jeton en paramètre d'URL, de très courte durée de vie.
+        // A file is loaded by an <img> tag, which carries no Authorization header: hence the token
+        // as a URL parameter, with a very short lifetime.
         var token = http.Request.Query["token"].ToString();
 
         if (string.IsNullOrWhiteSpace(token))
@@ -167,19 +166,19 @@ public static class FileEndpoints
     {
         if (!ThumbnailGenerator.TryParse(thumb, out var size))
         {
-            throw new CratebaseBadRequestException($"Taille de vignette invalide : « {thumb} ».");
+            throw new CratebaseBadRequestException($"Invalid thumbnail size: \"{thumb}\".");
         }
 
         if (!ThumbnailGenerator.IsSupported(fileName))
         {
             throw new CratebaseBadRequestException(
-                "Les vignettes ne sont produites que pour les images png, jpeg, gif et webp.");
+                "Thumbnails are only produced for png, jpeg, gif, and webp images.");
         }
 
         var thumbKey = ObjectKey.ThumbFor(collection, recordId, fileName, size + ".png");
 
-        // Cache : la vignette n'est produite qu'une fois. Sans lui, une page listant cent images
-        // relance cent redimensionnements à chaque affichage.
+        // Cache: the thumbnail is only produced once. Without it, a page listing a hundred images
+        // would trigger a hundred resizes on every render.
         var cached = await store.OpenReadAsync(thumbKey, cancellationToken).ConfigureAwait(false);
 
         if (cached is not null)
@@ -193,7 +192,7 @@ public static class FileEndpoints
             ?? throw new CratebaseNotFoundException();
 
         var bytes = ThumbnailGenerator.Generate(source, size)
-            ?? throw new CratebaseBadRequestException("Ce fichier n'est pas une image lisible.");
+            ?? throw new CratebaseBadRequestException("This file is not a readable image.");
 
         await using (var buffer = new MemoryStream(bytes, writable: false))
         {
