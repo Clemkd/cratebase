@@ -9,15 +9,15 @@ import type {
 import { supportsMultiple } from '../lib/fields'
 
 /**
- * Diagnostic d'une collection, calculé côté client.
+ * Diagnostic for a collection, computed client-side.
  *
- * Tout ce qui est nécessaire est déjà chargé — la définition de la collection —, donc rien de ceci
- * ne demande d'endpoint dédié. Le diagnostic porte sur le **brouillon** en cours d'édition et non
- * sur la version enregistrée : c'est en écrivant le schéma qu'on veut savoir ce qu'on est en train
- * de casser, pas après.
+ * Everything needed is already loaded — the collection's definition —, so none of this requires
+ * a dedicated endpoint. The diagnostic covers the **draft** currently being edited, not the saved
+ * version: it's while writing the schema that you want to know what you're about to break, not
+ * after.
  */
 
-/* ------------------------------------------------------------------- Règles */
+/* ------------------------------------------------------------------- Rules */
 
 export type RuleState = 'locked' | 'open' | 'conditional'
 
@@ -26,20 +26,20 @@ const WRITE_ACTIONS: RuleAction[] = ['create', 'update', 'delete']
 const ADMIN_ACTIONS: RuleAction[] = ['manage']
 
 export const RULE_LABELS: Record<RuleAction, string> = {
-  list: 'Lister',
-  view: 'Consulter',
-  create: 'Créer',
-  update: 'Modifier',
-  delete: 'Supprimer',
-  manage: 'Gérer',
+  list: 'List',
+  view: 'View',
+  create: 'Create',
+  update: 'Update',
+  delete: 'Delete',
+  manage: 'Manage',
 }
 
 /**
- * Actions qui existent réellement sur ce type de collection.
+ * Actions that actually exist on this type of collection.
  *
- * `manage` — qui peut changer le mot de passe ou l'adresse d'un autre compte — n'a de sens que sur
- * une collection d'authentification. La compter sur une collection de données gonflerait le
- * dénominateur d'une action qui n'est jamais évaluée.
+ * `manage` — which can change another account's password or email — only makes sense on an
+ * authentication collection. Counting it on a data collection would inflate the denominator with
+ * an action that's never evaluated.
  */
 export function applicableActions(kind: CollectionKind): RuleAction[] {
   return kind === 'Auth'
@@ -54,15 +54,15 @@ export function ruleState(value: string | null | undefined): RuleState {
 }
 
 export interface RulesReport {
-  /** Actions évaluées sur cette collection. Sert de dénominateur aux compteurs. */
+  /** Actions evaluated on this collection. Serves as the denominator for the counters. */
   applicable: RuleAction[]
   locked: RuleAction[]
   conditional: RuleAction[]
-  /** Ouvertes à tous, visiteurs anonymes compris. */
+  /** Open to everyone, anonymous visitors included. */
   open: RuleAction[]
-  /** Sous-ensemble de `open` qui laisse écrire ou administrer : le cas le plus grave. */
+  /** Subset of `open` that allows writing or administering: the most severe case. */
   openWrites: RuleAction[]
-  /** Sous-ensemble de `open` qui laisse seulement lire. */
+  /** Subset of `open` that only allows reading. */
   openReads: RuleAction[]
 }
 
@@ -76,14 +76,14 @@ export function analyseRules(kind: CollectionKind, rules: AccessRules): RulesRep
     locked: by('locked'),
     conditional: by('conditional'),
     open,
-    // `manage` est rangé avec les écritures : accorder à un anonyme le droit de changer le mot de
-    // passe d'un compte est au moins aussi grave que de le laisser écrire une ligne.
+    // `manage` is grouped with writes: granting an anonymous user the right to change an
+    // account's password is at least as severe as letting them write a row.
     openWrites: open.filter((action) => [...WRITE_ACTIONS, ...ADMIN_ACTIONS].includes(action)),
     openReads: open.filter((action) => READ_ACTIONS.includes(action)),
   }
 }
 
-/* -------------------------------------------------------------------- Index */
+/* -------------------------------------------------------------------- Indexes */
 
 export type IssueTone = 'danger' | 'warning'
 
@@ -94,7 +94,7 @@ export interface IndexIssue {
   detail: string
 }
 
-/** Champ tel que le diagnostic a besoin de le connaître, brouillon ou champ système. */
+/** A field as the diagnostic needs to know it, draft or system field. */
 export interface HealthField {
   name: string
   type: FieldType
@@ -105,10 +105,10 @@ const normalise = (names: string[]) =>
   [...names].map((name) => name.trim().toLowerCase()).sort().join(' + ')
 
 /**
- * Anomalies d'indexation.
+ * Indexing anomalies.
  *
- * Aucune n'empêche d'enregistrer : ce sont des pièges silencieux — une requête qui balaye toute la
- * table, un index qui ne servira jamais — que rien dans l'écran ne signalerait autrement.
+ * None of them prevent saving: they're silent traps — a query scanning the whole table, an index
+ * that will never be used — that nothing in the screen would otherwise flag.
  */
 export function analyseIndexes({
   indexes,
@@ -118,11 +118,11 @@ export function analyseIndexes({
   collectionName,
   isNew,
 }: {
-  /** Index du brouillon, hors index système. */
+  /** Indexes from the draft, excluding system indexes. */
   indexes: CollectionIndex[]
-  /** Index tels qu'ils sont enregistrés, index système compris. */
+  /** Indexes as saved, system indexes included. */
   savedIndexes: CollectionIndex[]
-  /** Tous les champs de la collection, système compris. */
+  /** All fields of the collection, system fields included. */
   fields: HealthField[]
   kind: CollectionKind
   collectionName: string
@@ -144,10 +144,10 @@ export function analyseIndexes({
 
       if (!field) {
         issues.push({
-          id: `inconnu-${index.name}-${name}`,
+          id: `unknown-${index.name}-${name}`,
           tone: 'danger',
-          title: 'Index sur un champ inexistant',
-          detail: `L'index « ${index.name} » porte sur « ${name} », qui ne figure pas dans le schéma. La création de l'index échouera.`,
+          title: 'Index on a nonexistent field',
+          detail: `Index "${index.name}" targets "${name}", which isn't in the schema. Creating the index will fail.`,
         })
         continue
       }
@@ -156,18 +156,18 @@ export function analyseIndexes({
         issues.push({
           id: `multivalue-${index.name}-${name}`,
           tone: 'warning',
-          title: 'Index sur un champ multi-valué',
-          detail: `« ${name} » est stocké en JSON : l'index « ${index.name} » ne sera pas utilisé par une comparaison d'égalité, seulement par un parcours complet.`,
+          title: 'Index on a multi-value field',
+          detail: `"${name}" is stored as JSON: index "${index.name}" won't be used by an equality comparison, only by a full scan.`,
         })
       }
     }
 
     if (index.fields.length === 0) {
       issues.push({
-        id: `vide-${index.name}`,
+        id: `empty-${index.name}`,
         tone: 'danger',
-        title: 'Index sans champ',
-        detail: `L'index « ${index.name} » ne désigne aucune colonne.`,
+        title: 'Index with no field',
+        detail: `Index "${index.name}" targets no column.`,
       })
       continue
     }
@@ -177,10 +177,10 @@ export function analyseIndexes({
 
     if (previous) {
       issues.push({
-        id: `doublon-${index.name}`,
+        id: `duplicate-${index.name}`,
         tone: 'warning',
-        title: 'Index en double',
-        detail: `« ${index.name} » et « ${previous} » portent sur le même jeu de champs (${index.fields.join(', ')}). Le second n'apporte rien et coûte à chaque écriture.`,
+        title: 'Duplicate index',
+        detail: `"${index.name}" and "${previous}" target the same set of fields (${index.fields.join(', ')}). The second one adds nothing and costs on every write.`,
       })
     } else {
       seen.set(signature, index.name)
@@ -194,13 +194,13 @@ export function analyseIndexes({
     issues.push({
       id: `relation-${field.name}`,
       tone: 'warning',
-      title: 'Relation sans index',
-      detail: `Le champ de relation « ${field.name} » n'est indexé nulle part : chaque filtre sur cette relation balaye toute la table.`,
+      title: 'Relation without an index',
+      detail: `Relation field "${field.name}" isn't indexed anywhere: every filter on this relation scans the whole table.`,
     })
   }
 
-  // Les index système d'une collection d'auth sont réappliqués par le moteur à chaque écriture.
-  // Leur absence sur une collection déjà enregistrée signale une base modifiée à la main.
+  // A auth collection's system indexes are reapplied by the engine on every write. Their absence
+  // on an already-saved collection signals a database modified by hand.
   if (kind === 'Auth' && !isNew) {
     const present = new Set(savedIndexes.map((index) => index.name))
 
@@ -210,10 +210,10 @@ export function analyseIndexes({
       if (present.has(expected)) continue
 
       issues.push({
-        id: `systeme-${suffix}`,
+        id: `system-${suffix}`,
         tone: 'danger',
-        title: "Index système d'authentification manquant",
-        detail: `« ${expected} » est absent : l'unicité de « ${suffix} » n'est plus garantie par la base.`,
+        title: 'Missing system authentication index',
+        detail: `"${expected}" is absent: the uniqueness of "${suffix}" is no longer guaranteed by the database.`,
       })
     }
   }
@@ -221,30 +221,30 @@ export function analyseIndexes({
   return issues
 }
 
-/* ------------------------------------------------------------------ Synthèse */
+/* ------------------------------------------------------------------ Summary */
 
-/** Repère porté par une collection dans la colonne de navigation. */
+/** Marker carried by a collection in the navigation column. */
 export interface CollectionAlert {
-  /** Gravité la plus élevée présente sur la collection. */
+  /** Highest severity present on the collection. */
   tone: IssueTone
-  /** Nombre total d'éléments signalés, toutes gravités confondues. */
+  /** Total number of flagged items, across all severities. */
   count: number
-  /** Ce que le décompte recouvre, pour le survol. */
+  /** What the count covers, for hover. */
   reason: string
 }
 
 /**
- * Ce qu'une collection a de critique, résumé en un seul repère.
+ * What's critical about a collection, summarized in a single marker.
  *
- * <b>Le nombre compte tout ce que le diagnostic signale ; la couleur porte la gravité la plus
- * élevée.</b> Les deux ne se lisent pas de la même façon et c'est voulu : le nombre doit coïncider
- * avec ce que les onglets « Règles » et « Index » annoncent une fois la collection ouverte — une
- * pastille qui dit 3 devant deux onglets qui en montrent 5 fait douter des trois compteurs à la
- * fois. La couleur, elle, ne se moyenne pas : tant qu'une seule règle d'écriture est ouverte à
- * tous, le repère est rouge, même entouré d'avertissements bénins.
+ * <b>The number counts everything the diagnostic flags; the color carries the highest
+ * severity.</b> The two don't read the same way, and that's deliberate: the number must match
+ * what the "Rules" and "Indexes" tabs report once the collection is open — a badge that says 3 in
+ * front of two tabs showing 5 casts doubt on all three counters at once. The color, on the other
+ * hand, doesn't average out: as long as a single write rule is open to everyone, the marker is
+ * red, even surrounded by benign warnings.
  *
- * Calculé sur la définition enregistrée, jamais sur un brouillon : la colonne de navigation décrit
- * l'état de la base, pas ce qu'un onglet ouvert est en train d'écrire.
+ * Computed on the saved definition, never on a draft: the navigation column describes the state
+ * of the database, not what an open tab is currently writing.
  */
 export function collectionAlert(collection: Collection): CollectionAlert | null {
   const rules = analyseRules(collection.kind, collection.rules)
@@ -268,8 +268,8 @@ export function collectionAlert(collection: Collection): CollectionAlert | null 
   const blocking = issues.filter((issue) => issue.tone === 'danger').length
 
   const reason = [
-    [rules.open.length, 'règle ouverte à tous', 'règles ouvertes à tous'] as const,
-    [issues.length, 'anomalie d’index', 'anomalies d’index'] as const,
+    [rules.open.length, 'rule open to everyone', 'rules open to everyone'] as const,
+    [issues.length, 'index issue', 'index issues'] as const,
   ]
     .filter(([total]) => total > 0)
     .map(([total, singular, plural]) => `${total} ${total > 1 ? plural : singular}`)
@@ -282,7 +282,7 @@ export function collectionAlert(collection: Collection): CollectionAlert | null 
   }
 }
 
-/** Le champ admet-il plusieurs valeurs, d'après son type et son nombre maximal ? */
+/** Does the field admit multiple values, based on its type and its maximum count? */
 export function isMultiple(type: FieldType, maxSelect: number): boolean {
   return supportsMultiple(type) && maxSelect > 1
 }
