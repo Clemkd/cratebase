@@ -1,9 +1,9 @@
-const dateTimeFormat = new Intl.DateTimeFormat('fr-FR', {
+const dateTimeFormat = new Intl.DateTimeFormat('en-US', {
   dateStyle: 'short',
   timeStyle: 'short',
 })
 
-/** Rend un instant ISO-8601 lisible, ou la valeur brute si elle n'en est pas un. */
+/** Renders an ISO-8601 instant as readable text, or the raw value if it isn't one. */
 export function formatDateTime(value: unknown): string {
   if (typeof value !== 'string' || value === '') return ''
 
@@ -12,7 +12,7 @@ export function formatDateTime(value: unknown): string {
   return Number.isNaN(parsed.getTime()) ? value : dateTimeFormat.format(parsed)
 }
 
-/** Convertit un instant ISO-8601 en valeur d'un `input[type=datetime-local]`. */
+/** Converts an ISO-8601 instant into the value of an `input[type=datetime-local]`. */
 export function toLocalInputValue(value: unknown): string {
   if (typeof value !== 'string' || value === '') return ''
 
@@ -29,10 +29,10 @@ export function toLocalInputValue(value: unknown): string {
 }
 
 /**
- * Convertit une saisie locale en instant ISO-8601 UTC.
+ * Converts local input into a UTC ISO-8601 instant.
  *
- * La normalisation en UTC est faite ici plutôt que laissée au serveur : le champ de saisie ne porte
- * aucun fuseau, donc envoyer sa valeur telle quelle décalerait l'enregistrement de l'écart local.
+ * Normalization to UTC happens here rather than being left to the server: the input field carries
+ * no time zone, so sending its value as-is would shift the record by the local offset.
  */
 export function fromLocalInputValue(value: string): string {
   if (value === '') return ''
@@ -42,26 +42,26 @@ export function fromLocalInputValue(value: string): string {
   return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString()
 }
 
-/** Nombre au format français, sans séparateur de milliers superflu sur les petits nombres. */
+/** Number formatted for English, without a superfluous thousands separator on small numbers. */
 export function formatCount(value: number): string {
-  return new Intl.NumberFormat('fr-FR').format(value)
+  return new Intl.NumberFormat('en-US').format(value)
 }
 
-/** Accorde un nom au pluriel. */
+/** Agrees a noun with its count. */
 export function plural(count: number, singular: string, plural: string): string {
   return count > 1 ? plural : singular
 }
 
-const UNITS = ['o', 'ko', 'Mo', 'Go', 'To']
+const UNITS = ['B', 'KB', 'MB', 'GB', 'TB']
 
 /**
- * Taille lisible, en unités décimales.
+ * Readable size, in decimal units.
  *
- * Mille et non mille vingt-quatre : c'est ce qu'annoncent les systèmes de fichiers et les factures
- * de stockage objet, donc c'est le chiffre que l'exploitant compare au sien.
+ * A thousand, not 1,024: that's what file systems and object storage invoices report, so it's
+ * the figure the operator compares against their own.
  */
 export function formatBytes(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return '0 o'
+  if (!Number.isFinite(value) || value <= 0) return '0 B'
 
   const exponent = Math.min(Math.floor(Math.log10(value) / 3), UNITS.length - 1)
   const scaled = value / 1000 ** exponent

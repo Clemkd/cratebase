@@ -4,33 +4,32 @@ import type { BadgeTone } from '../ui'
 import type { LogLevel } from '../api'
 
 /**
- * Présentation des niveaux de gravité.
+ * Presentation of severity levels.
  *
- * Une teinte <b>et</b> une icône : la couleur seule ne distingue rien pour un daltonien, et
- * l'écran des journaux se lit d'abord en balayant la colonne des niveaux.
+ * A tone <b>and</b> an icon: color alone distinguishes nothing for someone colorblind, and the
+ * logs screen is first read by scanning the levels column.
  *
- * Deux libellés, parce que les deux emplois ne demandent pas la même chose. Dans le tableau, la
- * colonne des niveaux est répétée à chaque ligne : « Avertissement » y consomme une largeur que le
- * chemin de la requête réclame bien davantage, et la forme abrégée se reconnaît de toute façon à sa
- * teinte et à son icône. Partout où le mot n'est écrit qu'une fois — filtre, légende, détail — c'est
- * le libellé entier qui sert.
+ * Two labels, because the two uses don't call for the same thing. In the table, the levels column
+ * repeats on every row: "Warning" would consume width the request path needs far more, and the
+ * short form is recognizable anyway from its tone and icon. Everywhere the word is written only
+ * once — filter, legend, detail — the full label is used.
  */
 export const LEVEL_META: Record<
   LogLevel,
   { label: string; short: string; tone: BadgeTone; icon: LucideIcon }
 > = {
-  Debug: { label: 'Débogage', short: 'DEBUG', tone: 'neutral', icon: Bug },
+  Debug: { label: 'Debug', short: 'DEBUG', tone: 'neutral', icon: Bug },
   Info: { label: 'Information', short: 'INFO', tone: 'brand', icon: Info },
-  Warning: { label: 'Avertissement', short: 'ALERTE', tone: 'warning', icon: TriangleAlert },
-  Error: { label: 'Erreur', short: 'ERREUR', tone: 'danger', icon: CircleAlert },
+  Warning: { label: 'Warning', short: 'WARN', tone: 'warning', icon: TriangleAlert },
+  Error: { label: 'Error', short: 'ERROR', tone: 'danger', icon: CircleAlert },
 }
 
 /**
- * Encre de chaque niveau, en classes littérales.
+ * Ink color for each level, in literal classes.
  *
- * Écrites en toutes lettres et non composées à la volée : Tailwind ne génère que les classes qu'il
- * trouve dans les sources, et une classe assemblée à l'exécution n'existe simplement pas dans la
- * feuille produite.
+ * Written out in full rather than composed on the fly: Tailwind only generates the classes it
+ * finds in the sources, and a class assembled at runtime simply doesn't exist in the produced
+ * stylesheet.
  */
 export const LEVEL_INK: Record<LogLevel, string> = {
   Debug: 'text-ink-faint',
@@ -39,23 +38,23 @@ export const LEVEL_INK: Record<LogLevel, string> = {
   Error: 'text-danger',
 }
 
-/** Fenêtres proposées par l'écran des journaux. */
+/** Windows offered by the logs screen. */
 export type LogWindow = '1h' | '24h' | '7d' | '30d' | 'all'
 
 export const LOG_WINDOWS: { value: LogWindow; label: string; hours: number | null }[] = [
-  { value: '1h', label: 'Dernière heure', hours: 1 },
-  { value: '24h', label: '24 heures', hours: 24 },
-  { value: '7d', label: '7 jours', hours: 24 * 7 },
-  { value: '30d', label: '30 jours', hours: 24 * 30 },
-  { value: 'all', label: 'Tout', hours: null },
+  { value: '1h', label: 'Last hour', hours: 1 },
+  { value: '24h', label: '24 hours', hours: 24 },
+  { value: '7d', label: '7 days', hours: 24 * 7 },
+  { value: '30d', label: '30 days', hours: 24 * 30 },
+  { value: 'all', label: 'All', hours: null },
 ]
 
 /**
- * Borne basse d'une fenêtre, en ISO-8601.
+ * Lower bound of a window, in ISO-8601.
  *
- * Calculée à chaque appel plutôt que mémorisée : une fenêtre glissante mémorisée se décale de la
- * durée pendant laquelle l'onglet est resté ouvert, et l'histogramme finit par montrer une plage
- * qui ne correspond plus à son libellé.
+ * Computed on every call rather than memoized: a memoized sliding window drifts by however long
+ * the tab has stayed open, and the histogram ends up showing a range that no longer matches its
+ * label.
  */
 export function windowStart(value: LogWindow, now = new Date()): string | undefined {
   const window = LOG_WINDOWS.find((entry) => entry.value === value)
@@ -65,7 +64,7 @@ export function windowStart(value: LogWindow, now = new Date()): string | undefi
   return new Date(now.getTime() - window.hours * 3600 * 1000).toISOString()
 }
 
-/** Rend une durée de traitement lisible. */
+/** Renders a readable processing duration. */
 export function formatDuration(milliseconds: number): string {
   if (milliseconds >= 1000) return `${(milliseconds / 1000).toFixed(2)} s`
   if (milliseconds >= 10) return `${Math.round(milliseconds)} ms`
@@ -73,20 +72,20 @@ export function formatDuration(milliseconds: number): string {
   return `${milliseconds.toFixed(1)} ms`
 }
 
-/** Rend une durée de fonctionnement lisible. */
+/** Renders a readable uptime duration. */
 export function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400)
   const hours = Math.floor((seconds % 86400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
 
-  if (days > 0) return `${days} j ${hours} h`
-  if (hours > 0) return `${hours} h ${minutes} min`
-  if (minutes > 0) return `${minutes} min`
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes}min`
+  if (minutes > 0) return `${minutes}min`
 
   return `${Math.floor(seconds)} s`
 }
 
-/** Teinte d'un statut HTTP, alignée sur celle des niveaux. */
+/** Tone of an HTTP status, aligned with the levels' tones. */
 export function statusTone(status: number): BadgeTone {
   if (status === 0) return 'neutral'
   if (status >= 500) return 'danger'

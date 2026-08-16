@@ -1,12 +1,12 @@
 /**
- * Préférences d'interface persistées.
+ * Persisted interface preferences.
  *
- * Le stockage local peut être refusé — navigation privée stricte, politique d'entreprise — et sa
- * lecture lève alors au lieu de rendre `null`. Toutes les préférences passent donc par ici : une
- * seule garde, plutôt qu'un `try` oublié quelque part qui ferait écran blanc au chargement.
+ * Local storage can be refused — strict private browsing, corporate policy — and reading it then
+ * throws instead of returning `null`. All preferences therefore go through here: a single guard,
+ * rather than a forgotten `try` somewhere that would produce a blank screen on load.
  */
 
-/** Lit un drapeau persisté. */
+/** Reads a persisted flag. */
 export function readFlag(key: string, fallback: boolean): boolean {
   try {
     const stored = globalThis.localStorage?.getItem(key)
@@ -17,11 +17,11 @@ export function readFlag(key: string, fallback: boolean): boolean {
   }
 }
 
-/** Écrit un drapeau persisté. Sans effet si le stockage est inaccessible. */
+/** Writes a persisted flag. No effect if storage is inaccessible. */
 export function writeFlag(key: string, value: boolean): void {
   try {
     globalThis.localStorage?.setItem(key, value ? '1' : '0')
   } catch {
-    // La préférence tient pour la session, elle ne survivra pas au rechargement.
+    // The preference holds for the session, it won't survive a reload.
   }
 }

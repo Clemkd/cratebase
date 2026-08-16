@@ -1,17 +1,18 @@
 import type { Collection, Field, FieldType, RecordValue } from '../api'
 
-/** Point géographique tel que le serveur le sérialise (longitude d'abord, comme en GeoJSON). */
+/** Geographic point as the server serializes it (longitude first, as in GeoJSON). */
 export interface GeoPoint {
   longitude: number
   latitude: number
 }
 
 /**
- * Types proposables à la création d'un champ, dans l'ordre d'usage attendu.
+ * Types offered when creating a field, in the expected order of use.
  *
- * `AutoDate` y figure : c'est le type des champs `created` et `updated`, et rien ne justifie de le
- * réserver au moteur — un « dernier passage », un « archivé le » se décrivent exactement ainsi, et
- * les écrire à la main dans chaque formulaire revient à réimplémenter ce que le moteur fait déjà.
+ * `AutoDate` is included: it's the type of the `created` and `updated` fields, and nothing
+ * justifies reserving it for the engine — a "last seen", an "archived on" describe themselves
+ * exactly the same way, and writing them by hand in every form amounts to reimplementing what
+ * the engine already does.
  */
 export const CREATABLE_TYPES: FieldType[] = [
   'Text',
@@ -29,35 +30,35 @@ export const CREATABLE_TYPES: FieldType[] = [
 ]
 
 const TYPE_LABELS: Record<FieldType, string> = {
-  Text: 'Texte',
-  Editor: 'Texte enrichi',
-  Number: 'Nombre',
-  Bool: 'Booléen',
-  Email: 'Courriel',
+  Text: 'Text',
+  Editor: 'Rich text',
+  Number: 'Number',
+  Bool: 'Boolean',
+  Email: 'Email',
   Url: 'URL',
   Date: 'Date',
-  AutoDate: 'Date automatique',
-  Select: 'Liste fermée',
-  File: 'Fichier',
+  AutoDate: 'Auto date',
+  Select: 'Select',
+  File: 'File',
   Relation: 'Relation',
   Json: 'JSON',
-  GeoPoint: 'Point géographique',
+  GeoPoint: 'Geo point',
 }
 
 export function typeLabel(type: FieldType): string {
   return TYPE_LABELS[type]
 }
 
-/** Le type admet-il plusieurs valeurs ? Doit rester aligné sur `FieldTypeInfo.SupportsMultiple`. */
+/** Does the type support multiple values? Must stay aligned with `FieldTypeInfo.SupportsMultiple`. */
 export function supportsMultiple(type: FieldType): boolean {
   return type === 'Text' || type === 'Select' || type === 'File' || type === 'Relation'
 }
 
 /**
- * Valeur nulle d'un champ, alignée sur `FieldTypeInfo.ZeroValue`.
+ * Zero value of a field, aligned with `FieldTypeInfo.ZeroValue`.
  *
- * Seul `Json` admet `null` : partout ailleurs le moteur supprime la distinction « absent » /
- * « vide », et un formulaire qui réintroduirait `null` produirait des filtres ambigus.
+ * Only `Json` allows `null`: everywhere else the engine removes the "absent" / "empty"
+ * distinction, and a form that reintroduced `null` would produce ambiguous filters.
  */
 export function zeroValue(field: Field): unknown {
   if (field.type === 'Json') return null
@@ -76,11 +77,11 @@ export function zeroValue(field: Field): unknown {
 }
 
 /**
- * Le champ est-il modifiable depuis un formulaire ?
+ * Is the field editable from a form?
  *
- * Le validateur du serveur écarte tous les champs système sauf `email` et `email_visibility` ; le
- * mot de passe est traité à part par le crochet d'authentification. Les proposer à la saisie
- * donnerait l'illusion qu'ils sont enregistrés.
+ * The server validator rejects all system fields except `email` and `email_visibility`; the
+ * password is handled separately by the auth hook. Offering them for input would give the
+ * illusion that they're saved.
  */
 export function isEditable(field: Field): boolean {
   if (!field.isSystem) return field.type !== 'File'
@@ -88,17 +89,17 @@ export function isEditable(field: Field): boolean {
   return field.name === 'email' || field.name === 'email_visibility'
 }
 
-/** Champs affichables en colonne : tout sauf les champs masqués (mot de passe, clé de jeton). */
+/** Fields displayable as a column: everything except hidden fields (password, token key). */
 export function visibleFields(collection: Collection): Field[] {
   return collection.fields.filter((field) => !field.hidden)
 }
 
-/** Champs déclarés par l'utilisateur, dans l'ordre du schéma. */
+/** Fields declared by the user, in schema order. */
 export function userFields(collection: Collection): Field[] {
   return collection.fields.filter((field) => !field.isSystem)
 }
 
-/** Valeurs de départ d'un formulaire d'enregistrement. */
+/** Starting values for a record form. */
 export function initialFormValues(collection: Collection, record: RecordValue | null): RecordValue {
   const values: RecordValue = {}
 
@@ -115,7 +116,7 @@ export function initialFormValues(collection: Collection, record: RecordValue | 
   return values
 }
 
-/** Coerce une valeur de formulaire vers la forme attendue par l'API. */
+/** Coerces a form value into the shape expected by the API. */
 export function toPayloadValue(field: Field, value: unknown): unknown {
   if (field.type === 'Number' && typeof value === 'string') {
     return value.trim() === '' ? 0 : Number(value)
@@ -124,7 +125,7 @@ export function toPayloadValue(field: Field, value: unknown): unknown {
   return value
 }
 
-/** Liste de chaînes, quelle que soit la forme reçue. */
+/** List of strings, whatever shape was received. */
 export function asStringList(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((item) => String(item))
   if (value === null || value === undefined || value === '') return []
@@ -145,7 +146,7 @@ export function asGeoPoint(value: unknown): GeoPoint {
   return { longitude: 0, latitude: 0 }
 }
 
-/** Champ le plus représentatif d'un enregistrement, pour étiqueter une relation. */
+/** Field most representative of a record, used to label a relation. */
 export function labelField(collection: Collection): Field | undefined {
   const candidates = collection.fields.filter(
     (field) => !field.hidden && !field.multiple && (field.type === 'Text' || field.type === 'Email'),

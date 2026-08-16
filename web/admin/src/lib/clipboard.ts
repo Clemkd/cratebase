@@ -1,9 +1,9 @@
 /**
- * Copie du texte dans le presse-papiers.
+ * Copies text to the clipboard.
  *
- * L'API asynchrone n'est disponible qu'en contexte sécurisé ; le repli par `<textarea>` couvre le
- * cas où la console est servie en clair sur une adresse autre que localhost — c'est-à-dire un
- * déploiement d'intégration, là où copier un identifiant est justement le plus utile.
+ * The async API is only available in a secure context; the `<textarea>` fallback covers the case
+ * where the console is served over plain HTTP on an address other than localhost — that is, a
+ * staging deployment, exactly where copying an identifier is most useful.
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
@@ -12,7 +12,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
       return true
     }
   } catch {
-    // Repli ci-dessous.
+    // Fallback below.
   }
 
   try {
