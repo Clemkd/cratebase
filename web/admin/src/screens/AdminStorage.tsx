@@ -25,7 +25,7 @@ import {
   useToast,
 } from '../ui'
 
-/** Variables d'hôte qui décident du magasin, dans l'ordre où on les pose. */
+/** Host variables that decide the store, in the order they're set. */
 const S3_VARIABLES = [
   'Cratebase__S3__Bucket',
   'Cratebase__S3__Endpoint',
@@ -35,7 +35,7 @@ const S3_VARIABLES = [
   'Cratebase__S3__PublicEndpoint',
 ]
 
-/** Une ligne de la fiche. */
+/** A line in the info card. */
 function Line({
   label,
   value,
@@ -51,7 +51,7 @@ function Line({
     <div className="flex items-start justify-between gap-4 border-b border-border-subtle py-2 last:border-0">
       <span className="shrink-0 text-xs text-ink-muted">{label}</span>
       <span className={cn('min-w-0 text-right text-xs break-all text-ink', mono && 'font-mono')}>
-        {value || <span className="text-ink-faint">— non renseigné</span>}
+        {value || <span className="text-ink-faint">— not set</span>}
         {copy && value !== '' && (
           <CopyButton value={value} size="icon" className="ml-1 size-6 align-middle" />
         )}
@@ -72,7 +72,7 @@ const STEP_INK = {
   failed: 'text-danger',
 } as const
 
-/** Résultat du test de connexion, étape par étape. */
+/** Result of the connection test, step by step. */
 function ProbeReport({ probe }: { probe: StorageProbe }) {
   return (
     <ul className="space-y-1.5">
@@ -92,7 +92,7 @@ function ProbeReport({ probe }: { probe: StorageProbe }) {
                 <span className="ml-1.5 break-all text-ink-muted">— {step.detail}</span>
               )}
               {step.state === 'skipped' && step.detail === '' && (
-                <span className="ml-1.5 text-ink-faint">— sans objet pour ce magasin</span>
+                <span className="ml-1.5 text-ink-faint">— not applicable for this store</span>
               )}
             </span>
             <span className="shrink-0 tabular-nums text-ink-faint">
@@ -106,14 +106,13 @@ function ProbeReport({ probe }: { probe: StorageProbe }) {
 }
 
 /**
- * Stockage des fichiers.
+ * File storage.
  *
- * L'écran <b>montre</b> et <b>éprouve</b> la configuration ; il ne l'écrit pas. Le magasin est
- * décidé par la configuration de l'hôte, comme le moteur de base : ce qui porte un secret n'entre
- * jamais dans la base que la console peut lire, ni dans les sauvegardes de cette base. La contrepartie
- * — on ne bascule pas vers S3 depuis un formulaire — est assumée, et compensée par ce dont on a
- * réellement besoin le jour de la bascule : les variables exactes à poser, et un test qui dit si
- * elles sont bonnes.
+ * The screen <b>shows</b> and <b>exercises</b> the configuration; it doesn't write it. The store
+ * is decided by the host configuration, just like the database engine: anything carrying a
+ * secret never enters the database the console can read, nor that database's backups. The
+ * tradeoff — you don't switch to S3 from a form — is deliberate, and offset by what's actually
+ * needed on switchover day: the exact variables to set, and a test that says whether they're right.
  */
 export function AdminStorage() {
   const toast = useToast()
@@ -149,8 +148,8 @@ export function AdminStorage() {
 
       setProbe(result)
 
-      if (result.ok) toast.success('Le magasin répond : écriture, relecture et suppression vérifiées.')
-      else toast.error('Le magasin ne répond pas comme attendu. Voir le détail des étapes.')
+      if (result.ok) toast.success('The store responds: write, read-back, and delete verified.')
+      else toast.error('The store isn\'t responding as expected. See the step details.')
     } catch (failure) {
       toast.error(describeFailure(failure))
     } finally {
@@ -167,7 +166,7 @@ export function AdminStorage() {
   }
 
   if (error) return <ErrorBlock message={error} onRetry={() => void reload()} />
-  if (!storage) return <LoadingBlock label="Lecture du magasin…" />
+  if (!storage) return <LoadingBlock label="Loading store…" />
 
   const isS3 = storage.kind === 's3'
   const total = storage.objects.fileBytes + storage.objects.thumbBytes
@@ -175,11 +174,11 @@ export function AdminStorage() {
   return (
     <div className="space-y-4">
       <PageActions>
-        <Tooltip content="Recharger">
+        <Tooltip content="Reload">
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Recharger le magasin"
+            aria-label="Reload store"
             loading={loading}
             onClick={() => void reload()}
           >
@@ -193,66 +192,66 @@ export function AdminStorage() {
           loading={probing}
           onClick={() => void check()}
         >
-          Tester la connexion
+          Test connection
         </Button>
       </PageActions>
 
       <StatGrid>
         <Stat
-          label="Magasin actif"
-          value={isS3 ? 'S3' : 'Disque local'}
+          label="Active store"
+          value={isS3 ? 'S3' : 'Local disk'}
           hint={isS3 ? storage.bucket : storage.directory}
           icon={isS3 ? <Cloud size={16} aria-hidden="true" /> : <HardDrive size={16} aria-hidden="true" />}
           tone="brand"
         />
         <Stat
-          label="Fichiers"
+          label="Files"
           value={formatCount(storage.objects.files)}
           hint={formatBytes(storage.objects.fileBytes)}
         />
         <Stat
-          label="Vignettes"
+          label="Thumbnails"
           value={formatCount(storage.objects.thumbs)}
-          hint={`${formatBytes(storage.objects.thumbBytes)} — régénérables`}
+          hint={`${formatBytes(storage.objects.thumbBytes)} — regenerable`}
         />
       </StatGrid>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel
-          title="Configuration en vigueur"
-          description="Posée par l'hôte au démarrage. La console la lit ; elle ne l'écrit jamais."
+          title="Active configuration"
+          description="Set by the host at startup. The console reads it; it never writes it."
           actions={<Badge tone={isS3 ? 'brand' : 'neutral'}>{storage.name}</Badge>}
         >
           {isS3 ? (
             <>
-              <Line label="Seau" value={storage.bucket} mono copy />
-              <Line label="Point de terminaison" value={storage.endpoint} mono copy />
+              <Line label="Bucket" value={storage.bucket} mono copy />
+              <Line label="Endpoint" value={storage.endpoint} mono copy />
               <Line
-                label="Point de terminaison public"
+                label="Public endpoint"
                 value={storage.publicEndpoint}
                 mono
                 copy
               />
-              <Line label="Région" value={storage.region} mono />
-              <Line label="Style de chemin" value={storage.forcePathStyle ? 'oui' : 'non'} />
-              <Line label="Clé d'accès" value={storage.accessKeyHint} mono />
-              <Line label="Clé secrète" value={storage.hasSecretKey ? 'renseignée' : 'absente'} />
+              <Line label="Region" value={storage.region} mono />
+              <Line label="Path style" value={storage.forcePathStyle ? 'yes' : 'no'} />
+              <Line label="Access key" value={storage.accessKeyHint} mono />
+              <Line label="Secret key" value={storage.hasSecretKey ? 'set' : 'absent'} />
             </>
           ) : (
             <>
-              <Line label="Répertoire" value={storage.directory} mono copy />
-              <Line label="URL signées" value="non — l'API sert les octets elle-même" />
+              <Line label="Directory" value={storage.directory} mono copy />
+              <Line label="Signed URLs" value="no — the API serves the bytes itself" />
             </>
           )}
         </Panel>
 
         <Panel
-          title="Basculer vers S3"
-          description="Une bascule de configuration : ni le code, ni les collections, ni les clients ne changent."
+          title="Switch to S3"
+          description="A configuration switch: neither the code, the collections, nor the clients change."
         >
           <p className="mb-2 text-xs text-ink-muted">
-            Posez ces variables d'environnement sur l'hôte, puis redémarrez. Le seau suffit à
-            déclencher la bascule ; sans lui, le disque local reste en service.
+            Set these environment variables on the host, then restart. The bucket alone is
+            enough to trigger the switch; without it, the local disk stays in service.
           </p>
 
           <ul className="space-y-1">
@@ -265,21 +264,21 @@ export function AdminStorage() {
           </ul>
 
           <p className="mt-3 rounded-[var(--radius-control)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-ink">
-            <strong>Piège à connaître.</strong> Une URL présignée est signée pour un hôte donné. Si
-            l'API signe pour <code className="font-mono">http://minio:9000</code> et que le
-            navigateur appelle un autre nom, tous les liens sont rejetés — l'API restant, elle,
-            parfaitement saine. C'est ce que « Tester la connexion » vérifie en suivant réellement
-            une URL signée.
+            <strong>A pitfall worth knowing.</strong> A presigned URL is signed for a given host.
+            If the API signs for <code className="font-mono">http://minio:9000</code> and the
+            browser calls a different name, every link is rejected — while the API itself stays
+            perfectly healthy. That's exactly what "Test connection" checks by actually following
+            a signed URL.
           </p>
         </Panel>
 
         <Panel
-          title="Test de connexion"
-          description="Écriture, relecture, description, URL signée suivie, suppression."
+          title="Connection test"
+          description="Write, read-back, describe, follow signed URL, delete."
           actions={
             probe ? (
               <Badge tone={probe.ok ? 'success' : 'danger'} dot>
-                {probe.ok ? 'conforme' : 'en échec'}
+                {probe.ok ? 'passing' : 'failing'}
               </Badge>
             ) : undefined
           }
@@ -288,20 +287,20 @@ export function AdminStorage() {
             <ProbeReport probe={probe} />
           ) : (
             <p className="text-sm text-ink-muted">
-              Aucun test lancé. Il écrit un objet témoin, le relit, le décrit, suit son URL signée
-              quand le magasin en produit, puis le supprime.
+              No test run yet. It writes a probe object, reads it back, describes it, follows its
+              signed URL when the store produces one, then deletes it.
             </p>
           )}
         </Panel>
 
         <Panel
-          title="Extraction"
-          description="Les fichiers du magasin, en une archive."
+          title="Export"
+          description="The store's files, as a single archive."
         >
           <p className="mb-3 text-xs text-ink-muted">
-            {formatCount(storage.objects.files)} fichiers, {formatBytes(total)} au total vignettes
-            comprises. Les vignettes sont exclues par défaut : elles se régénèrent à la demande, donc
-            les archiver revient à archiver un cache.
+            {formatCount(storage.objects.files)} files, {formatBytes(total)} total including
+            thumbnails. Thumbnails are excluded by default: they regenerate on demand, so
+            archiving them amounts to archiving a cache.
           </p>
 
           <div className="flex flex-wrap gap-2">
@@ -310,38 +309,37 @@ export function AdminStorage() {
               icon={<Download size={15} aria-hidden="true" />}
               onClick={() => void download(false)}
             >
-              Fichiers seuls
+              Files only
             </Button>
             <Button
               variant="ghost"
               icon={<Download size={15} aria-hidden="true" />}
               onClick={() => void download(true)}
             >
-              Vignettes comprises
+              Include thumbnails
             </Button>
           </div>
 
           <p className="mt-3 text-xs text-ink-muted">
-            L'export des <em>données</em> — définitions de collections, enregistrements, réglages —
-            est décrit dans <code className="font-mono">docs/SAUVEGARDE.md</code> et n'est pas encore
-            implémenté.
+            Exporting <em>data</em> — collection definitions, records, settings — is described in{' '}
+            <code className="font-mono">docs/BACKUP.md</code> and isn't implemented yet.
           </p>
         </Panel>
 
         <Panel
           title="Migration"
-          description="Déplacer un magasin déjà peuplé vers un autre."
-          actions={<Badge tone="neutral">à venir</Badge>}
+          description="Move an already-populated store to another one."
+          actions={<Badge tone="neutral">coming soon</Badge>}
         >
           <div className="flex items-start gap-2.5">
             <ArrowRightLeft size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-ink-faint" />
             <p className="text-xs text-ink-muted">
-              Poser la configuration S3 fait basculer les <em>nouveaux</em> fichiers ; les fichiers
-              déjà écrits restent où ils sont. Leur déplacement — énumération depuis les
-              enregistrements et non depuis le magasin, copie en flux, vérification des empreintes,
-              contrôle de l'URL publique à l'arrivée — fait l'objet d'un plan à part,{' '}
-              <code className="font-mono">docs/MIGRATION.md</code>. Rien ici ne le déclenche pour
-              l'instant, et aucun bouton ne le laisse croire.
+              Setting the S3 configuration switches over <em>new</em> files; files already
+              written stay where they are. Moving them — enumeration from the records rather than
+              from the store, streamed copy, checksum verification, checking the public URL on
+              arrival — is the subject of a separate plan,{' '}
+              <code className="font-mono">docs/MIGRATION.md</code>. Nothing here triggers it for
+              now, and no button suggests otherwise.
             </p>
           </div>
         </Panel>
