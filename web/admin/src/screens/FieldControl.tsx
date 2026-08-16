@@ -265,8 +265,8 @@ function JsonControl({ value, onChange }: { value: unknown; onChange: (value: un
             onChange(JSON.parse(next))
             setInvalid(false)
           } catch {
-            // La valeur remontée reste la dernière forme valide : l'écran signale l'erreur, mais
-            // n'écrase pas le champ avec une chaîne que le serveur refuserait.
+            // The value passed up stays the last valid form: the screen flags the error, but
+            // doesn't overwrite the field with a string the server would reject.
             setInvalid(true)
           }
         }}
