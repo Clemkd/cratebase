@@ -5,7 +5,7 @@ import { asGeoPoint, asStringList, labelField } from '../lib/fields'
 import { fromLocalInputValue, toLocalInputValue } from '../lib/format'
 import { Checkbox, Input, Select, Textarea, cn, controlClasses } from '../ui'
 
-/** Saisie d'une liste de chaînes libres, sous forme d'étiquettes. */
+/** Input for a list of free-form strings, as chips. */
 export function StringListInput({
   value,
   onChange,
@@ -59,7 +59,7 @@ export function StringListInput({
           <button
             type="button"
             disabled={disabled}
-            aria-label={`Retirer « ${entry} »`}
+            aria-label={`Remove "${entry}"`}
             onClick={() => onChange(value.filter((item) => item !== entry))}
             className="rounded-full p-0.5 text-ink-faint hover:text-danger"
           >
@@ -71,7 +71,7 @@ export function StringListInput({
       <input
         value={draft}
         disabled={disabled}
-        placeholder={value.length === 0 ? (placeholder ?? 'Saisir puis Entrée') : undefined}
+        placeholder={value.length === 0 ? (placeholder ?? 'Type then Enter') : undefined}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={onKeyDown}
         onBlur={commit}
@@ -95,7 +95,7 @@ function SelectList({
   return (
     <div className="space-y-2 rounded-[var(--radius-control)] border border-border-subtle bg-surface p-3">
       {values.length === 0 && (
-        <p className="text-xs text-ink-muted">Aucune valeur déclarée sur ce champ.</p>
+        <p className="text-xs text-ink-muted">No value declared on this field.</p>
       )}
 
       {values.map((option) => {
@@ -119,7 +119,7 @@ function SelectList({
       })}
 
       <p className="pt-1 text-xs text-ink-muted">
-        {selected.length} / {maxSelect} valeur{maxSelect > 1 ? 's' : ''}
+        {selected.length} / {maxSelect} value{maxSelect > 1 ? 's' : ''}
       </p>
     </div>
   )
@@ -152,8 +152,8 @@ function RelationControl({
         if (!abandoned) setOptions(page.items)
       })
       .catch(() => {
-        // La collection cible peut être inaccessible : la saisie libre reste possible, plutôt que
-        // de bloquer l'édition sur un droit qui ne concerne pas ce champ.
+        // The target collection may be inaccessible: free-form input remains possible, rather
+        // than blocking editing over a permission that doesn't concern this field.
         if (!abandoned) setFailed(true)
       })
 
@@ -172,7 +172,7 @@ function RelationControl({
   }
 
   if (target === '') {
-    return <p className="text-xs text-ink-muted">Aucune collection cible déclarée sur ce champ.</p>
+    return <p className="text-xs text-ink-muted">No target collection declared on this field.</p>
   }
 
   if (failed || options === null) {
@@ -182,12 +182,12 @@ function RelationControl({
       <StringListInput
         value={list}
         onChange={onChange}
-        placeholder="Identifiants d'enregistrements"
+        placeholder="Record IDs"
       />
     ) : (
       <Input
         value={list[0] ?? ''}
-        placeholder="Identifiant d'enregistrement"
+        placeholder="Record ID"
         onChange={(event) => onChange(event.target.value)}
       />
     )
@@ -223,9 +223,9 @@ function RelationControl({
   return (
     <Select<string>
       value={String(value ?? '')}
-      placeholder="— aucune —"
+      placeholder="— none —"
       options={[
-        { value: '', label: '— aucune —' },
+        { value: '', label: '— none —' },
         ...options.map((record) => ({
           value: String(record.id),
           label: describe(record),
@@ -274,7 +274,7 @@ function JsonControl({ value, onChange }: { value: unknown; onChange: (value: un
 
       {invalid && (
         <p role="alert" className="text-xs font-medium text-danger">
-          JSON invalide — la dernière valeur correcte sera enregistrée.
+          Invalid JSON — the last valid value will be saved.
         </p>
       )}
     </div>
@@ -312,7 +312,7 @@ function GeoPointControl({
   )
 }
 
-/** Contrôle de saisie adapté au type logique du champ. */
+/** Input control adapted to the field's logical type. */
 export function FieldControl({
   field,
   value,
@@ -330,7 +330,7 @@ export function FieldControl({
     case 'Bool':
       return (
         <Checkbox
-          label={value === true ? 'Oui' : 'Non'}
+          label={value === true ? 'Yes' : 'No'}
           checked={value === true}
           onChange={(event) => onChange(event.target.checked)}
         />
@@ -381,9 +381,9 @@ export function FieldControl({
         <Select<string>
           invalid={invalid}
           value={String(value ?? '')}
-          placeholder="— aucune —"
+          placeholder="— none —"
           options={[
-            { value: '', label: '— aucune —' },
+            { value: '', label: '— none —' },
             ...(field.options.values ?? []).map((option) => ({ value: option, label: option })),
           ]}
           onChange={onChange}

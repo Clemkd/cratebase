@@ -24,7 +24,7 @@ function BadgeList({ values, mono }: { values: string[]; mono?: boolean }) {
   )
 }
 
-/** Rend une valeur d'enregistrement selon le type logique de sa colonne. */
+/** Renders a record value according to its column's logical type. */
 export function RecordCell({ field, record }: { field: Field; record: RecordValue }) {
   const value = record[field.name]
 
@@ -36,7 +36,7 @@ export function RecordCell({ field, record }: { field: Field; record: RecordValu
     case 'Bool':
       return (
         <Badge tone={value === true ? 'success' : 'neutral'} dot>
-          {value === true ? 'oui' : 'non'}
+          {value === true ? 'yes' : 'no'}
         </Badge>
       )
 
@@ -58,7 +58,7 @@ export function RecordCell({ field, record }: { field: Field; record: RecordValu
     case 'Number':
       return (
         <span className="tabular-nums">
-          {typeof value === 'number' ? value.toLocaleString('fr-FR') : String(value ?? '')}
+          {typeof value === 'number' ? value.toLocaleString('en-US') : String(value ?? '')}
         </span>
       )
 
