@@ -6,7 +6,7 @@ using Cratebase.Schema;
 namespace Cratebase.Records;
 
 /// <summary>
-/// Valeurs d'un enregistrement, indexées par nom de champ.
+/// A record's values, indexed by field name.
 /// </summary>
 public sealed class RecordData(IDictionary<string, object?>? values = null)
 {
@@ -15,29 +15,29 @@ public sealed class RecordData(IDictionary<string, object?>? values = null)
             ? new Dictionary<string, object?>(StringComparer.Ordinal)
             : new Dictionary<string, object?>(values, StringComparer.Ordinal);
 
-    /// <summary>Accès direct à une valeur.</summary>
+    /// <summary>Direct access to a value.</summary>
     public object? this[string field]
     {
         get => _values.GetValueOrDefault(field);
         set => _values[field] = value;
     }
 
-    /// <summary>Noms des champs présents.</summary>
+    /// <summary>Names of the present fields.</summary>
     public IReadOnlyCollection<string> Keys => _values.Keys;
 
-    /// <summary>Le champ est-il présent ?</summary>
+    /// <summary>Is the field present?</summary>
     public bool Contains(string field) => _values.ContainsKey(field);
 
-    /// <summary>Retire un champ.</summary>
+    /// <summary>Removes a field.</summary>
     public void Remove(string field) => _values.Remove(field);
 
-    /// <summary>Vue en lecture seule, pour la sérialisation et pour <c>@request.body</c>.</summary>
+    /// <summary>Read-only view, for serialization and for <c>@request.body</c>.</summary>
     public IReadOnlyDictionary<string, object?> AsDictionary() => _values;
 
-    /// <summary>Identifiant de l'enregistrement.</summary>
+    /// <summary>Record identifier.</summary>
     public RecordId Id => RecordId.TryParse(GetString(SystemFields.Id), out var id) ? id : RecordId.Empty;
 
-    /// <summary>Lit une valeur textuelle.</summary>
+    /// <summary>Reads a textual value.</summary>
     public string? GetString(string field) => this[field] switch
     {
         null => null,
@@ -48,7 +48,7 @@ public sealed class RecordData(IDictionary<string, object?>? values = null)
     };
 
     /// <summary>
-    /// Convertit une valeur issue d'un corps JSON en valeur du modèle logique.
+    /// Converts a value coming from a JSON body into a logical-model value.
     /// </summary>
     public static object? FromJson(JsonElement element) => element.ValueKind switch
     {

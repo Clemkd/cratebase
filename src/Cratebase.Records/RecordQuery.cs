@@ -5,67 +5,67 @@ using Cratebase.Schema;
 namespace Cratebase.Records;
 
 /// <summary>
-/// Paramètres d'une requête de liste.
+/// Parameters of a list query.
 /// </summary>
 public sealed record RecordQuery
 {
-    /// <summary>Taille de page par défaut, comme chez PocketBase.</summary>
+    /// <summary>Default page size, as in PocketBase.</summary>
     public const int DefaultPerPage = 30;
 
     /// <summary>
-    /// Taille de page maximale.
+    /// Maximum page size.
     /// </summary>
     /// <remarks>
-    /// Borne obligatoire : sans elle, <c>?perPage=1000000</c> est un déni de service en une URL.
-    /// Le plafonnement est silencieux plutôt qu'une erreur — c'est le comportement de PocketBase,
-    /// et il évite de casser un client qui demanderait un peu trop.
+    /// A mandatory bound: without it, <c>?perPage=1000000</c> is a denial of service in a URL. The
+    /// cap is silent rather than an error — this is PocketBase's behavior, and it avoids breaking
+    /// a client that asks for a bit too much.
     /// </remarks>
     public const int MaxPerPage = 500;
 
-    /// <summary>Page demandée, à partir de 1.</summary>
+    /// <summary>Requested page, starting at 1.</summary>
     public int Page { get; init; } = 1;
 
-    /// <summary>Taille de page demandée.</summary>
+    /// <summary>Requested page size.</summary>
     public int PerPage { get; init; } = DefaultPerPage;
 
-    /// <summary>Expression de filtre.</summary>
+    /// <summary>Filter expression.</summary>
     public string? Filter { get; init; }
 
-    /// <summary>Tri, champs séparés par des virgules, préfixés de <c>-</c> pour l'ordre décroissant.</summary>
+    /// <summary>Sort, fields comma-separated, prefixed with <c>-</c> for descending order.</summary>
     public string? Sort { get; init; }
 
-    /// <summary>Projection des champs renvoyés.</summary>
+    /// <summary>Projection of the returned fields.</summary>
     public string? Fields { get; init; }
 
-    /// <summary>Omettre le décompte total, qui coûte une requête supplémentaire.</summary>
+    /// <summary>Skip the total count, which costs an extra query.</summary>
     public bool SkipTotal { get; init; }
 
-    /// <summary>Page effective, bornée.</summary>
+    /// <summary>Effective, bounded page.</summary>
     public int EffectivePage => Math.Max(1, Page);
 
-    /// <summary>Taille de page effective, bornée.</summary>
+    /// <summary>Effective, bounded page size.</summary>
     public int EffectivePerPage => Math.Clamp(PerPage, 1, MaxPerPage);
 
-    /// <summary>Décalage correspondant.</summary>
+    /// <summary>Corresponding offset.</summary>
     public int Offset => (EffectivePage - 1) * EffectivePerPage;
 }
 
 /// <summary>
-/// Compilation de la clause de tri.
+/// Compilation of the sort clause.
 /// </summary>
 public static class SortCompiler
 {
-    /// <summary>Nombre maximal de champs de tri.</summary>
+    /// <summary>Maximum number of sort fields.</summary>
     public const int MaxSortFields = 8;
 
     /// <summary>
-    /// Compile une expression de tri en clause <c>ORDER BY</c>.
+    /// Compiles a sort expression into an <c>ORDER BY</c> clause.
     /// </summary>
     /// <remarks>
-    /// ⚠️ Chaque champ passe par le résolveur, exactement comme dans un filtre. Un tri non contrôlé
-    /// est une fuite discrète : trier sur un champ qu'on n'a pas le droit de lire ne l'affiche pas,
-    /// mais <b>l'ordre des résultats en révèle les valeurs</b>. Un champ masqué est donc refusé au
-    /// tri comme il l'est au filtre.
+    /// ⚠️ Every field goes through the resolver, exactly as in a filter. An uncontrolled sort is a
+    /// quiet leak: sorting by a field one has no right to read doesn't display it, but <b>the
+    /// order of the results discloses its values</b>. A hidden field is therefore refused for
+    /// sorting just as it is for filtering.
     /// </remarks>
     public static string Compile(
         string? sort,
@@ -76,9 +76,8 @@ public static class SortCompiler
         ArgumentNullException.ThrowIfNull(collection);
         ArgumentNullException.ThrowIfNull(dialect);
 
-        // Ordre par défaut : le plus récent d'abord. Un ORDER BY est indispensable — sans lui, la
-        // pagination n'a pas de sens, et les deux moteurs ne rendent pas les lignes dans le même
-        // ordre.
+        // Default order: most recent first. An ORDER BY is mandatory — without it, pagination is
+        // meaningless, and the two engines don't return rows in the same order.
         if (string.IsNullOrWhiteSpace(sort))
         {
             return $"{dialect.QuoteIdentifier(alias)}.{dialect.QuoteIdentifier(SystemFields.Id)} DESC";
@@ -91,7 +90,7 @@ public static class SortCompiler
             if (terms.Count >= MaxSortFields)
             {
                 throw new CratebaseBadRequestException(
-                    $"Le tri ne peut porter sur plus de {MaxSortFields} champs.");
+                    $"Sorting cannot cover more than {MaxSortFields} fields.");
             }
 
             var descending = raw[0] == '-';
@@ -102,7 +101,7 @@ public static class SortCompiler
             if (field is null || field.Hidden)
             {
                 throw new CratebaseBadRequestException(
-                    $"« {name} » n'est pas un champ triable de la collection « {collection.Name} ».");
+                    $"\"{name}\" is not a sortable field of collection \"{collection.Name}\".");
             }
 
             var expression = $"{dialect.QuoteIdentifier(alias)}.{dialect.QuoteIdentifier(field.ColumnName)}";
@@ -110,8 +109,8 @@ public static class SortCompiler
             terms.Add(dialect.OrderByNullsLast(expression, descending));
         }
 
-        // Départage stable : sans dernier critère déterministe, deux lignes de même valeur peuvent
-        // changer d'ordre entre deux pages et l'une d'elles n'apparaît jamais.
+        // Stable tie-break: without a deterministic last criterion, two rows with the same value
+        // can swap order between two pages and one of them never appears.
         terms.Add($"{dialect.QuoteIdentifier(alias)}.{dialect.QuoteIdentifier(SystemFields.Id)} DESC");
 
         return string.Join(", ", terms);

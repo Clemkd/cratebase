@@ -5,24 +5,24 @@ using Cratebase.Schema;
 namespace Cratebase.Records;
 
 /// <summary>
-/// Traduit une règle d'accès en prédicat SQL.
+/// Translates an access rule into a SQL predicate.
 /// </summary>
 /// <remarks>
-/// Point unique de décision : aucune autre partie du moteur ne doit interpréter une règle. Les
-/// trois états d'une règle et le contournement superadmin se lisent ici, en un seul endroit.
+/// The single decision point: no other part of the engine should interpret a rule. A rule's three
+/// states and the superuser bypass are read here, in one place.
 /// </remarks>
 public static class RuleGuard
 {
     /// <summary>
-    /// Compile la règle d'une action en prédicat.
+    /// Compiles an action's rule into a predicate.
     /// </summary>
-    /// <param name="collection">Collection visée.</param>
-    /// <param name="action">Action demandée.</param>
-    /// <param name="compiler">Compilateur configuré pour la collection et la requête courantes.</param>
-    /// <param name="user">Appelant.</param>
-    /// <param name="parameterPrefix">Préfixe des paramètres, distinct de celui du filtre client.</param>
+    /// <param name="collection">Target collection.</param>
+    /// <param name="action">Requested action.</param>
+    /// <param name="compiler">Compiler configured for the current collection and request.</param>
+    /// <param name="user">Caller.</param>
+    /// <param name="parameterPrefix">Parameter prefix, distinct from the client filter's.</param>
     /// <exception cref="CratebaseForbiddenException">
-    /// La règle est verrouillée et l'appelant n'est pas superadmin.
+    /// The rule is locked and the caller is not a superuser.
     /// </exception>
     public static SqlPredicate Compile(
         CollectionDefinition collection,
@@ -35,9 +35,9 @@ public static class RuleGuard
         ArgumentNullException.ThrowIfNull(compiler);
         ArgumentNullException.ThrowIfNull(user);
 
-        // Un superadmin traverse les règles — mais jamais la validation ni les hooks. C'est la
-        // sémantique de PocketBase, et elle est indispensable : sans elle, une règle mal écrite
-        // rendrait sa propre collection inadministrable.
+        // A superuser bypasses rules — but never validation or hooks. This is PocketBase's
+        // semantics, and it's essential: without it, a badly written rule would make its own
+        // collection unadministrable.
         if (user.IsSuperuser)
         {
             return SqlPredicate.Unconstrained;
@@ -45,13 +45,13 @@ public static class RuleGuard
 
         var rule = collection.Rules.For(action);
 
-        // Règle verrouillée (null) : réservée au superadmin. À ne surtout pas confondre avec la
-        // chaîne vide, qui ouvre à tout le monde — c'est la distinction qui protège par défaut
-        // toute collection nouvellement créée.
+        // Locked rule (null): reserved for superusers. Not to be confused with the empty string,
+        // which opens to everyone — this distinction is what protects any newly created collection
+        // by default.
         if (rule is null)
         {
             throw new CratebaseForbiddenException(
-                $"L'action « {action} » sur « {collection.Name} » est réservée aux super-admins.");
+                $"Action \"{action}\" on \"{collection.Name}\" is reserved for superusers.");
         }
 
         if (rule.Length == 0)
