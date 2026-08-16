@@ -6,24 +6,24 @@ namespace Cratebase.UnitTests;
 public class FilterParserTests
 {
     [Fact]
-    public void Une_expression_vide_ne_contraint_rien()
+    public void An_empty_expression_constrains_nothing()
     {
-        // Distinction structurante, reprise de PocketBase : une règle vide autorise, une règle
-        // absente (null) verrouille. Les confondre ouvrirait toutes les collections.
+        // A structuring distinction, borrowed from PocketBase: an empty rule allows, an absent
+        // (null) rule locks. Confusing the two would open every collection.
         FilterParser.Parse(null).ShouldBeNull();
         FilterParser.Parse("").ShouldBeNull();
         FilterParser.Parse("   ").ShouldBeNull();
     }
 
     [Fact]
-    public void Une_comparaison_simple_produit_un_noeud_de_comparaison()
+    public void A_simple_comparison_produces_a_comparison_node()
     {
-        var node = FilterParser.Parse("title = 'bonjour'").ShouldBeOfType<ComparisonNode>();
+        var node = FilterParser.Parse("title = 'hello'").ShouldBeOfType<ComparisonNode>();
 
         node.Operator.ShouldBe(ComparisonOperator.Equal);
         node.AnyOf.ShouldBeFalse();
         node.Left.ShouldBeOfType<PathNode>().Segments.ShouldBe(["title"]);
-        node.Right.ShouldBeOfType<LiteralNode>().Value.ShouldBe("bonjour");
+        node.Right.ShouldBeOfType<LiteralNode>().Value.ShouldBe("hello");
     }
 
     [Theory]
@@ -35,7 +35,7 @@ public class FilterParserTests
     [InlineData("a <= 1", ComparisonOperator.LessThanOrEqual)]
     [InlineData("a ~ 1", ComparisonOperator.Like)]
     [InlineData("a !~ 1", ComparisonOperator.NotLike)]
-    public void Tous_les_operateurs_sont_reconnus(string expression, ComparisonOperator expected) =>
+    public void All_operators_are_recognized(string expression, ComparisonOperator expected) =>
         FilterParser.Parse(expression)
             .ShouldBeOfType<ComparisonNode>()
             .Operator.ShouldBe(expected);
@@ -49,7 +49,7 @@ public class FilterParserTests
     [InlineData("a ?<= 1", ComparisonOperator.LessThanOrEqual)]
     [InlineData("a ?~ 1", ComparisonOperator.Like)]
     [InlineData("a ?!~ 1", ComparisonOperator.NotLike)]
-    public void Le_prefixe_interrogatif_bascule_en_au_moins_un(string expression, ComparisonOperator expected)
+    public void The_question_mark_prefix_switches_to_any_of(string expression, ComparisonOperator expected)
     {
         var node = FilterParser.Parse(expression).ShouldBeOfType<ComparisonNode>();
 
@@ -58,10 +58,10 @@ public class FilterParserTests
     }
 
     [Fact]
-    public void La_conjonction_lie_plus_fort_que_la_disjonction()
+    public void Conjunction_binds_tighter_than_disjunction()
     {
-        // « a = 1 || b = 2 && c = 3 » doit se lire « a = 1 || (b = 2 && c = 3) ».
-        // Se tromper ici élargit silencieusement toute règle d'accès qui mélange les deux.
+        // "a = 1 || b = 2 && c = 3" must read as "a = 1 || (b = 2 && c = 3)".
+        // Getting this wrong silently widens any access rule that mixes the two.
         var root = FilterParser.Parse("a = 1 || b = 2 && c = 3").ShouldBeOfType<LogicalNode>();
 
         root.Operator.ShouldBe(LogicalOperator.Or);
@@ -70,7 +70,7 @@ public class FilterParserTests
     }
 
     [Fact]
-    public void Les_parentheses_reprennent_la_main_sur_la_precedence()
+    public void Parentheses_take_back_control_of_precedence()
     {
         var root = FilterParser.Parse("(a = 1 || b = 2) && c = 3").ShouldBeOfType<LogicalNode>();
 
@@ -79,7 +79,7 @@ public class FilterParserTests
     }
 
     [Fact]
-    public void Un_chemin_traverse_les_relations()
+    public void A_path_traverses_relations()
     {
         var node = FilterParser.Parse("author.profile.city = 'Lyon'").ShouldBeOfType<ComparisonNode>();
 
@@ -87,7 +87,7 @@ public class FilterParserTests
     }
 
     [Fact]
-    public void Les_meta_champs_de_requete_sont_reconnus()
+    public void Request_meta_fields_are_recognized()
     {
         var node = FilterParser.Parse("owner = @request.auth.id").ShouldBeOfType<ComparisonNode>();
 
@@ -97,7 +97,7 @@ public class FilterParserTests
     }
 
     [Fact]
-    public void Une_jointure_de_collection_est_reconnue()
+    public void A_collection_join_is_recognized()
     {
         var node = FilterParser.Parse("@collection.memberships.user = 'x'").ShouldBeOfType<ComparisonNode>();
 
@@ -105,7 +105,7 @@ public class FilterParserTests
     }
 
     [Fact]
-    public void Une_macro_est_distinguee_dun_champ()
+    public void A_macro_is_distinguished_from_a_field()
     {
         var node = FilterParser.Parse("published < @now").ShouldBeOfType<ComparisonNode>();
 
@@ -122,21 +122,21 @@ public class FilterParserTests
     [InlineData("a:each = 'x'", PathModifier.Each)]
     [InlineData("a:lower = 'x'", PathModifier.Lower)]
     [InlineData("a:changed = true", PathModifier.Changed)]
-    public void Les_modificateurs_de_chemin_sont_reconnus(string expression, PathModifier expected) =>
+    public void Path_modifiers_are_recognized(string expression, PathModifier expected) =>
         FilterParser.Parse(expression)
             .ShouldBeOfType<ComparisonNode>()
             .Left.ShouldBeOfType<PathNode>()
             .Modifier.ShouldBe(expected);
 
     [Fact]
-    public void Un_modificateur_inconnu_est_refuse() =>
+    public void An_unknown_modifier_is_rejected() =>
         Should.Throw<FilterSyntaxException>(() => FilterParser.Parse("a:sqlinject = 1"));
 
     [Fact]
-    public void Les_litteraux_sont_types()
+    public void Literals_are_typed()
     {
-        Value("a = 'texte'").ShouldBe("texte");
-        Value("a = \"texte\"").ShouldBe("texte");
+        Value("a = 'text'").ShouldBe("text");
+        Value("a = \"text\"").ShouldBe("text");
         Value("a = 42").ShouldBe(42d);
         Value("a = -3.5").ShouldBe(-3.5d);
         Value("a = true").ShouldBe(true);
@@ -150,17 +150,17 @@ public class FilterParserTests
     }
 
     [Fact]
-    public void Les_echappements_de_chaine_sont_resolus() =>
-        FilterParser.Parse(@"a = 'l\'apostrophe'")
+    public void String_escapes_are_resolved() =>
+        FilterParser.Parse(@"a = 'the\'apostrophe'")
             .ShouldBeOfType<ComparisonNode>()
             .Right.ShouldBeOfType<LiteralNode>()
-            .Value.ShouldBe("l'apostrophe");
+            .Value.ShouldBe("the'apostrophe");
 
     [Fact]
-    public void Les_commentaires_de_fin_de_ligne_sont_ignores()
+    public void End_of_line_comments_are_ignored()
     {
         var node = FilterParser.Parse("""
-            // seul le propriétaire
+            // owner only
             owner = @request.auth.id
             """);
 
@@ -168,7 +168,7 @@ public class FilterParserTests
     }
 
     [Fact]
-    public void Un_appel_de_fonction_est_analyse()
+    public void A_function_call_is_parsed()
     {
         var node = FilterParser.Parse("geoDistance(lon, lat, 4.83, 45.76) < 10")
             .ShouldBeOfType<ComparisonNode>();
@@ -178,14 +178,14 @@ public class FilterParserTests
         call.Arguments.Count.ShouldBe(4);
     }
 
-    // ── Ce qui doit échouer ────────────────────────────────────────────────────────────────────
-    // Chacun de ces cas est une tentative d'atteindre le SQL. Le parseur doit refuser, et non
-    // produire un arbre que le compilateur aval interpréterait.
+    // ── What must fail ────────────────────────────────────────────────────────────────────────
+    // Each of these cases is an attempt to reach SQL. The parser must refuse, not produce a tree
+    // the downstream compiler would interpret.
 
     [Theory]
     [InlineData("a = 1; DROP TABLE posts")]
-    [InlineData("a = 1 -- commentaire SQL")]
-    [InlineData("a = 1 /* bloc */")]
+    [InlineData("a = 1 -- SQL comment")]
+    [InlineData("a = 1 /* block */")]
     [InlineData("a = 1 UNION SELECT 1")]
     [InlineData("a = 'x' OR 1=1")]
     [InlineData("a")]
@@ -196,13 +196,13 @@ public class FilterParserTests
     [InlineData("a & b")]
     [InlineData("a | b")]
     [InlineData("a ? 1")]
-    [InlineData("a = 'non terminée")]
+    [InlineData("a = 'unterminated")]
     [InlineData("a..b = 1")]
-    public void Les_expressions_hostiles_ou_malformees_sont_refusees(string expression) =>
+    public void Hostile_or_malformed_expressions_are_rejected(string expression) =>
         Should.Throw<FilterSyntaxException>(() => FilterParser.Parse(expression));
 
     [Fact]
-    public void Une_expression_trop_longue_est_refusee()
+    public void An_overly_long_expression_is_rejected()
     {
         var expression = new string('a', FilterParser.MaxLength + 1);
 
@@ -210,9 +210,9 @@ public class FilterParserTests
     }
 
     [Fact]
-    public void Une_expression_trop_imbriquee_est_refusee()
+    public void An_overly_nested_expression_is_rejected()
     {
-        // Sans borne, cette entrée fait déborder la pile : un déni de service en une chaîne.
+        // Without a bound, this input overflows the stack: a denial of service in a single string.
         var depth = FilterParser.MaxDepth + 5;
         var expression = new string('(', depth) + "a = 1" + new string(')', depth);
 
@@ -220,7 +220,7 @@ public class FilterParserTests
     }
 
     [Fact]
-    public void La_position_de_lerreur_est_rapportee()
+    public void The_error_position_is_reported()
     {
         var error = Should.Throw<FilterSyntaxException>(() => FilterParser.Parse("title = 'ok' && "));
 
